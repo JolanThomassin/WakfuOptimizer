@@ -424,8 +424,8 @@ class BuildModel:
 
     def _derived(self) -> None:
         m, opts, acc = self.m, self.opts, self.acc
-        played = opts.played_elements()
-        # --- maîtrise élémentaire utile = min sur les éléments joués
+        weights = dict(opts.element_weights())
+        # --- maîtrise élémentaire utile : moitié min, moitié moyenne pondérée (scoring.elem_mastery_used)
         mast = []
         mlo, mhi = BIG, -BIG
         for e in ELEMENTS:
@@ -439,12 +439,20 @@ class BuildModel:
             var = m.NewIntVar(lo - 10, hi + 10, f"M_{e}")
             m.Add(var == expr)
             self.stat_var[f"mastery_{e}"] = var
-            if e in played:
+            if e in weights:
                 mast.append(var)
                 mlo, mhi = min(mlo, lo - 10), max(mhi, hi + 10)
         mmin = m.NewIntVar(mlo, mhi, "M_min")
         m.AddMinEquality(mmin, mast)
-        mtot_expr = mmin
+        w = sum(weights.values())
+        if w > 1:
+            melem = m.NewIntVar(mlo, mhi, "M_elem")
+            num = w * mmin + sum(p * self.stat_var[f"mastery_{e}"] for e, p in weights.items())
+            m.Add(2 * w * melem <= num)
+            m.Add(2 * w * melem >= num - (2 * w - 1))
+            mtot_expr = melem
+        else:
+            mtot_expr = mmin
         if opts.berserk:
             mtot_expr += self.stat("berserk_mastery")
         if opts.heal:

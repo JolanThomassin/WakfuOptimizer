@@ -142,7 +142,7 @@ classes:
     {fr: Roublard, elements: [fire, earth, air], range: best, role: dps, archetypes: [dps_distance, dps_melee],
      passive: {name: Maître de la diversion, desc: "Passe en mode Sournois au contact et Fuyard à distance : sa meilleure maîtrise (mêlée ou distance) compte. Bombes ; +1 PW en fin de tour."}}
   masqueraider:
-    {fr: Zobal, elements: [fire, water, air], range: melee, role: support, archetypes: [support_buff, tank, dps_melee],
+    {fr: Zobal, elements: [fire, water, air], range: melee, role: support, archetypes: [support_buff, support_heal, tank, dps_melee],
      passive: {name: Soldat lunatique, desc: "Masques Psychopathe, Lâche et Classique ; +3 PW en fin de tour sans masque ; collisions sans perte de PA."}}
   ouginak:
     {fr: Ouginak, elements: [water, earth, air], range: melee, role: dps, archetypes: [dps_melee, tank],

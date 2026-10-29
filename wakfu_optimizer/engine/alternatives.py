@@ -74,8 +74,10 @@ def swap(data: GameData, opts: OptimizeOptions, build: Build, slot: Slot, it: It
     return b
 
 
-def alternatives(data: GameData, opts: OptimizeOptions, build: Build, slot: Slot, limit: int = 40) -> list[Alternative]:
-    """Items de l'emplacement, triés par gain de score si on les met à la place de l'actuel."""
+def alternatives(data: GameData, opts: OptimizeOptions, build: Build, slot: Slot) -> list[Alternative]:
+    """Tous les items de l'emplacement jusqu'au niveau du perso (40 niveaux en dessous au plus, sauf familiers et
+    montures), triés par gain de score si on les met à la place de l'actuel. Chaque rareté d'un même item est
+    proposée : elles n'ont pas les mêmes stats (Skoualp rare : Tacle, Esquive ; mythique : Portée)."""
     base = evaluate(data, opts, build)
     pool, _ = item_pool(data, opts, rarity_filter=False, lower=True)
     current = build.slots.get(slot)
@@ -83,7 +85,7 @@ def alternatives(data: GameData, opts: OptimizeOptions, build: Build, slot: Slot
     for it in pool.get(slot, []):
         if current is not None and it.id == current.item_id:
             continue
-        if it.level < opts.level - 40 and it.type_id not in (582, 611):
+        if it.level < opts.level - 40 and Slot.PET not in it.slots and Slot.MOUNT not in it.slots:
             continue
         b = swap(data, opts, build, slot, it, base)
         if b is None:
@@ -91,13 +93,4 @@ def alternatives(data: GameData, opts: OptimizeOptions, build: Build, slot: Slot
         t = evaluate(data, opts, b)
         out.append(Alternative(it, b, t, t.score - base.score))
     out.sort(key=lambda a: -a.delta)
-    # un seul exemplaire par nom (raretés différentes du même item) : la meilleure version
-    seen: set[str] = set()
-    uniq = []
-    for a in out:
-        n = a.item.name("fr")
-        if n in seen:
-            continue
-        seen.add(n)
-        uniq.append(a)
-    return uniq[:limit]
+    return out

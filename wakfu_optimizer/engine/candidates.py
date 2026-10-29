@@ -84,20 +84,20 @@ def item_pool(data: GameData, opts: OptimizeOptions, rarity_filter: bool = True,
     seen_forced: set[int] = set()
     for it in data.items:
         is_pet = it.type_id in LEVELABLE_TYPES or Slot.PET in it.slots or Slot.MOUNT in it.slots
+        # familiers / montures à monter (niveau 0 à 50) : portables à tout niveau ; les autres (porte-bonheur…)
+        # ont un niveau requis comme n'importe quel item
+        too_high = it.level > L and it.type_id not in LEVELABLE_TYPES
         if it.id in forced:
             seen_forced.add(it.id)
-            if it.level > L and not is_pet:
+            if too_high:
                 continue
         else:
             if it.id in excluded or it.is_hidden:
                 continue
             if is_pet and not opts.include_pet_mount:
                 continue
-            if not is_pet:
-                if it.level > L:
-                    continue
-                if not lower and it.level < lo:
-                    continue
+            if too_high or not is_pet and not lower and it.level < lo:
+                continue
             if rarity_filter and int(it.rarity) not in allowed_rar:
                 continue
             if opts.exclude_shop and it.is_shop:

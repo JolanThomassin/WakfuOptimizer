@@ -59,7 +59,7 @@ def test_chaque_classe_a_des_archetypes_habituels(data: GameData) -> None:
 def test_options_crâ_dps_distance(data: GameData) -> None:
     o = archetype_options(data, "cra", 140, "dps_distance")
     assert o.range == "distance" and o.crit
-    assert o.crit_target == crit_target(140) >= 30
+    assert o.crit_target == crit_target(140, 10) >= 40   # DPS distance : palier du niveau + 10
     assert (o.min_ap, o.min_mp) == (default_min_ap(140), default_min_mp(140))
     assert o.shard_mode == "ideal" and o.no_subs and len(o.allowed_rarities) == 8   # panneau Sublimations désactivé
     assert o.res_target - o.res_tol >= 55   # au moins 55 % partout au niveau 140, même à distance

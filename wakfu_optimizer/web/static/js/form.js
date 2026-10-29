@@ -8,8 +8,12 @@ function buildForm() {
   cls.innerHTML = m.classes.map((c) => `<option value="${c.key}">${esc(c.name)}</option>`).join("");
   $("#level").innerHTML = m.levels.map((l) => `<option value="${l.level}">Niveau ${l.level}</option>`).join("");
   $("#elements").innerHTML = m.elements.map((e) =>
-    `<button class="toggle" data-el="${e.key}"><img src="assets/stats/${e.key}_coin.png" alt="">${e.name}</button>`).join("");
-  $$("#elements .toggle").forEach((b) => b.addEventListener("click", () => b.classList.toggle("on")));
+    `<button class="toggle" data-el="${e.key}"><img src="assets/stats/${e.key}_coin.png" alt="">${e.name}<span class="rank"></span></button>`).join("");
+  $$("#elements .toggle").forEach((b) => b.addEventListener("click", () => {
+    if (b.disabled) return;
+    const el = b.dataset.el;
+    setElements(S.elOrder.includes(el) ? S.elOrder.filter((x) => x !== el) : [...S.elOrder, el]);
+  }));
   $("#rarities").innerHTML = m.rarities.map((r) =>
     `<button class="toggle plain" data-r="${r.id}" style="--rc:${r.color}"><span style="color:${r.color}">●</span>&nbsp;${r.name}</button>`).join("");
   $$("#rarities .toggle").forEach((b) => b.addEventListener("click", () => b.classList.toggle("on")));
@@ -208,10 +212,27 @@ function setPanel(k, on) {
   refreshVis();
 }
 
+// Éléments joués, par ordre de priorité (le premier compte le plus, voir options.element_weights) ;
+// ceux que la classe n'a pas sont grisés.
+function setElements(order) {
+  const c = curClass();
+  const mine = c ? c.elements : ELEMENTS;
+  S.elOrder = order.filter((e) => mine.includes(e));
+  $$("#elements .toggle").forEach((b) => {
+    const k = S.elOrder.indexOf(b.dataset.el);
+    const foreign = !mine.includes(b.dataset.el);
+    b.disabled = foreign;
+    b.classList.toggle("off", foreign);
+    b.title = foreign ? "Élément sans sort pour cette classe" : k >= 0 ? `Priorité ${k + 1} : cliquer pour le retirer` : "Cliquer pour l'ajouter en dernière priorité";
+    toggleBtn(b, k >= 0);
+    b.querySelector(".rank").textContent = k >= 0 && S.elOrder.length > 1 ? k + 1 : "";
+  });
+}
+
 function applyClass(key) {
   const c = S.meta.classes.find((x) => x.key === key);
   if (!c) return;
-  $$("#elements .toggle").forEach((b) => toggleBtn(b, c.elements.includes(b.dataset.el)));
+  setElements(c.elements);
   setSeg("range", c.range);
   applyArchetype(classArchs(c)[0], c);
   renderPresets();
@@ -243,7 +264,7 @@ function applyOptions(o) {
   const lv = S.meta.levels.map((l) => l.level).filter((l) => l >= o.level).pop() ?? S.meta.levels[0].level;
   set("level", lv);
   set("lang", o.lang);
-  $$("#elements .toggle").forEach((b) => toggleBtn(b, (o.elements || []).includes(b.dataset.el)));
+  setElements(o.elements || []);
   setSeg("range", o.range || "melee");
   toggleBtn($("#crit"), o.crit); toggleBtn($("#rear"), o.rear); toggleBtn($("#berserk"), o.berserk); toggleBtn($("#heal"), o.heal);
   const rs = +o.rear_share || 50;
@@ -274,7 +295,7 @@ function applyOptions(o) {
 
 function options() {
   const n = (id) => +$("#" + id).value || 0;
-  const els = $$("#elements .toggle.on").map((b) => b.dataset.el);
+  const els = [...S.elOrder];
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: classRange() === "best" ? "best" : segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,

@@ -118,7 +118,7 @@ function toast(text) {
 const S = {
   meta: null, excluded: new Set(), forced: new Set(), colors: {}, job: null,
   view: null, original: null, opts: null, changed: new Set(),
-  subForced: new Set(), subExcluded: new Set(), subLevels: {},
+  subForced: new Set(), subExcluded: new Set(), subLevels: {}, elOrder: [],
 };
 const MINMAX = [["ap", "PA", 20], ["mp", "PM", 10], ["range", "PO", 10], ["wp", "PW", 20], ["crit", "% Crit", 100, "crit_rate"],
   ["block", "% Parade", 100]];

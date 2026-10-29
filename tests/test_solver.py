@@ -169,3 +169,59 @@ def test_min_superieur_au_max_corrige() -> None:
     assert o.min_block == 100          # % plafonné à 100
     assert o.min_ap == 12              # max 0 = pas de limite
     assert len(msgs) == 1 and "Critique" in msgs[0]
+
+
+def test_familiers_niveau_requis(real) -> None:  # type: ignore[no-untyped-def]
+    """Porte-bonheur (niveau requis) : pas au-dessus du niveau du perso ; familier à monter (niveau 0) : partout."""
+    from dataclasses import replace
+
+    from wakfu_optimizer.engine.candidates import item_pool
+
+    haut = replace(mk(Slot.PET, "Porte-bonheur", level=125, hp=200), type_id=849)
+    bas = replace(mk(Slot.PET, "Porte-bonheur bas", level=50, hp=100), type_id=849)
+    monte = replace(mk(Slot.PET, "Familier", level=0, hp=50), type_id=582)
+    d = data_with(real, base_items() + [haut, bas, monte])
+    pool, _ = item_pool(d, opts(level=65))
+    assert {i.name("fr") for i in pool[Slot.PET]} == {"Porte-bonheur bas", "Familier"}
+
+
+def test_elements_par_priorite(real) -> None:  # type: ignore[no-untyped-def]
+    """Le premier élément compte le plus : à maîtrise égale, l'item du premier élément gagne."""
+    from wakfu_optimizer.engine.scoring import elem_mastery_used
+
+    assert elem_mastery_used([(500, 1)]) == 500
+    assert elem_mastery_used([(400, 2), (200, 1)]) == (3 * 200 + 2 * 400 + 200) // 6
+    items = base_items() + [mk(Slot.FIRST_WEAPON, "Arme feu", fire_mastery=300),
+                            mk(Slot.FIRST_WEAPON, "Arme eau", water_mastery=300)]
+    d = data_with(real, items)
+    for els, want in ((("water", "fire"), "Arme eau"), (("fire", "water"), "Arme feu")):
+        o = opts(offense_weight=80, elements=els, shard_mode="none")
+        r = optimize(d, o)
+        assert r.builds, r.message
+        names = {i.name("fr") for i in d.items if i.id in r.builds[0].item_ids()}
+        assert want in names
+        t = evaluate(d, o, r.builds[0])
+        assert t.mastery_used == elem_mastery_used([(t.mastery[e], w) for e, w in o.element_weights()]) + t.stats["melee_mastery"]
+
+
+def test_portee_negative_penalisee(real) -> None:  # type: ignore[no-untyped-def]
+    """Un tank (attaque ignorée, portée sans valeur) évite quand même un casque à −1 PO pour quelques PV."""
+    items = [i for i in base_items() if i.slots != (Slot.HEAD,)] + [
+        mk(Slot.HEAD, "Casque -PO", hp=330, elem_res=60, range=-1), mk(Slot.HEAD, "Casque", hp=300, elem_res=60)]
+    d = data_with(real, items)
+    o = opts(offense_weight=0, shard_mode="none", optimize_characteristics=False)   # sans le +1 PO des aptitudes
+    r = optimize(d, o)
+    assert r.builds, r.message
+    assert d.item_by_id()[r.builds[0].slots[Slot.HEAD].item_id].name("fr") == "Casque"
+
+
+def test_alternatives_toutes_les_raretes(real) -> None:  # type: ignore[no-untyped-def]
+    from wakfu_optimizer.engine.alternatives import alternatives
+
+    items = base_items() + [mk(Slot.HEAD, "Skoualp", rarity=Rarity.RARE, hp=100),
+                            mk(Slot.HEAD, "Skoualp", rarity=Rarity.MYTHICAL, hp=90, range=1)]
+    d = data_with(real, items)
+    o = opts(shard_mode="none")
+    b = optimize(d, o).builds[0]
+    names = [a.item.name("fr") for a in alternatives(d, o, b, Slot.HEAD)]
+    assert names.count("Skoualp") == 2

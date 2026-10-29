@@ -18,7 +18,9 @@ async function openSwap(slot) {
   try {
     const r = await api("/api/alternatives", { opts: S.opts, build: S.view.build, slot });
     if (!r.items.length) { $("#dr-list").innerHTML = `<p class="muted pad">Aucun autre item possible pour cet emplacement.</p>`; return; }
-    $("#dr-list").innerHTML = r.items.map((a, k) => `<div class="alt" data-k="${k}">
+    const norm = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    $("#dr-list").innerHTML = `<input class="search dr-search" id="dr-search" type="search" placeholder="Filtrer les ${r.items.length} items par nom…">`
+      + r.items.map((a, k) => `<div class="alt" data-k="${k}">
       <img class="it-icon" src="${iconUrl(a.gfx)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
       <div><div class="it-name" style="color:${a.color}">${esc(a.name)}</div><div class="it-sub">niv. ${a.level} · ${esc(a.rarity_name)}</div>
       <div class="chip-row">${statChips(a, false)}</div>${obtain(a)}</div>
@@ -28,6 +30,10 @@ async function openSwap(slot) {
       el.classList.add("sel");
       showCompare(slot, cur, r.items[+el.dataset.k]);
     }));
+    $("#dr-search").addEventListener("input", (e) => {
+      const q = norm(e.target.value.trim());
+      $$("#dr-list .alt").forEach((el) => el.classList.toggle("hidden", !!q && !norm(r.items[+el.dataset.k].name).includes(q)));
+    });
   } catch (e) {
     $("#dr-list").innerHTML = `<p class="err pad">Erreur : ${esc(e.message)}</p>`;
   }
@@ -84,7 +90,9 @@ async function openSubSwap(slot, special) {
     const note = !special && r.other_colors
       ? `<p class="hint pad">${r.other_colors} autre(s) demandent d'autres couleurs de châsses : imposez-les dans l'onglet Sublimations et relancez.</p>` : "";
     if (!r.items.length) { $("#dr-list").innerHTML = `<p class="muted pad">Aucune sublimation possible ici.</p>${note}`; return; }
-    $("#dr-list").innerHTML = r.items.map((a, k) => `<div class="alt" data-k="${k}">
+    const norm = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    $("#dr-list").innerHTML = `<input class="search dr-search" id="dr-search" type="search" placeholder="Filtrer les ${r.items.length} items par nom…">`
+      + r.items.map((a, k) => `<div class="alt" data-k="${k}">
       <div class="pat-box">${a.id ? patternHtml(a.pattern) : "∅"}</div>
       <div><div class="it-name">${esc(a.name)}${a.id && !a.modeled ? ` <small class="muted">(non chiffrée)</small>` : ""}${a.inactive ? ` <small class="neg-txt" title="Sa condition n'est pas remplie avec ce build : elle ne ferait rien">(condition non remplie)</small>` : ""}</div>
       <div class="sub-desc">${esc(a.desc)}</div></div>

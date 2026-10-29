@@ -17,18 +17,6 @@ function archName() {
   return a ? a.name : "";
 }
 
-// Score sur 100 : 100 = le build optimisé pour ces réglages ; chaque point de score perdu (≈ 1 % de valeur) en retire
-// environ 1 (changements à la main), et chaque contrôle de qualité en échec en retire 5.
-function rating(v) {
-  const ref = Math.max(S.original ? S.original.score : v.score, v.score);
-  const errors = S.explain ? S.explain.checks.filter((c) => !c.ok && c.severity === "error").length : 0;
-  return Math.max(0, Math.min(100, Math.round(100 * Math.exp((v.score - ref) / 100) - 5 * errors)));
-}
-function ratingTip() {
-  return "À quel point le build est optimisé pour la classe, le niveau et l'archétype : 100 = build optimisé ; "
-    + "il baisse avec vos changements à la main (≈ 1 point par % de valeur perdue) et de 5 par contrôle de qualité en échec (onglet Explication).";
-}
-
 function renderResult() {
   const v = S.view, s = v.stats;
   const changed = S.changed.size
@@ -49,8 +37,7 @@ function renderResult() {
         <img src="assets/classes/${v.class.key}.png" alt="">
         <div><div class="name">${esc(v.class.name)}</div><div class="muted els">Niveau ${v.level} · ${v.elements.map((e) => icon(e, EL_FR[e])).join("")}</div>
           ${archName() ? `<div class="arch-tag" title="${esc(ARCHETYPES[S.opts.archetype].desc)}">${esc(archName())}</div>` : ""}</div>
-        <div class="scores"><div title="${esc(ratingTip())}"><span class="muted">Score</span> <b>${rating(v)}/100</b></div>
-          <div title="Maîtrise utilisée par vos sorts : élémentaire (élément le plus faible joué) + portée + secondaires comptées"><span class="muted">Maîtrise totale</span> <b>${fmt(v.mastery_used)}</b></div>
+        <div class="scores"><div title="Maîtrise utilisée par vos sorts : élémentaire (moitié l’élément joué le plus faible, moitié moyenne selon la priorité des éléments) + portée + secondaires comptées"><span class="muted">Maîtrise totale</span> <b>${fmt(v.mastery_used)}</b></div>
           <div title="Somme des résistances fixes des quatre éléments"><span class="muted">Résistance totale</span> <b>${fmt(ELEMENTS.reduce((t, e) => t + v.res_flat[e], 0))}</b></div>
           ${v.removal ? `<div title="Retraits PA / PM grâce à la Volonté (cible à 0 Volonté) : base du sort × 0,5 × ce facteur"><span class="muted">Retraits</span> <b>×${v.removal.toFixed(2)}</b></div>` : ""}</div>
       </div>
@@ -145,7 +132,11 @@ document.addEventListener("click", (e) => {
   if (pop && !pop.classList.contains("hidden") && (e.target.closest("[data-spclose]") || !e.target.closest("#stat-pop"))) pop.classList.add("hidden");
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#stat-pop").classList.add("hidden"); });
-document.addEventListener("scroll", () => $("#stat-pop").classList.add("hidden"), true);
+// la page défile : la fenêtre ne suit pas, on la ferme ; défiler dans la fenêtre elle-même la laisse ouverte
+document.addEventListener("scroll", (e) => {
+  const pop = $("#stat-pop");
+  if (!pop.contains(e.target)) pop.classList.add("hidden");
+}, true);
 
 // Libellés courts des stats (affichés en mode liste)
 const SHORT = {

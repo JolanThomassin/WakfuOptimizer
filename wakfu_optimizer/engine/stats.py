@@ -12,7 +12,7 @@ from ..data.models import ELEMENTS, GameData, Item, Slot
 from .characteristics import BRANCH_FR, LINE_FR, char_lines
 from .features import evaluator_features
 from .options import DENOUEMENT_CRIT, NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions
-from .scoring import damage_d2, defense_value, ehp_factor, log_score, res_pct, secondary_mastery
+from .scoring import damage_d2, defense_value, ehp_factor, elem_mastery_used, log_score, res_pct, secondary_mastery
 from .shards import condition_holds, effect_targets, parse_stat_condition
 
 DENOUEMENT_STATE = NEUTRAL_COMBO_STATES[1]
@@ -173,7 +173,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     t.stats["crit_rate"] = max(-10, min(100, s["crit_rate"]))
     t.stats["block"] = min(100, s["block"])
 
-    m = min(t.mastery[e] for e in opts.played_elements())
+    m = elem_mastery_used([(t.mastery[e], w) for e, w in opts.element_weights()])
     sec = secondary_mastery(s["melee_mastery"], s["distance_mastery"], opts.range)
     mtot = m + sec + (s["berserk_mastery"] if opts.berserk else 0) + (s["heal_mastery"] if opts.heal else 0)
     t.mastery_used = mtot

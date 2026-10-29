@@ -92,6 +92,9 @@ RES_SHORT_PENALTY = 1.0   # par point de résistance fixe sous le plancher (cibl
 # Pénalité par % de critique sous le palier de l'archétype (crit_target) : la formule seule (×1,25 en critique)
 # sous-estime le critique (passifs et sorts qui en dépendent, bonus de critique des sorts) et donnerait des DPS à 10 %.
 CRIT_SHORT_PENALTY = 1.0
+# Pénalité par point de Portée sous 0, pour tous les archétypes (même au contact : sorts à distance, boosts,
+# soins à porter sur un allié). Sinon un item à −1 PO ne coûte rien à un mêlée, qui ne compte pas la portée.
+RANGE_NEG_PENALTY = 3.0
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:
@@ -136,6 +139,7 @@ FEATURES: dict[str, float] = {
     "res_short": 5.0,     # points de résistance manquants sous le plancher, sommés sur les éléments
     "will": 5.0,          # Volonté bornée [WILL_FLOOR, WILL_CAP]
     "crit_short": 5.0,    # % critique manquant sous le palier de l'archétype
+    "range_neg": 0.5,     # Portée sous 0
 }
 UTILITY_FEATURES = ("ap", "mp", "range", "wp")   # gradient constant (plafond géré dans le modèle)
 
@@ -163,6 +167,7 @@ def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
         out[k] = 100 * v * max(0.0, min(float(f.get(k, 0)), cap))
     out["res_short"] = -RES_SHORT_PENALTY * f.get("res_short", 0.0)
     out["crit_short"] = -CRIT_SHORT_PENALTY * f.get("crit_short", 0.0)
+    out["range_neg"] = -RANGE_NEG_PENALTY * f.get("range_neg", 0.0)
     w_will = int(getattr(opts, "willpower_weight", 0) or 0)
     if w_will:   # retraits PA / PM : même échelle que les dégâts (1 point ≈ 1 % de valeur × poids / 100)
         out["will"] = w_will * math.log(removal_factor(f.get("will", 0.0)))
@@ -177,6 +182,14 @@ def crit_short(crit_rate: float, opts: object) -> float:
     """% de critique manquant sous le palier de l'archétype (0 sans palier ou sans critique)."""
     t = int(getattr(opts, "crit_target", 0) or 0)
     return float(max(0.0, t - crit_rate)) if t and getattr(opts, "crit", False) else 0.0
+
+
+def elem_mastery_used(pairs: list[tuple[int, int]]) -> int:
+    """Maîtrise élémentaire utile, à partir des (maîtrise, poids de priorité) des éléments joués : moitié la plus
+    faible (chaque élément joué doit suivre), moitié moyenne pondérée par la priorité (le premier compte le plus).
+    Un seul élément : sa maîtrise. Arrondie à l'inférieur, comme dans le modèle (model._derived)."""
+    w = sum(p for _, p in pairs)
+    return (w * min(m for m, _ in pairs) + sum(m * p for m, p in pairs)) // (2 * w)
 
 
 def secondary_mastery(melee: int, distance: int, rng: str) -> int:

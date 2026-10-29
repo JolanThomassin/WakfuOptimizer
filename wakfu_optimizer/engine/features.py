@@ -34,7 +34,7 @@ def initial_point(opts: OptimizeOptions) -> dict[str, float]:
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
             "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "res_short": 0.0, "will": 0.0,
-            "crit_short": 0.0}
+            "crit_short": 0.0, "range_neg": 0.0}
 
 
 # =====================================================================  évaluateur (valeurs exactes)
@@ -52,6 +52,7 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
         "will": float(max(WILL_FLOOR, min(WILL_CAP, s["willpower"]))),
         "res_short": float(sum(max(0, res_need(opts) - res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
         "crit_short": crit_short(s["crit_rate"], opts),
+        "range_neg": float(max(0, -s["range"])),
     }
 
 
@@ -97,6 +98,9 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
         wv = m.NewIntVar(WILL_FLOOR, WILL_CAP, "will")
         m.AddMaxEquality(wv, [wcap, WILL_FLOOR])
         f["will"] = wv
+    neg = m.NewIntVar(0, BIG, "range_neg")   # Portée sous 0 (scoring.RANGE_NEG_PENALTY)
+    m.AddMaxEquality(neg, [-bm.stat("range"), 0])
+    f["range_neg"] = neg
     for stat, (_v, cap) in utility_table(opts).items():
         capped_u = m.NewIntVar(-100, max(0, cap), f"cap_{stat}")
         m.AddMinEquality(capped_u, [bm.stat(stat), cap])

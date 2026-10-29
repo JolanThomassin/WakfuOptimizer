@@ -21,7 +21,7 @@ from .stats import Totals, evaluate
 
 FEATURE_FR = {"offense": "Dégâts", "defense": "Survie (PV effectifs)", "ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW",
               "will": "Volonté (retraits)", "res_short": "Pénalité : résistance sous le plancher",
-              "crit_short": "Pénalité : critique sous le palier"}
+              "crit_short": "Pénalité : critique sous le palier", "range_neg": "Pénalité : Portée négative"}
 
 
 def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
@@ -51,7 +51,7 @@ def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
         ("% Points de vie", "+10 %", gain(hp_pct=f["hp_pct"] + 10)),
         ("Résistance élémentaire", "+100 (4 él.)", gain(**res_plus(100))),
         ("PA", "+1", gain(ap=f["ap"] + 1)), ("PM", "+1", gain(mp=f["mp"] + 1)),
-        ("Portée", "+1", gain(range=f["range"] + 1)), ("PW", "+1", gain(wp=f["wp"] + 1)),
+        ("Portée", "+1", gain(range=f["range"] + 1, range_neg=max(0.0, f["range_neg"] - 1))), ("PW", "+1", gain(wp=f["wp"] + 1)),
         ("Volonté", "+10", gain(will=f["will"] + 10) if opts.willpower_weight else 0.0),
     ]
     return [{"label": lab, "unit": u, "points": p} for lab, u, p in rows]
@@ -59,7 +59,7 @@ def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
 
 def _targets(opts: OptimizeOptions, arch: Archetype | None, tot: Totals) -> dict[str, Any]:
     """Objectifs du niveau : résistance visée (par élément), maîtrise de portée ajoutée à chaque élément, critique."""
-    played = set(opts.played_elements())
+    played = opts.played_elements()
     floor = opts.res_target - opts.res_tol if opts.res_target else 0
     mine = "priorities" in opts.custom_panels
     want = res_target(arch, opts.level) if arch else opts.res_target
@@ -81,10 +81,11 @@ def _targets(opts: OptimizeOptions, arch: Archetype | None, tot: Totals) -> dict
     mastery = {"range": opts.range, "range_value": rng_val, "neutral": opts.neutral_combo,
                "parts": [{"stat": k, "label": lab, "value": v} for k, lab, v in rng_parts],
                "extra": [{"stat": k, "label": lab, "value": v} for k, lab, v in extra],
-               "used": tot.mastery_used,
+               "used": tot.mastery_used, "multi": len(played) > 1,
                "elements": [{"key": e, "name": ELEMENT_FR[e], "elem": tot.mastery[e],
                              "total": tot.mastery[e] + rng_val + sum(v for _k, _l, v in extra),
-                             "played": e in played, "weakest": e in played and tot.mastery[e] == weakest}
+                             "played": e in played, "weakest": e in played and tot.mastery[e] == weakest,
+                             "rank": played.index(e) + 1 if e in played else 0}
                             for e in ELEMENTS]}
     crit = {"target": opts.crit_target, "value": st.get("crit_rate", 0)} if opts.crit and opts.crit_target else None
     return {"res": res, "mastery": mastery if opts.offense_weight else None, "crit": crit}

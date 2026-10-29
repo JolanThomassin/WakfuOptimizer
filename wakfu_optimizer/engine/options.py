@@ -151,8 +151,13 @@ class OptimizeOptions:
         return [Color(c) for c in self.my_colors.get(slot.value, [])]
 
     def played_elements(self) -> list[str]:
-        """Éléments joués (tous si aucun n'est choisi) : la maîtrise utile est la plus faible d'entre eux."""
-        return [e for e in self.elements if e in ELEMENTS] or list(ELEMENTS)
+        """Éléments joués (tous si aucun n'est choisi), par ordre de priorité."""
+        return list(dict.fromkeys(e for e in self.elements if e in ELEMENTS)) or list(ELEMENTS)
+
+    def element_weights(self) -> list[tuple[str, int]]:
+        """Éléments joués et poids de priorité : n, n − 1… 1 (le premier compte le plus). Voir scoring.elem_mastery_used."""
+        played = self.played_elements()
+        return [(e, len(played) - i) for i, e in enumerate(played)]
 
 
 @dataclass

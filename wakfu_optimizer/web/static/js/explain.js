@@ -35,16 +35,16 @@ function renderTargets(x) {
     const extra = m.extra.filter((e) => e.value).map((e) => ` + ${icon(e.stat, e.label)} ${fmt(e.value)}`).join("");
     const parts = m.parts.map((p) => `${icon(p.stat, p.label)} ${esc(p.label)} <b>${fmt(p.value)}</b>`).join(" · ");
     const tiles = m.elements.map((e) => `<div class="xtile ${e.played ? "" : "unplayed"} ${e.weakest ? "used" : ""}" style="--ec:var(--${e.key})"
-        title="${e.played ? (e.weakest ? "Élément joué le plus faible : c'est lui qui compte pour le score" : "Élément joué") : "Élément non joué"}">
+        title="${e.played ? `Élément joué, priorité ${e.rank}${e.weakest && m.multi ? " ; le plus faible : il compte pour moitié" : ""}` : "Élément non joué"}">
       ${icon(`${e.key}_mastery`, `Maîtrise ${e.name}`)}<span class="xtn">${esc(e.name)}</span><b>${fmt(e.total)}</b>
       <small class="muted">${fmt(e.elem)} + ${fmt(m.range_value)}${extra ? " + …" : ""}</small>
-      <small class="${e.weakest ? "rec" : "muted"}">${e.weakest ? "★ utilisée" : e.played ? "jouée" : "non jouée"}</small></div>`).join("");
+      <small class="${e.rank === 1 ? "rec" : "muted"}">${!e.played ? "non jouée" : m.multi ? `priorité ${e.rank}${e.weakest ? " · la plus faible" : ""}` : "★ utilisée"}</small></div>`).join("");
     mast = `<div class="xtarget">
       <h3>${icon(m.range === "melee" ? "melee_mastery" : "distance_mastery", "Maîtrise de portée")} Maîtrise de portée : +${fmt(m.range_value)} dans chaque élément</h3>
       <p class="hint">${parts}. Elle s'ajoute à tous vos sorts${m.range === "melee" ? " au corps-à-corps" : m.range === "distance" ? " à distance" : ""},
         quel que soit leur élément : le calcul la compte comme autant de maîtrise dans chacun des éléments. ${rngTxt}</p>
       <div class="xtiles">${tiles}</div>
-      <p class="hint">Maîtrise utilisée par le calcul : <b>${fmt(m.used)}</b> = élément joué le plus faible + portée${extra}.</p></div>`;
+      <p class="hint">Maîtrise utilisée par le calcul : <b>${fmt(m.used)}</b> = ${m.multi ? "moitié l'élément joué le plus faible, moitié la moyenne des éléments joués selon leur priorité (poids 3, 2, 1…)" : "élément joué"} + portée${extra}.</p></div>`;
   }
   const c = t.crit;
   const crit = c ? `<div class="xtarget"><h3>${icon("crit_rate", "Critique")} Critique : palier de ${pctFr(c.target)} au niveau ${x.level}

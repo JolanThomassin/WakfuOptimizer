@@ -37,6 +37,7 @@ class Archetype:
     offense: int = 85                 # poids de l'attaque (la défense prend le reste)
     will: int = 0                     # poids de la Volonté (retraits PA / PM)
     crit_floor: bool = False          # palier de critique selon le niveau (voir crit_target)
+    crit_bonus: int = 0               # % de critique visé en plus du palier du niveau
     count_conditional: bool = True
     hide_range: bool = False          # la portée n'a pas de sens pour ce rôle (interface)
     mins: dict[str, int] = field(default_factory=dict)   # minimums en plus de ceux du niveau (ap, mp, wp)
@@ -48,10 +49,12 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     Archetype("dps_melee", "DPS mêlée", "Dégâts au corps-à-corps : Maîtrise mêlée et critique, et de bonnes résistances "
               "(au contact, on encaisse).", "dps", range="melee", res_target=70, crit_floor=True,
               focus=(("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
-    # attaque à 97 : une fois le plancher de résistance atteint (pénalité res_short), tout part dans les maîtrises
+    # attaque à 97 : une fois le plancher de résistance atteint (pénalité res_short), tout part dans les maîtrises.
+    # Critique visé plus haut que les autres DPS ; PM moins utiles (on frappe de loin sans se déplacer beaucoup).
     Archetype("dps_distance", "DPS distance", "Dégâts à distance : assez de résistances pour le niveau, puis tout "
-              "dans les maîtrises (distance, élémentaire, critique) et un peu de portée.", "dps", range="distance",
-              offense=97, crit_floor=True,
+              "dans les maîtrises (distance, élémentaire), beaucoup de critique et un peu de portée ; les PM "
+              "comptent moins (on joue de loin).", "dps", range="distance",
+              offense=97, crit_floor=True, crit_bonus=10, utility={"mp": (0.012, 5)},
               focus=(("distance_mastery", "Maîtrise distance"), ("crit_rate", "Critique"), ("ap", "PA"), ("range", "Portée"))),
     Archetype("dps_mixed", "DPS mixte", "Frappe au contact comme à distance (Huppermage, Eliotrope…).",
               "dps", range="mixed", crit_floor=True,
@@ -77,6 +80,11 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
               "(Armure donnée non chiffrée.)", "support", crit=False, res_target=67, offense=60,
               mins={"ap": 11, "mp": 5, "wp": 8}, utility={"mp": (0.04, 6), "wp": (0.015, 14)},
               focus=(("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("elem_res", "Résistances"))),
+    Archetype("support_heal", "Support soin", "Soigneur et booster (Zobal…) : Maîtrise soin (avec la maîtrise "
+              "élémentaire et de portée, qui s'ajoutent aux soins), PA, PM, PW et survie.", "support", heal=True,
+              res_target=67, offense=60, mins={"ap": 11, "mp": 5},
+              utility={"mp": (0.04, 6), "wp": (0.015, 14)},
+              focus=(("heal_mastery", "Maîtrise soin"), ("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("elem_res", "Résistances"))),
     Archetype("support_debuff", "Support débuff", "Retraits PA / PM : la Volonté compte beaucoup (+1 % de retrait "
               "par point, jusqu'à 100), puis PA, PM et survie.", "support", crit=False, res_target=67,
               offense=55, will=45, mins={"ap": 11, "mp": 5},
@@ -94,10 +102,11 @@ WEIGHT_FIELDS = ("offense_weight", "res_free", "willpower_weight", "crit_target"
 PANELS = {"priorities": PRIORITY_FIELDS, "constraints": CONSTRAINT_FIELDS, "subs": SUB_FIELDS}
 
 
-def crit_target(level: int) -> int:
+def crit_target(level: int, bonus: int = 0) -> int:
     """% de critique visé par un DPS : ce que les joueurs atteignent à ce niveau (10 % au niveau 45, 31 % au 140,
-    50 % à partir du 225). En dessous, chaque % manquant coûte au score (voir scoring.CRIT_SHORT_PENALTY)."""
-    return min(50, max(10, round(level * 2 / 9)))
+    50 % à partir du 225), plus le bonus de l'archétype (DPS distance). En dessous, chaque % manquant coûte au
+    score (voir scoring.CRIT_SHORT_PENALTY)."""
+    return min(50, max(10, round(level * 2 / 9))) + bonus
 
 
 # Résistance visée selon le niveau : les dégâts reçus montent avec le niveau, la résistance attendue aussi.
@@ -139,7 +148,7 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
         "count_conditional": arch.count_conditional,
         # poids
         "offense_weight": arch.offense, "res_free": arch.res_free, "willpower_weight": arch.will,
-        "crit_target": crit_target(level) if arch.crit_floor and arch.crit else 0,
+        "crit_target": crit_target(level, arch.crit_bonus) if arch.crit_floor and arch.crit else 0,
         "utility": {k: [v, cap] for k, (v, cap) in arch.utility.items()},
         # contraintes
         "min_ap": max(default_min_ap(level), arch.mins.get("ap", 0)),
