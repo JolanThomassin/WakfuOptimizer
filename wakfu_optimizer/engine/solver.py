@@ -520,6 +520,8 @@ class BuildModel:
             return False, []
         st = self.data.states.get(sub.state_id)
         forced = sub.state_id in self.opts.forced_subs
+        if self.opts.no_subs and not forced:
+            return False, []
         if st is None or not st.modeled:
             return forced, []   # effet non chiffré : placée seulement si l'utilisateur l'impose
         useful, dynamic = False, []
@@ -587,12 +589,12 @@ class BuildModel:
             m.Add(sum(epic_vars) <= sum(epic_cap))
         if relic_vars:
             m.Add(sum(relic_vars) <= sum(relic_cap))
-        # sublimations imposées : au moins un exemplaire (n'importe quel niveau)
+        # sublimations imposées : niveau cumulé au moins égal au niveau demandé (1 par défaut : un exemplaire)
         self.forced_missing: list[int] = []
         for sid in opts.forced_subs:
-            ws = [w for c, w in level_terms.get(sid, [])]
-            if ws:
-                m.Add(sum(ws) >= 1)
+            terms = level_terms.get(sid, [])
+            if terms:
+                m.Add(sum(c * w for c, w in terms) >= max(1, int(opts.forced_sub_levels.get(str(sid), 1))))
             else:
                 self.forced_missing.append(sid)
         # niveaux d'état cumulés, plafonnés

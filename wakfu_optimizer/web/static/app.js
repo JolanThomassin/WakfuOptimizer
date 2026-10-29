@@ -56,7 +56,7 @@ function toast(text) {
 const S = {
   meta: null, excluded: new Set(), forced: new Set(), colors: {}, job: null,
   view: null, original: null, opts: null, changed: new Set(),
-  subForced: new Set(), subExcluded: new Set(),
+  subForced: new Set(), subExcluded: new Set(), subLevels: {},
 };
 const MINMAX = [["ap", "PA", 20], ["mp", "PM", 10], ["range", "PO", 10], ["wp", "PW", 20], ["crit", "% Crit", 100, "crit_rate"],
   ["block", "% Parade", 100]];
@@ -155,7 +155,12 @@ function buildForm() {
   $("#subs-kind").addEventListener("change", () => subsCache && renderSubs());
   $("#subs-q").addEventListener("input", () => { clearTimeout(subsTimer); subsTimer = setTimeout(() => subsCache && renderSubs(), 150); });
   $("#subs-go").addEventListener("click", start);
+  $("#subs-list").addEventListener("change", (e) => {
+    const sel = e.target.closest("[data-slvl]");
+    if (sel) { S.subLevels[+sel.dataset.slvl] = +sel.value; toast(`Niveau ${ROMAN[+sel.value] || sel.value} minimum imposé.`); }
+  });
   $("#subs-list").addEventListener("click", (e) => {
+    if (e.target.closest("[data-slvl]")) return;
     const b = e.target.closest("[data-sfo],[data-sex]");
     if (b) setSubPref(+(b.dataset.sfo || b.dataset.sex), b.dataset.sfo ? "fo" : "ex");
   });
@@ -234,6 +239,8 @@ function applyOptions(o) {
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
    "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
   S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
+  S.subLevels = Object.fromEntries(Object.entries(o.forced_sub_levels || {}).map(([k, v]) => [+k, +v]));
+  $("#no_subs").checked = !!o.no_subs;
   $$("#rarities .toggle").forEach((b) => toggleBtn(b, (o.allowed_rarities || []).includes(+b.dataset.r)));
   $("#lower").checked = o.lower_brackets; $("#no_relic").checked = o.exclude_relic; $("#no_epic").checked = o.exclude_epic;
   $("#no_shop").checked = o.exclude_shop; $("#pets").checked = o.include_pet_mount;
@@ -260,7 +267,8 @@ function options() {
     min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,
     max_ap: n("max_ap"), max_mp: n("max_mp"), max_range: n("max_range"), max_wp: n("max_wp"), max_crit: n("max_crit"),
     min_block: n("min_block"), max_block: n("max_block"), apt_elem_res: $("#apt_elem_res").checked,
-    forced_subs: [...S.subForced], excluded_subs: [...S.subExcluded],
+    forced_subs: [...S.subForced], excluded_subs: [...S.subExcluded], no_subs: $("#no_subs").checked,
+    forced_sub_levels: Object.fromEntries([...S.subForced].filter((s) => S.subLevels[s] > 1).map((s) => [s, S.subLevels[s]])),
     allowed_rarities: $$("#rarities .toggle.on").map((b) => +b.dataset.r),
     lower_brackets: $("#lower").checked, exclude_relic: $("#no_relic").checked, exclude_epic: $("#no_epic").checked,
     exclude_shop: $("#no_shop").checked, include_pet_mount: $("#pets").checked, optimize_characteristics: true,
@@ -605,7 +613,7 @@ let subsTimer = null;
 function setSubPref(state, pref) {
   // pref : "fo" (imposer), "ex" (exclure) ; un second clic sur le même choix l'annule
   const was = pref === "fo" ? S.subForced.has(state) : S.subExcluded.has(state);
-  S.subForced.delete(state); S.subExcluded.delete(state);
+  S.subForced.delete(state); S.subExcluded.delete(state); delete S.subLevels[state];
   if (!was) (pref === "fo" ? S.subForced : S.subExcluded).add(state);
   updateSubsBadge();
   if (subsCache) renderSubs();
@@ -642,9 +650,19 @@ function subCard(f) {
     <div class="sc-head"><div class="sc-name">${esc(f.name)} ${tags}</div>${gain}</div>
     <div class="sub-desc">${esc(f.desc || "Pas de description.")}</div>
     <div class="sc-foot"><div class="lvls">${f.kind === "normal" ? lv : `<small class="muted">Se pose dans un objet ${f.kind === "epic" ? "épique" : "relique"}</small>`}</div>
-      <div class="btns"><button class="btn small ${fo ? "good" : ""}" data-sfo="${f.state}" title="L'optimiseur doit la placer">${fo ? "✓ Imposée" : "Imposer"}</button>
+      <div class="btns">${fo ? levelSelect(f) : ""}<button class="btn small ${fo ? "good" : ""}" data-sfo="${f.state}" title="L'optimiseur doit la placer">${fo ? "✓ Imposée" : "Imposer"}</button>
       <button class="btn small ${ex ? "danger" : ""}" data-sex="${f.state}" title="L'optimiseur ne l'utilisera pas">${ex ? "✕ Exclue" : "Exclure"}</button></div></div>
   </div>`;
+}
+
+// Niveau imposé : niveau cumulé minimum de l'état (ex. Neutralité III, ou IV avec deux sublimations)
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+function levelSelect(f) {
+  const top = f.limit || Math.max(...f.levels.map((l) => l.level), 1);
+  if (top <= 1) return "";
+  const cur = S.subLevels[f.state] || 1;
+  return `<select class="lvl-sel" data-slvl="${f.state}" title="Niveau minimum imposé (les niveaux de plusieurs sublimations identiques s'additionnent)">${
+    Array.from({ length: top }, (_, i) => `<option value="${i + 1}" ${i + 1 === cur ? "selected" : ""}>Niv. ${ROMAN[i + 1] || i + 1}</option>`).join("")}</select>`;
 }
 
 function renderSubs() {

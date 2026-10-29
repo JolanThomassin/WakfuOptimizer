@@ -84,6 +84,8 @@ class OptimizeOptions:
     forced_ids: tuple[int, ...] = ()
     forced_subs: tuple[int, ...] = ()     # sublimations imposées (id d'état : n'importe quel niveau)
     excluded_subs: tuple[int, ...] = ()   # sublimations interdites (id d'état)
+    forced_sub_levels: dict[str, int] = field(default_factory=dict)   # id d'état -> niveau minimum imposé
+    no_subs: bool = False                 # aucune sublimation, sauf celles imposées
     # --- Châsses
     shard_mode: str = "ideal"            # ideal | mine | none
     shard_count: int = 4
@@ -123,6 +125,8 @@ class OptimizeOptions:
         self.res_target = max(0, min(90, int(self.res_target)))
         self.min_res_pct = max(0, min(90, int(self.min_res_pct)))
         self.rear_share = max(0, min(100, int(self.rear_share)))
+        self.forced_sub_levels = {str(k): max(1, int(v)) for k, v in self.forced_sub_levels.items()
+                                  if int(k) in self.forced_subs}
         if self.neutral_combo:
             self.crit = True
             self.rear = self.berserk = self.heal = False   # ces maîtrises sont à 0 ou moins

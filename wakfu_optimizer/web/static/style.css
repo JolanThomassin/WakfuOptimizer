@@ -334,3 +334,4 @@ img.pat { width: 15px; height: 15px; vertical-align: -3px; }
 .sp-dot.pct { background: #ff7d8a; }
 #time_limit { background: var(--card-hi); border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; color: var(--text); }
 .toggle.off { opacity: .35; cursor: not-allowed; }
+.lvl-sel { background: var(--card-hi); border: 1px solid var(--good); border-radius: 6px; color: var(--text); font-size: 12px; padding: 2px 4px; }
