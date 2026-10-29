@@ -46,6 +46,15 @@ successives (chaque passe est un problème linéaire CP-SAT, résolu en quelques
 **résistance visée** : 1 point de score par point de résistance fixe manquant, par élément. La cible est donc atteinte dès que
 c'est possible, sans rendre le calcul impossible à bas niveau.
 
+- **Archétypes** (`wakfu_optimizer/engine/archetypes.py`) : classe, niveau et archétype suffisent pour un build optimisé.
+  Les archétypes habituels de chaque classe (`archetypes` dans `game.yaml`) sont proposés en tête de liste. Un archétype
+  fixe les priorités, les contraintes, les poids du calcul (attaque / défense, Volonté, **palier de critique** des DPS
+  selon le niveau) et le **profil d'aptitudes** (lignes qui ont un sens pour le rôle, ordre de remplissage des points
+  restants : un tank met sa Force en PV et sa Chance en Parade, jamais en critique).
+- **Panneaux Priorités, Contraintes, Châsses et sublimations** : désactivés à l'arrivée sur le site (l'archétype les
+  règle) ; activés, vos réglages remplacent ceux de l'archétype.
+- **Onglet Explication** (après un calcul) : réglages utilisés et leur origine, valeur d'un gain sur chaque stat au
+  build final, composition du score, profil d'aptitudes et contrôles de qualité.
 - **Portée** : mêlée, distance ou **mixte** (les deux maîtrises comptent à moitié : Huppermage, Eliotrope).
 - **Coups de dos** : part des coups portés de dos (25 / 50 / 80 %) ; seule cette part profite de la Maîtrise Dos.
 - **Contraintes** : minimum et maximum de PA, PM, PO, PW, % critique et % parade.
@@ -64,8 +73,17 @@ c'est possible, sans rendre le calcul impossible à bas niveau.
 python -m wakfu_optimizer.data.fetch          # télécharge les données si la version a changé
 python -m wakfu_optimizer.data.fetch --force  # retélécharge la version courante
 python -m wakfu_optimizer.data.explore        # rapport des actionId -> reports/actions_<version>.md
-pytest                                        # tests
+pytest                                        # tests (dont les tests de qualité rapides, ~4 min)
+pytest --quality=off                          # sans lancer le solveur sur les vraies données
+pytest --quality=full                         # matrice complète : classe × archétype habituel × niveau (long)
 ```
+
+**Qualité des builds** (`tests/test_build_quality.py`, règles dans `engine/quality.py`) : un build obtenu avec le seul
+panneau Personnage doit avoir du sens. Équipement complet, PA / PM du niveau, résistance visée, tous les points
+d'aptitude placés et seulement dans le profil de l'archétype, Résistance élémentaire et PA en aptitudes, critique au
+palier pour un DPS, maîtrise de la bonne portée, Force en PV et Parade au max pour un tank, Volonté pour un débuff, et
+un tank plus solide / un DPS plus fort que l'autre à classe et niveau égaux. À relancer après chaque changement du
+solveur, du score ou des archétypes. Les mêmes contrôles s'affichent dans l'onglet Explication.
 
 Les données sont mises en cache dans `data/cache/<version>/` (variable `WAKFU_OPTIMIZER_CACHE` pour changer le dossier). Sans réseau, la dernière version complète du cache est utilisée.
 

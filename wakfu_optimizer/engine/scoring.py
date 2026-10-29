@@ -112,6 +112,9 @@ RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.005, 4), "mixed": (0.025, 5)
 # Pénalité (points de score) par point de résistance fixe manquant sous la résistance visée, par élément :
 # assez forte pour que la cible soit atteinte dès que possible, sans rendre le calcul infaisable sinon.
 RES_SHORT_PENALTY = 1.0   # par point de résistance fixe sous le plancher (cible − écart) : à éviter absolument
+# Pénalité par % de critique sous le palier de l'archétype (crit_target) : la formule seule (×1,25 en critique)
+# sous-estime le critique (passifs et sorts qui en dépendent, bonus de critique des sorts) et donnerait des DPS à 10 %.
+CRIT_SHORT_PENALTY = 1.0
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:
@@ -137,7 +140,7 @@ def ln_defense(hp: float, hp_pct: float, res: float) -> float:
 
 
 FEATURES = ("mtot", "crit", "crit_mastery", "rear_mastery", "dmg_pct", "hp", "hp_pct", "res", "ap", "mp", "range", "wp",
-            "res_short", "will")
+            "res_short", "will", "crit_short")
 
 # Volonté (Wakfu Calc) : retrait = base du sort × 0,5 × FF, FF = 1 + (Volonté lanceur − Volonté cible) / 100,
 # borné entre 0 et 2. Contre une cible à 0 Volonté : +1 % de retrait par point, jusqu'à 100.
@@ -149,22 +152,34 @@ def removal_factor(will: float) -> float:
     return 1 + max(WILL_FLOOR, min(WILL_CAP, will)) / 100
 
 
-def log_score(f: dict[str, float], opts: object) -> float:
+def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
+    """Le score détaillé : attaque, défense, PA/PM/PO/PW, Volonté et pénalités (négatives). log_score en est la somme."""
     w_off = max(0, min(100, int(getattr(opts, "offense_weight", 70))))
-    s = 0.0
+    out: dict[str, float] = {}
     if w_off:
         rear = bool(getattr(opts, "rear", False)) and not getattr(opts, "heal", False)
-        s += w_off * ln_damage(f["mtot"], f["crit"], f["crit_mastery"], f["rear_mastery"],
-                               float(getattr(opts, "rear_share", 0)) if rear else 0.0, f["dmg_pct"])
+        out["offense"] = w_off * ln_damage(f["mtot"], f["crit"], f["crit_mastery"], f["rear_mastery"],
+                                           float(getattr(opts, "rear_share", 0)) if rear else 0.0, f["dmg_pct"])
     if w_off < 100:
-        s += (100 - w_off) * ln_defense(f["hp"], f["hp_pct"], f["res"])
+        out["defense"] = (100 - w_off) * ln_defense(f["hp"], f["hp_pct"], f["res"])
     for k, (v, cap) in utility_table(opts).items():
-        s += 100 * v * max(0.0, min(float(f.get(k, 0)), cap))
-    s -= RES_SHORT_PENALTY * f.get("res_short", 0.0)
+        out[k] = 100 * v * max(0.0, min(float(f.get(k, 0)), cap))
+    out["res_short"] = -RES_SHORT_PENALTY * f.get("res_short", 0.0)
+    out["crit_short"] = -CRIT_SHORT_PENALTY * f.get("crit_short", 0.0)
     w_will = int(getattr(opts, "willpower_weight", 0) or 0)
     if w_will:   # retraits PA / PM : même échelle que les dégâts (1 point ≈ 1 % de valeur × poids / 100)
-        s += w_will * math.log(removal_factor(f.get("will", 0.0)))
-    return s
+        out["will"] = w_will * math.log(removal_factor(f.get("will", 0.0)))
+    return out
+
+
+def log_score(f: dict[str, float], opts: object) -> float:
+    return sum(score_parts(f, opts).values())
+
+
+def crit_short(crit_rate: float, opts: object) -> float:
+    """% de critique manquant sous le palier de l'archétype (0 sans palier ou sans critique)."""
+    t = int(getattr(opts, "crit_target", 0) or 0)
+    return float(max(0.0, t - crit_rate)) if t and getattr(opts, "crit", False) else 0.0
 
 
 def secondary_mastery(melee: int, distance: int, rng: str) -> int:

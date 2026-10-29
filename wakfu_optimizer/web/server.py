@@ -35,8 +35,11 @@ from ..data.models import (
 from ..data.parse import load_game_data
 from ..data.sources import Crafts, load_crafts, wiki_url
 from ..engine.alternatives import alternatives
-from ..engine.characteristics import BRANCH_FR, LINE_FR, PRESETS, char_lines, preset_points
+from ..engine.archetypes import (PANELS, apply_archetype, archetype_options, class_archetypes, meta_archetypes, preset,
+                                 profile_desc)
+from ..engine.characteristics import BRANCH_FR, LINE_FR, char_lines
 from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min_mp
+from ..engine.quality import explain
 from ..engine.report import SLOT_ORDER, build_json, build_text
 from ..engine.scoring import damage_multiplier, removal_factor
 from ..engine.stats import Totals, evaluate
@@ -106,11 +109,16 @@ STATE = State()
 
 
 # =====================================================================  sérialisation
-def opts_from(d: dict[str, Any]) -> OptimizeOptions:
+def opts_from(d: dict[str, Any], data: GameData) -> OptimizeOptions:
+    """Options envoyées par l'interface. `panels` dit quels panneaux sont activés : les champs d'un panneau désactivé
+    (et toujours les poids du calcul) prennent les valeurs de l'archétype (voir engine/archetypes.py)."""
     o = OptimizeOptions.from_dict(d)
     o.alternatives = 0
     o.target = "single"
-    return o
+    panels = d.get("panels")
+    on = tuple(k for k in PANELS if not isinstance(panels, dict) or panels.get(k))
+    o.custom_panels = on
+    return apply_archetype(o, data, tuple(k for k in PANELS if k not in on))
 
 
 def item_brief(data: GameData, it: Item, lang: str, level: int) -> dict[str, Any]:
@@ -235,6 +243,7 @@ def result_view(data: GameData, opts: OptimizeOptions, r: Any) -> dict[str, Any]
                            "diagnostics": r.diagnostics, "elapsed": round(r.elapsed, 1)}
     if r.builds:
         out["view"] = build_view(data, opts, r.builds[0], r.totals[0])
+        out["explain"] = explain(data, opts, r.builds[0], r.totals[0])
     return out
 
 
@@ -243,15 +252,26 @@ def meta(d: GameData, settings: dict[str, Any]) -> dict[str, Any]:
     return {
         "version": d.version, "items": len(d.items),
         "classes": [{"key": k, "name": c.name, "elements": list(c.elements), "range": c.range, "role": c.role,
-                     "rear": c.rear, "berserk": c.berserk} for k, c in sorted(d.classes.items(), key=lambda kv: kv[1].name)],
+                     "rear": c.rear, "berserk": c.berserk, "archetypes": class_archetypes(d, k)}
+                    for k, c in sorted(d.classes.items(), key=lambda kv: kv[1].name)],
+        "archetypes": meta_archetypes(),
         "levels": [{"level": lv, "min_ap": default_min_ap(lv), "min_mp": default_min_mp(lv)} for lv in levels],
         "elements": [{"key": e, "name": ELEMENT_FR[e]} for e in ELEMENTS],
         "rarities": [{"id": int(r), "name": RARITY_FR[r], "color": RARITY_COLOR[r]} for r in Rarity],
         "slots": [{"key": s.value, "name": SLOT_FR[s]} for s in Slot],
         "settings": settings, "defaults": json.loads(OptimizeOptions().to_json()),
         "aptitudes": aptitudes(d),
-        "presets": [{"key": k, "name": p["name"], "desc": p["desc"]} for k, p in PRESETS.items()],
     }
+
+
+def preset_view(d: GameData, q: dict[str, list[str]]) -> dict[str, Any]:
+    """Aptitudes rapides d'un archétype pour une classe et un niveau, avec leur description."""
+    cls = q.get("cls", ["iop"])[0]
+    cls = cls if cls in d.classes else next(iter(d.classes))
+    level = int(q.get("level", ["245"])[0])
+    arch = q.get("name", [""])[0]
+    o = archetype_options(d, cls, level, arch or None)
+    return {"points": preset(d, o.archetype, cls, level), "desc": profile_desc(o)}
 
 
 def aptitudes(d: GameData) -> list[dict[str, Any]]:
@@ -307,13 +327,13 @@ def family_json(d: GameData, f: SubFamily, lang: str) -> dict[str, Any]:
 
 def subs_view(d: GameData, body: dict[str, Any]) -> list[dict[str, Any]]:
     """Catalogue des sublimations (onglet Sublimations), avec leur apport sur le build affiché."""
-    opts = opts_from(body.get("opts", {}))
+    opts = opts_from(body.get("opts", {}), d)
     build = Build.from_dict(body["build"]) if body.get("build") else None
     return [family_json(d, f, opts.lang) for f in catalog(d, opts, build)]
 
 
 def sub_alternatives_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
-    opts = opts_from(body.get("opts", {}))
+    opts = opts_from(body.get("opts", {}), d)
     build = Build.from_dict(body["build"])
     slot = Slot(body["slot"])
     special = bool(body.get("special"))
@@ -332,7 +352,7 @@ def sub_alternatives_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def alternatives_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
-    opts = opts_from(body.get("opts", {}))
+    opts = opts_from(body.get("opts", {}), d)
     build = Build.from_dict(body["build"])
     slot = Slot(body["slot"])
     base = evaluate(d, opts, build)
@@ -434,8 +454,7 @@ class Handler(BaseHTTPRequestHandler):
                 q = parse_qs(u.query)
                 if STATE.data is None:
                     return self._json({"error": "données non chargées"}, 503)
-                return self._json(preset_points(q.get("name", ["distance"])[0], int(q.get("level", ["245"])[0]),
-                                                STATE.data.game))
+                return self._json(preset_view(STATE.data, q))
             if p == "/api/items":
                 return self._json(search(STATE.data, parse_qs(u.query)) if STATE.data else [])
             return self._send(404, b"not found", "text/plain")
@@ -484,7 +503,7 @@ class Handler(BaseHTTPRequestHandler):
             if d is None:
                 return self._json({"error": "données non chargées"}, 503)
             if p == "/api/optimize":
-                opts = opts_from(body.get("opts", {}))
+                opts = opts_from(body.get("opts", {}), d)
                 try:
                     LAST_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
                     LAST_SETTINGS.write_text(opts.to_json(), encoding="utf-8")
@@ -497,7 +516,7 @@ class Handler(BaseHTTPRequestHandler):
                     job["optimizer"].stop()
                 return self._json({"ok": True})
             if p == "/api/view":
-                opts = opts_from(body.get("opts", {}))
+                opts = opts_from(body.get("opts", {}), d)
                 return self._json(build_view(d, opts, Build.from_dict(body["build"])))
             if p == "/api/alternatives":
                 return self._json(alternatives_view(d, body))

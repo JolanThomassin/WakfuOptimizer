@@ -224,7 +224,8 @@ function buildForm() {
   cls.addEventListener("change", () => { applyClass(cls.value); refreshVis(); });
   $("#level").addEventListener("change", () => {
     const l = m.levels.find((x) => x.level === +$("#level").value);
-    if (l) { $("#min_ap").value = l.min_ap; $("#min_mp").value = l.min_mp; }
+    const a = ARCHETYPES[$("#archetype").value];
+    if (a) resetConstraints(a); else if (l) { $("#min_ap").value = l.min_ap; $("#min_mp").value = l.min_mp; }
     trimApt();
     renderApt();
   });
@@ -243,11 +244,17 @@ function buildForm() {
     if (b) setSubPref(+(b.dataset.sfo || b.dataset.sex), b.dataset.sfo ? "fo" : "ex");
   });
   buildItemsTab();
-  $("#archetype").innerHTML = Object.entries(ARCHETYPES).map(([k, a]) => `<option value="${k}">${esc(a.name)}</option>`).join("");
+  ARCHETYPES = Object.fromEntries(m.archetypes.map((a) => [a.key, a]));
   $("#archetype").addEventListener("change", () => {
-    applyArchetype($("#archetype").value, S.meta.classes.find((x) => x.key === $("#cls").value));
+    applyArchetype($("#archetype").value, curClass());
+    renderPresets();
     toast(`Archétype « ${ARCHETYPES[$("#archetype").value].name} » appliqué.`);
   });
+  $$("[data-panel]").forEach((cb) => cb.addEventListener("change", () => {
+    setPanel(cb.dataset.panel, cb.checked);
+    toast(cb.checked ? "Panneau activé : vos réglages remplacent ceux de l'archétype."
+      : "Panneau désactivé : l'archétype règle ces paramètres.");
+  }));
   $("#go").addEventListener("click", start);
   $("#stop").addEventListener("click", () => S.job && api("/api/cancel", { job: S.job }));
   $("#reload").addEventListener("click", reloadData);
@@ -278,70 +285,72 @@ function cycleShard(slot, k, clear) {
 }
 
 // ===================================================================== archétypes
-// Un archétype règle d'un coup les priorités, les contraintes et le poids attaque / défense du calcul.
-// range : null = garde la portée de la classe ; hideRange : la portée n'a pas de sens (tank).
-const ARCHETYPES = {
-  custom: { name: "Personnalisé", desc: "Vos propres réglages : rien n'est modifié." },
-  dps_melee: { name: "DPS mêlée", range: "melee", crit: true, rear: false, berserk: false, heal: false,
-    res: [50, 6], offense: 85, desc: "Dégâts au corps-à-corps : Maîtrise mêlée et critique, résistances correctes." },
-  dps_distance: { name: "DPS distance", range: "distance", crit: true, rear: false, berserk: false, heal: false,
-    res: [50, 6], offense: 85, desc: "Dégâts à distance : Maîtrise distance, critique et un peu de portée." },
-  dps_mixed: { name: "DPS mixte", range: "mixed", crit: true, rear: false, berserk: false, heal: false,
-    res: [50, 6], offense: 85, desc: "Frappe au contact comme à distance (Huppermage, Eliotrope…)." },
-  dps_rear: { name: "DPS dos", range: "melee", crit: true, rear: true, rearShare: "80", berserk: false, heal: false,
-    res: [45, 6], offense: 88, desc: "Coups dans le dos (Sram) : Maîtrise dos prioritaire." },
-  berserk: { name: "Berserk", range: "melee", crit: true, rear: false, berserk: true, heal: false,
-    res: [40, 6], offense: 88, desc: "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances plus basses." },
-  tank: { name: "Tank", range: "melee", hideRange: true, crit: false, rear: false, berserk: false, heal: false,
-    res: [70, 4], resFree: true, offense: 45, will: 10,
-    desc: "Survie d'abord : résistances (même au-delà de la cible) et PV, dégâts ensuite. La portée ne compte pas." },
-  heal: { name: "Soigneur", range: null, crit: true, rear: false, berserk: false, heal: true,
-    res: [55, 5], offense: 80, desc: "Soins : Maîtrise soin et critique, bonne survie." },
-  support_buff: { name: "Support buff", range: null, crit: false, rear: false, berserk: false, heal: false,
-    res: [60, 5], offense: 60, mins: { ap: 11, mp: 5, wp: 8 },
-    desc: "Boosts / placement : PA, PM, PW et survie avant les dégâts. (Armure donnée non chiffrée.)" },
-  support_debuff: { name: "Support débuff", range: null, crit: false, rear: false, berserk: false, heal: false,
-    res: [60, 5], offense: 55, will: 45, mins: { ap: 11, mp: 5 },
-    desc: "Retraits PA / PM : la Volonté compte beaucoup (+1 % de retrait par point, jusqu'à 100), puis PA, PM et survie." },
-};
-S.offense = 85; S.resFree = false; S.will = 0;
+// Définis côté Python (engine/archetypes.py, reçus par /api/meta) : priorités, contraintes, poids du calcul et
+// profil d'aptitudes. Le serveur applique ceux de l'archétype pour chaque panneau désactivé.
+let ARCHETYPES = {};
 
 // portée imposée par la classe (Roublard : la meilleure des deux maîtrises compte)
 function classRange() {
   const c = S.meta && S.meta.classes.find((x) => x.key === $("#cls").value);
   return c ? c.range : "";
 }
+const curClass = () => S.meta && S.meta.classes.find((x) => x.key === $("#cls").value);
+const classArchs = (c) => (c && c.archetypes && c.archetypes.length ? c.archetypes : ["dps_melee"]);
 
-// Poids du calcul : toujours ceux de l'archétype sélectionné (jamais d'anciens réglages enregistrés)
-function archWeights() {
-  const a = ARCHETYPES[$("#archetype").value];
-  if (!a || !a.offense) return { offense_weight: 85, res_free: false, willpower_weight: 0 };
-  return { offense_weight: a.offense, res_free: !!a.resFree, willpower_weight: a.will || 0 };
-}
-
-function defaultArchetype(c) {
-  if (c.role === "tank") return "tank";
-  if (c.role === "heal") return "heal";
-  if (c.role === "support") return "support_buff";
-  if (c.rear) return "dps_rear";
-  if (c.berserk) return "berserk";
-  return c.range === "distance" ? "dps_distance" : c.range === "mixed" || c.range === "best" ? "dps_mixed" : "dps_melee";
+// Liste des archétypes : ceux habituellement joués par la classe en tête (en couleur), puis les autres.
+function renderArchetypes(c, value) {
+  const recs = classArchs(c);
+  const opt = (k, rec) => `<option value="${k}" class="${rec ? "rec" : "other"}">${rec ? "★ " : ""}${esc(ARCHETYPES[k].name)}</option>`;
+  const others = Object.keys(ARCHETYPES).filter((k) => !recs.includes(k));
+  $("#archetype").innerHTML = `<optgroup label="Habituels pour ${esc(c ? c.name : "la classe")}">${recs.map((k) => opt(k, true)).join("")}</optgroup>`
+    + `<optgroup label="Autres archétypes">${others.map((k) => opt(k, false)).join("")}</optgroup>`;
+  $("#archetype").value = ARCHETYPES[value] ? value : recs[0];
+  $("#archetype").classList.toggle("rec", recs.includes($("#archetype").value));
 }
 
 function applyArchetype(key, cls) {
-  const a = ARCHETYPES[key] || ARCHETYPES.custom;
-  $("#archetype").value = key;
-  $("#arch-hint").textContent = a.desc;
-  if (key === "custom") { refreshVis(); return; }
+  const a = ARCHETYPES[key] || ARCHETYPES[classArchs(cls)[0]];
+  renderArchetypes(cls, a.key);
+  $("#arch-hint").textContent = a.desc + (classArchs(cls).includes(a.key) ? "" : " (peu joué avec cette classe)");
   setSeg("range", a.range || (cls && cls.range) || segVal("range") || "distance");
   toggleBtn($("#crit"), a.crit); toggleBtn($("#rear"), a.rear); toggleBtn($("#berserk"), a.berserk); toggleBtn($("#heal"), a.heal);
-  setSeg("rear_share", a.rearShare || "50");
+  setSeg("rear_share", String(a.rear_share >= 70 ? 80 : a.rear_share <= 35 ? 25 : 50));
   $("#res_target").value = a.res[0]; $("#res_tol").value = a.res[1];
-  S.offense = a.offense; S.resFree = !!a.resFree; S.will = a.will || 0;
+  $("#cond").checked = !!a.count_conditional;
+  resetConstraints(a);
+  refreshVis();
+}
+
+// Contraintes de l'archétype (panneau Contraintes désactivé : c'est ce que le serveur utilisera)
+function resetConstraints(a) {
   const lv = S.meta.levels.find((x) => x.level === +$("#level").value);
   $("#min_ap").value = Math.max(lv ? lv.min_ap : 0, (a.mins && a.mins.ap) || 0);
   $("#min_mp").value = Math.max(lv ? lv.min_mp : 0, (a.mins && a.mins.mp) || 0);
   $("#min_wp").value = (a.mins && a.mins.wp) || 0;
+  if (isPanelOn("constraints")) return;   // le reste est à vous quand le panneau est activé
+  ["min_range", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block"].forEach((k) => { $("#" + k).value = 0; });
+  $$("#rarities .toggle").forEach((b) => toggleBtn(b, true));
+  $("#lower").checked = false; $("#no_relic").checked = false; $("#no_epic").checked = false;
+  $("#no_shop").checked = true; $("#pets").checked = true;
+}
+function resetSubsPanel() {
+  setSeg("shard_mode", "ideal"); $("#shard_count").value = 4; $("#max_jokers").value = 1; $("#no_subs").checked = false;
+}
+
+// ===================================================================== panneaux activables
+// Désactivés à chaque arrivée sur le site : classe, niveau et archétype suffisent pour un build optimisé.
+// Activés, ils remplacent les réglages de l'archétype par les vôtres.
+const isPanelOn = (k) => { const cb = $(`[data-panel="${k}"]`); return !!(cb && cb.checked); };
+function setPanel(k, on) {
+  const cb = $(`[data-panel="${k}"]`);
+  cb.checked = on;
+  cb.closest(".card").classList.toggle("panel-off", !on);
+  if (!on) {   // retour aux valeurs de l'archétype, pour que l'affichage dise ce qui sera utilisé
+    const a = ARCHETYPES[$("#archetype").value];
+    if (k === "priorities" && a) applyArchetype(a.key, curClass());
+    if (k === "constraints" && a) resetConstraints(a);
+    if (k === "subs") resetSubsPanel();
+  }
   refreshVis();
 }
 
@@ -350,7 +359,8 @@ function applyClass(key) {
   if (!c) return;
   $$("#elements .toggle").forEach((b) => toggleBtn(b, c.elements.includes(b.dataset.el)));
   setSeg("range", c.range);
-  applyArchetype(defaultArchetype(c), c);
+  applyArchetype(classArchs(c)[0], c);
+  renderPresets();
 }
 
 function refreshVis() {
@@ -361,7 +371,7 @@ function refreshVis() {
     : "Pas de résistance visée : tout part dans les stats.";
   const arch = ARCHETYPES[$("#archetype").value];
   const best = classRange() === "best";
-  $("#range-box").classList.toggle("hidden", !!(arch && arch.hideRange) || best);
+  $("#range-box").classList.toggle("hidden", !!(arch && arch.hide_range) || best);
   $("#range-note").classList.toggle("hidden", !best);
   const neutral = $("#neutral").checked;
   $("#rear-box").classList.toggle("hidden", !isOn("rear") || neutral);
@@ -387,13 +397,11 @@ function applyOptions(o) {
   set("res_target", o.res_target ?? 50);
   set("res_tol", o.res_tol ?? 5);
   $("#cond").checked = o.count_conditional;
-  S.offense = +o.offense_weight || 85; S.resFree = !!o.res_free; S.will = +o.willpower_weight || 0;
   $("#neutral").checked = !!o.neutral_combo;
   setTimeLimit(180);   // toujours 3 min à l'ouverture de la page
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
    "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
   S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
-  if (o.archetype && ARCHETYPES[o.archetype]) { $("#archetype").value = o.archetype; $("#arch-hint").textContent = ARCHETYPES[o.archetype].desc; }
   S.subLevels = Object.fromEntries(Object.entries(o.forced_sub_levels || {}).map(([k, v]) => [+k, +v]));
   $("#no_subs").checked = !!o.no_subs;
   $$("#rarities .toggle").forEach((b) => toggleBtn(b, (o.allowed_rarities || []).includes(+b.dataset.r)));
@@ -416,7 +424,8 @@ function options() {
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: classRange() === "best" ? "best" : segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
-    berserk: isOn("berserk"), heal: isOn("heal"), ...archWeights(), archetype: $("#archetype").value,
+    berserk: isOn("berserk"), heal: isOn("heal"), archetype: $("#archetype").value,
+    panels: { priorities: isPanelOn("priorities"), constraints: isPanelOn("constraints"), subs: isPanelOn("subs") },
     res_target: n("res_target"), res_tol: n("res_tol"),
     count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
@@ -547,6 +556,8 @@ async function poll() {
   progressEnd(true, `✓ Build trouvé${r.status === "optimal" ? " (optimal)" : r.status.includes("durée max") ? " (durée max atteinte)" : ""}`, r.elapsed);
   $("#msg").innerHTML = warn;
   S.original = r.view; S.view = r.view; S.changed = new Set();
+  S.explain = r.explain || null;
+  renderExplain();
   subsCache = null;
   setSide(true);   // build trouvé : on replie les réglages pour laisser la place au résultat
   showTab("build");
@@ -568,7 +579,7 @@ function itemsView() {
 
 function archName() {
   const a = S.opts && ARCHETYPES[S.opts.archetype];
-  return a && S.opts.archetype !== "custom" ? a.name : "";
+  return a ? a.name : "";
 }
 
 function renderResult() {
@@ -1194,7 +1205,19 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-close]")
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawers(); });
 
 // ===================================================================== aptitudes
-const PRESET_ICON = { distance: "distance_mastery", melee: "melee_mastery", elemental: "elemental_damage", tank: "elemental_resistance", heal: "healing_mastery" };
+const PRESET_ICON = { dps_distance: "distance_mastery", dps_melee: "melee_mastery", dps_mixed: "elemental_damage", dps_rear: "rear_mastery",
+  berserk: "berserk_mastery", tank: "elemental_resistance", heal: "healing_mastery", support_buff: "action_points", support_debuff: "force_of_will" };
+// Aptitudes rapides : la répartition type de chaque archétype ; ceux de la classe en tête, l'archétype choisi mis en avant.
+function renderPresets() {
+  if (!$("#apt-presets") || !S.meta || !Object.keys(ARCHETYPES).length) return;
+  const recs = classArchs(curClass()), cur = $("#archetype").value;
+  const keys = [...recs, ...Object.keys(ARCHETYPES).filter((k) => !recs.includes(k))];
+  $("#apt-presets").innerHTML = keys.map((k) =>
+    `<button class="preset${recs.includes(k) ? " rec" : ""}${k === cur ? " cur" : ""}" data-p="${k}" title="${recs.includes(k) ? "Habituel pour cette classe" : "Peu joué avec cette classe"}">`
+    + `<span class="ic"><img src="assets/stats/${PRESET_ICON[k] || "empty_coin"}.png" alt=""></span>${esc(ARCHETYPES[k].name)}${k === cur ? " <small>· archétype choisi</small>" : ""}</button>`).join("");
+  $$("#apt-presets .preset").forEach((b) => b.addEventListener("click", () => selectPreset(b.dataset.p)));
+  if (presetSel) $$("#apt-presets .preset").forEach((b) => b.classList.toggle("sel", b.dataset.p === presetSel.key));
+}
 const BRANCH_COLOR = { intelligence: "#6b2730", strength: "#2c5530", agility: "#4a2e66", fortune: "#1f4a5e", major: "#5a4a35" };
 S.apt = {};
 let presetSel = null;
@@ -1237,9 +1260,7 @@ function buildAptForm() {
       $("input", row).addEventListener("change", (e) => set(+e.target.value || 0));
     }
   }
-  $("#apt-presets").innerHTML = S.meta.presets.map((p) =>
-    `<button class="preset" data-p="${p.key}"><span class="ic"><img src="assets/stats/${PRESET_ICON[p.key] || "empty_coin"}.png" alt=""></span>${esc(p.name)}</button>`).join("");
-  $$("#apt-presets .preset").forEach((b) => b.addEventListener("click", () => selectPreset(b.dataset.p)));
+  renderPresets();
   $("#apt-apply").addEventListener("click", applyPreset);
   $("#apt-reset").addEventListener("click", () => { S.apt = {}; aptChanged(); });
   $("#apt-from-build").addEventListener("click", () => {
@@ -1265,6 +1286,7 @@ function showTab(name) {
   $("#tab-apt").classList.toggle("hidden", name !== "apt");
   $("#tab-subs").classList.toggle("hidden", name !== "subs");
   $("#tab-items").classList.toggle("hidden", name !== "items");
+  $("#tab-explain").classList.toggle("hidden", name !== "explain");
   if (name === "items") { loadItemsTab(); renderPicked(); }
   $("#result").classList.toggle("hidden", name !== "build");
   if (name === "subs") loadSubs();
@@ -1331,11 +1353,11 @@ function liveUpdate() {
 
 async function selectPreset(key) {
   $$("#apt-presets .preset").forEach((b) => b.classList.toggle("sel", b.dataset.p === key));
-  const p = S.meta.presets.find((x) => x.key === key);
-  const pts = await api(`/api/preset?name=${key}&level=${lvl()}`);
+  const r = await api(`/api/preset?name=${key}&level=${lvl()}&cls=${$("#cls").value}`);
+  const pts = r.points;
   presetSel = { key, pts };
   const labels = Object.fromEntries(S.meta.aptitudes.flatMap((b) => b.lines.map((l) => [l.key, `${b.name} · ${l.label}`])));
-  $("#apt-detail").innerHTML = `<div>${esc(p.desc)}</div><ul class="preset-detail">` +
+  $("#apt-detail").innerHTML = `<div><b>${esc(ARCHETYPES[key].name)}</b> — ${esc(r.desc)}</div><ul class="preset-detail">` +
     Object.entries(pts).map(([k, v]) => `<li><span>${esc(labels[k] || k)}</span><b>${v}</b></li>`).join("") + "</ul>";
   $("#apt-apply").disabled = false;
 }
@@ -1344,6 +1366,64 @@ function applyPreset() {
   S.apt = { ...presetSel.pts };
   aptChanged();
   toast(`Preset appliqué (niveau ${lvl()}).`);
+}
+
+// ===================================================================== onglet Explication
+// Ce que l'algorithme a privilégié pour ce personnage et cet archétype (outil de débogage), mis à jour à chaque calcul.
+function renderExplain() {
+  const x = S.explain, page = $("#tab-explain");
+  const tab = $('.tab[data-tab="explain"]'), badge = $("#explain-badge");
+  tab.disabled = !x;
+  if (!x) {
+    page.innerHTML = `<div class="card empty-explain muted">Lancez une optimisation : cet onglet expliquera ce que le calcul a privilégié.</div>`;
+    badge.classList.add("hidden");
+    return;
+  }
+  const bad = x.checks.filter((c) => !c.ok && c.severity === "error");
+  badge.textContent = bad.length ? `${bad.length} ⚠` : "✓";
+  badge.className = `badge ${bad.length ? "warnb" : "okb"}`;
+  const src = (v) => `<span class="src-tag ${v === "archétype" ? "arch" : "mine"}">${esc(v)}</span>`;
+  const panels = x.panels.map((p) => `<span class="src-tag ${p.on ? "mine" : "arch"}">${esc(p.name)} : ${p.on ? "vos réglages" : "archétype"}</span>`).join("");
+  const settings = x.settings.map((r) => `<tr><td>${esc(r.label)}</td><td>${esc(r.value)}</td><td>${src(r.src)}</td></tr>`).join("");
+  const maxM = Math.max(0.01, ...x.marginals.map((m) => Math.abs(m.points)));
+  const marg = [...x.marginals].filter((m) => m.points).sort((a, b) => b.points - a.points).map((m) =>
+    `<div class="xbar"><span class="xl">${esc(m.label)} <small class="muted">${esc(m.unit)}</small></span>
+      <span class="xt"><span class="xf ${m.points < 0 ? "neg" : ""}" style="width:${(100 * Math.abs(m.points) / maxM).toFixed(1)}%"></span></span>
+      <b class="${m.points < 0 ? "neg" : ""}">${m.points > 0 ? "+" : ""}${m.points.toFixed(2)}</b></div>`).join("")
+    || `<p class="muted">Aucune stat ne fait plus progresser le score.</p>`;
+  const score = x.score.map((r) => `<tr><td>${esc(r.label)}</td><td class="num ${r.points < 0 ? "neg" : ""}">${r.points.toFixed(2)}</td></tr>`).join("");
+  const apt = x.aptitudes.map((b) => `<div class="xbranch" style="--bc:${BRANCH_COLOR[b.branch] || "#333"}"><div class="xbh">${esc(b.name)} <span class="muted">${b.total} pt</span></div>`
+    + b.lines.map((l, i) => `<div class="xline ${l.points ? "" : "zero"} ${l.in_profile ? "" : "off"}"><span>${l.in_profile ? `${i + 1}.` : "✗"} ${esc(l.label)}${l.forced ? ` <small class="muted" title="Mise au maximum d'office, comme le font les joueurs">· max d'office</small>` : ""}</span><b>${l.points}</b></div>`).join("")
+    + `</div>`).join("");
+  const checks = x.checks.map((c) => `<li class="${c.ok ? "ok" : c.severity}"><span class="ck">${c.ok ? "✓" : c.severity === "warn" ? "!" : "✗"}</span>
+      <span><b>${esc(c.label)}</b> <span class="muted">— ${esc(c.detail)}</span></span></li>`).join("");
+  page.innerHTML = `
+  <div class="explain">
+    <section class="card xhead">
+      <div><h2>${esc(x.archetype.name)} ${x.archetype.recommended ? '<span class="src-tag rec">★ habituel pour la classe</span>' : '<span class="src-tag warnt">peu joué avec cette classe</span>'}</h2>
+        <p class="muted">${esc(x.class)} niveau ${x.level} · ${esc(x.elements.join(", "))} — ${esc(x.archetype.desc)}</p>
+        <p class="muted">Archétypes habituels : ${esc(x.archetype.class_recs.join(", "))}</p></div>
+      <div class="xpanels">${panels}</div>
+    </section>
+    <div class="xgrid">
+      <section class="card"><h2>Réglages utilisés par le calcul</h2>
+        <table class="xtable">${settings}</table>
+        <p class="hint">« archétype » : valeur fixée par l'archétype (panneau désactivé ou poids internes) ; « vos réglages » : panneau activé.</p></section>
+      <section class="card"><h2>Ce que vaut un gain, au build final</h2>
+        <p class="hint">Points de score gagnés pour chaque gain (1 point ≈ 1 % de valeur globale). Plus la barre est longue, plus le calcul
+          privilégie cette stat à ce stade ; une stat à 0 est déjà au plafond ou ne compte pas pour l'archétype.</p>
+        ${marg}</section>
+      <section class="card"><h2>Composition du score</h2>
+        <table class="xtable">${score}<tr class="tot"><td>Total</td><td class="num">${x.total.toFixed(2)}</td></tr></table>
+        <p class="hint">Dégâts et survie sont des logarithmes pondérés par le poids attaque / défense ; les pénalités sont négatives.</p></section>
+      <section class="card"><h2>Contrôles de qualité</h2><ul class="xchecks">${checks}</ul>
+        <p class="hint">Mêmes règles que les tests automatiques (tests/test_build_quality.py).</p></section>
+      <section class="card xwide"><h2>Aptitudes ${x.manual_apt ? "(les vôtres)" : "(profil de l'archétype)"}</h2>
+        <p class="hint">Lignes autorisées par l'archétype, dans l'ordre de remplissage des points restants (le calcul répartit
+          les autres points entre elles) ; « max d'office » : toujours au maximum ; ✗ : ligne hors profil.</p>
+        <div class="xapt">${apt}</div></section>
+    </div>
+  </div>`;
 }
 
 // ===================================================================== onglet Items (forcés / exclus)
@@ -1505,6 +1585,10 @@ async function waitMeta(first = true) {
     if (!m.settings || !m.settings.class_key) { o.class_key = "iop"; }
     applyOptions(o);
     if (!m.settings || !m.settings.class_key) applyClass(o.class_key);
+    else applyArchetype(o.archetype, curClass());   // archétype enregistré (ou celui de la classe s'il n'existe plus)
+    ["priorities", "constraints", "subs"].forEach((k) => setPanel(k, false));
+    renderPresets();
+    renderExplain();
     refreshVis();
   }
 }

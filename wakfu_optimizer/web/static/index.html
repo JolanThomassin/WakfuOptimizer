@@ -46,8 +46,10 @@
       </div>
     </section>
 
-    <section class="card">
-      <h2>Priorités</h2>
+    <section class="card panel">
+      <h2 class="panel-h">Priorités <label class="switch" title="Activer pour remplacer les priorités de l'archétype par les vôtres"><input type="checkbox" data-panel="priorities"><span class="sl"></span><span class="sw-txt"></span></label></h2>
+      <p class="hint panel-note">Réglées par l'archétype. Activez le panneau pour les modifier.</p>
+      <div class="panel-body">
       <p class="hint range-note hidden" id="range-note">Portée sans importance pour cette classe : sa meilleure maîtrise
         (mêlée ou distance) compte, grâce à son passif.</p>
       <div class="field" id="range-box">
@@ -86,10 +88,13 @@
       </div>
       <label class="check"><input type="checkbox" id="cond"><span>Compter les sublimations conditionnelles (PV &gt; 90 %, sans armure)</span></label>
       <p class="hint">PA, PM, PO et PW sont valorisés automatiquement au-delà des minimums.</p>
+      </div>
     </section>
 
-    <section class="card">
-      <h2>Contraintes</h2>
+    <section class="card panel">
+      <h2 class="panel-h">Contraintes <label class="switch" title="Activer pour imposer vos minimums, maximums et filtres d'items"><input type="checkbox" data-panel="constraints"><span class="sl"></span><span class="sw-txt"></span></label></h2>
+      <p class="hint panel-note">PA et PM du niveau, toutes raretés : réglées par l'archétype. Activez le panneau pour les modifier.</p>
+      <div class="panel-body">
       <div class="mm-grid stepper" id="minmax"><span></span><span class="mm-h">Min</span><span class="mm-h">Max</span></div>
       <p class="hint" style="margin-top:-4px">Max à 0 : pas de limite.</p>
       <div class="field">
@@ -101,16 +106,20 @@
       <label class="check"><input type="checkbox" id="no_epic"><span>Exclure les épiques</span></label>
       <label class="check"><input type="checkbox" id="no_shop"><span>Exclure les items boutique</span></label>
       <label class="check"><input type="checkbox" id="pets"><span>Inclure familier et monture</span></label>
+      </div>
     </section>
 
-    <section class="card">
-      <h2>Châsses et sublimations</h2>
+    <section class="card panel">
+      <h2 class="panel-h">Châsses et sublimations <label class="switch" title="Activer pour choisir vos couleurs de châsses ou retirer les sublimations"><input type="checkbox" data-panel="subs"><span class="sl"></span><span class="sw-txt"></span></label></h2>
+      <p class="hint panel-note">Châsses idéales (4 par item, 1 joker), sublimations choisies par l'optimiseur. Activez le panneau pour les modifier.</p>
+      <div class="panel-body">
       <div class="seg three" id="shard_mode">
         <button data-v="ideal">Idéal</button><button data-v="mine">Mes couleurs</button><button data-v="none">Ignorer</button>
       </div>
       <div class="steppers" id="shard-steps"></div>
       <div id="my-colors"></div>
       <label class="check"><input type="checkbox" id="no_subs"><span>Sans sublimations (sauf celles imposées dans l'onglet Sublimations)</span></label>
+      </div>
     </section>
   </aside>
 
@@ -131,6 +140,7 @@
       <button class="tab" data-tab="apt">Aptitudes <span id="apt-badge" class="badge">auto</span></button>
       <button class="tab" data-tab="subs">Sublimations <span id="subs-badge" class="badge hidden"></span></button>
       <button class="tab" data-tab="items">Items <span id="items-badge" class="badge hidden"></span></button>
+      <button class="tab" data-tab="explain" disabled title="Disponible après une optimisation : ce que le calcul a privilégié">Explication <span id="explain-badge" class="badge hidden"></span></button>
     </nav>
     <div id="tab-apt" class="tab-page hidden">
       <div class="apt-layout">
@@ -184,6 +194,7 @@
         </aside>
       </div>
     </div>
+    <div id="tab-explain" class="tab-page hidden"></div>
     <div id="tab-subs" class="tab-page hidden">
       <div class="subs-top card">
         <div>

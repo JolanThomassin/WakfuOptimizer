@@ -13,7 +13,7 @@ from .characteristics import BRANCH_FR, LINE_FR, char_lines
 from .options import DENOUEMENT_CRIT, NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions
 
 DENOUEMENT_STATE = NEUTRAL_COMBO_STATES[1]
-from .scoring import WILL_CAP, WILL_FLOOR, damage_d2, res_cap, defense_value, ehp_factor, log_score, res_need, res_pct, secondary_mastery
+from .scoring import WILL_CAP, WILL_FLOOR, crit_short, damage_d2, res_cap, defense_value, ehp_factor, log_score, res_need, res_pct, secondary_mastery
 from .shards import condition_holds, effect_targets, parse_stat_condition
 
 DISPLAY_STATS = [
@@ -196,6 +196,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
         "ap": float(s["ap"]), "mp": float(s["mp"]), "range": float(s["range"]), "wp": float(s["wp"]),
         "will": float(max(WILL_FLOOR, min(WILL_CAP, s["willpower"]))),
         "res_short": float(sum(max(0, res_need(opts) - t.res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
+        "crit_short": crit_short(s["crit_rate"], opts),
     }
     t.score = log_score(t.features, opts)
     t.sources = dict(src)

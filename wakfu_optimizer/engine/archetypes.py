@@ -1,0 +1,255 @@
+"""Archétypes de jeu : ce que l'optimiseur doit privilégier pour un rôle (DPS distance, tank…).
+
+Un archétype règle d'un coup les priorités (portée, maîtrises secondaires, résistance visée), les poids du calcul
+(attaque / défense, Volonté, palier de critique), les contraintes de base (PA, PM) et le profil d'aptitudes
+(lignes qui ont un sens pour ce rôle, et l'ordre dans lequel on remplit les points restants).
+
+C'est la seule définition des archétypes : l'interface les reçoit par /api/meta, et les tests de qualité
+(tests/test_build_quality.py) construisent leurs options avec `archetype_options`, exactement comme le site
+quand les panneaux Priorités, Contraintes et Sublimations sont désactivés.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from ..data.models import GameData, Rarity
+from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
+from .options import OptimizeOptions, default_min_ap, default_min_mp
+
+
+@dataclass(frozen=True)
+class Archetype:
+    key: str
+    name: str
+    desc: str
+    role: str                         # dps | tank | heal | support
+    range: str | None = None          # None : portée de la classe
+    crit: bool = True
+    rear: bool = False
+    rear_share: int = 50
+    berserk: bool = False
+    heal: bool = False
+    res_target: int = 50
+    res_tol: int = 6
+    res_free: bool = False            # la résistance compte encore au-delà de la cible (tank)
+    offense: int = 85                 # poids de l'attaque (la défense prend le reste)
+    will: int = 0                     # poids de la Volonté (retraits PA / PM)
+    crit_floor: bool = False          # palier de critique selon le niveau (voir crit_target)
+    count_conditional: bool = True
+    hide_range: bool = False          # la portée n'a pas de sens pour ce rôle (interface)
+    mins: dict[str, int] = field(default_factory=dict)   # minimums en plus de ceux du niveau (ap, mp, wp)
+
+
+ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
+    Archetype("dps_melee", "DPS mêlée", "Dégâts au corps-à-corps : Maîtrise mêlée et critique, résistances correctes.",
+              "dps", range="melee", crit_floor=True),
+    Archetype("dps_distance", "DPS distance", "Dégâts à distance : Maîtrise distance, critique et un peu de portée.",
+              "dps", range="distance", crit_floor=True),
+    Archetype("dps_mixed", "DPS mixte", "Frappe au contact comme à distance (Huppermage, Eliotrope…).",
+              "dps", range="mixed", crit_floor=True),
+    Archetype("dps_rear", "DPS dos", "Coups dans le dos (Sram) : Maîtrise dos prioritaire.",
+              "dps", range="melee", rear=True, rear_share=80, res_target=45, offense=88, crit_floor=True),
+    Archetype("berserk", "Berserk", "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances plus basses.",
+              "dps", range="melee", berserk=True, res_target=40, offense=88, crit_floor=True,
+              count_conditional=False),
+    Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et tacle ; "
+              "dégâts ensuite. Aptitudes : Force en PV, Chance en parade et résistances.",
+              "tank", range="melee", hide_range=True, crit=False, res_target=70, res_tol=4, res_free=True,
+              offense=40, will=10),
+    Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
+              "heal", heal=True, res_target=55, res_tol=5, offense=80, crit_floor=True),
+    Archetype("support_buff", "Support buff", "Boosts / placement : PA, PM, PW et survie avant les dégâts. "
+              "(Armure donnée non chiffrée.)", "support", crit=False, res_target=60, res_tol=5, offense=60,
+              mins={"ap": 11, "mp": 5, "wp": 8}),
+    Archetype("support_debuff", "Support débuff", "Retraits PA / PM : la Volonté compte beaucoup (+1 % de retrait "
+              "par point, jusqu'à 100), puis PA, PM et survie.", "support", crit=False, res_target=60, res_tol=5,
+              offense=55, will=45, mins={"ap": 11, "mp": 5}),
+)}
+
+# Champs de OptimizeOptions réglés par chaque panneau de l'interface (désactivé = valeur de l'archétype)
+PRIORITY_FIELDS = ("range", "crit", "rear", "rear_share", "berserk", "heal", "res_target", "res_tol", "count_conditional")
+CONSTRAINT_FIELDS = ("min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp",
+                     "max_range", "max_wp", "max_crit", "max_block", "allowed_rarities", "lower_brackets",
+                     "exclude_relic", "exclude_epic", "exclude_shop", "include_pet_mount")
+SUB_FIELDS = ("shard_mode", "shard_count", "max_jokers", "no_subs")
+# Toujours ceux de l'archétype (pas réglables dans l'interface)
+WEIGHT_FIELDS = ("offense_weight", "res_free", "willpower_weight", "crit_target")
+PANELS = {"priorities": PRIORITY_FIELDS, "constraints": CONSTRAINT_FIELDS, "subs": SUB_FIELDS}
+
+
+def crit_target(level: int) -> int:
+    """% de critique visé par un DPS : ce que les joueurs atteignent à ce niveau (10 % au niveau 45, 31 % au 140,
+    50 % à partir du 225). En dessous, chaque % manquant coûte au score (voir scoring.CRIT_SHORT_PENALTY)."""
+    return min(50, max(10, round(level * 2 / 9)))
+
+
+def class_archetypes(data: GameData, class_key: str) -> list[str]:
+    """Archétypes habituels de la classe (game.yaml), le plus joué en premier."""
+    spec = data.game.get("classes", {}).get(class_key, {})  # type: ignore[union-attr]
+    keys = [k for k in (spec.get("archetypes") or []) if k in ARCHETYPES]
+    return keys or ["dps_melee"]
+
+
+def default_archetype(data: GameData, class_key: str) -> str:
+    return class_archetypes(data, class_key)[0]
+
+
+def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str, Any]:
+    """Valeurs des champs de PANELS et WEIGHT_FIELDS pour un archétype (panneaux désactivés)."""
+    base = OptimizeOptions()
+    rng = "best" if class_range == "best" else arch.range or class_range or "melee"
+    return {
+        # priorités
+        "range": rng, "crit": arch.crit, "rear": arch.rear, "rear_share": arch.rear_share, "berserk": arch.berserk,
+        "heal": arch.heal, "res_target": arch.res_target, "res_tol": arch.res_tol,
+        "count_conditional": arch.count_conditional,
+        # poids
+        "offense_weight": arch.offense, "res_free": arch.res_free, "willpower_weight": arch.will,
+        "crit_target": crit_target(level) if arch.crit_floor and arch.crit else 0,
+        # contraintes
+        "min_ap": max(default_min_ap(level), arch.mins.get("ap", 0)),
+        "min_mp": max(default_min_mp(level), arch.mins.get("mp", 0)),
+        "min_wp": arch.mins.get("wp", 0), "min_range": 0, "min_crit": 0, "min_block": 0,
+        "max_ap": 0, "max_mp": 0, "max_range": 0, "max_wp": 0, "max_crit": 0, "max_block": 0,
+        "allowed_rarities": tuple(int(r) for r in Rarity), "lower_brackets": False, "exclude_relic": False,
+        "exclude_epic": False, "exclude_shop": True, "include_pet_mount": True,
+        # châsses et sublimations
+        "shard_mode": "ideal", "shard_count": 4, "max_jokers": base.max_jokers, "no_subs": False,
+    }
+
+
+def apply_archetype(opts: OptimizeOptions, data: GameData, panels_off: tuple[str, ...] = tuple(PANELS)) -> OptimizeOptions:
+    """Remet les champs des panneaux désactivés (et toujours les poids) aux valeurs de l'archétype."""
+    if opts.archetype not in ARCHETYPES:
+        opts.archetype = default_archetype(data, opts.class_key)
+    cls = data.classes.get(opts.class_key)
+    vals = archetype_values(ARCHETYPES[opts.archetype], cls.range if cls else "melee", opts.level)
+    fields = list(WEIGHT_FIELDS) + [f for p in panels_off for f in PANELS.get(p, ())]
+    for f in fields:
+        setattr(opts, f, vals[f])
+    if not opts.crit:
+        opts.crit_target = 0
+    if cls and cls.range == "best":   # Roublard : la meilleure maîtrise compte, quelle que soit la portée choisie
+        opts.range = "best"
+    return opts
+
+
+def archetype_options(data: GameData, class_key: str, level: int, archetype: str | None = None,
+                      **overrides: Any) -> OptimizeOptions:
+    """Options d'un calcul fait avec le seul panneau Personnage (classe, niveau, archétype) : ce que le site
+    envoie quand les autres panneaux sont désactivés. Base des tests de qualité."""
+    cls = data.classes[class_key]
+    o = OptimizeOptions(class_key=class_key, level=level, elements=tuple(cls.elements),
+                        archetype=archetype or default_archetype(data, class_key))
+    apply_archetype(o, data)
+    for k, v in overrides.items():
+        setattr(o, k, v)
+    return o
+
+
+# =====================================================================  profil d'aptitudes
+def apt_profile(opts: OptimizeOptions) -> dict[str, list[str]]:
+    """Lignes d'aptitudes qui ont un sens pour ces réglages, par branche, dans l'ordre où les joueurs les remplissent.
+    Le solveur ne place des points que dans ces lignes ; les points sans effet sur le score suivent cet ordre.
+    Dérivé des options (et non du seul archétype) : cocher Critique dans les priorités ouvre la ligne % Critique."""
+    arch = ARCHETYPES.get(opts.archetype)
+    tank = arch is not None and arch.role == "tank"
+    support = arch is not None and arch.role == "support"
+    rng = opts.range
+    range_lines = {"melee": ["melee_mastery"], "distance": ["distance_mastery"]}.get(rng, ["melee_mastery", "distance_mastery"])
+    dodge_line = {"melee": "lock", "distance": "dodge"}.get(rng, "lock_dodge")
+
+    strength = ["hp"] if tank else range_lines + ["elem_mastery", "hp"]
+    agility = ["lock", "willpower"] if tank else [dodge_line, "willpower"]
+    if opts.willpower_weight >= 20:   # retraits PA / PM : Volonté au maximum d'abord
+        agility = ["willpower"] + [x for x in agility if x != "willpower"]
+
+    fortune: list[str] = []
+    if opts.crit:
+        fortune.append("crit_rate")
+    if opts.rear and not opts.heal:
+        fortune.append("rear_mastery")
+    if opts.berserk:
+        fortune.append("berserk_mastery")
+    if opts.heal:
+        fortune.append("heal_mastery")
+    if tank or support:
+        fortune += ["block", "crit_res", "rear_res"]
+    if opts.crit or not fortune or tank or support:
+        fortune.append("crit_mastery")   # ligne sans plafond : reçoit le reste
+    fortune = list(dict.fromkeys(fortune))
+
+    major = ["ap", "mp"]
+    if opts.heal:
+        major.append("heal_pct")
+    if tank:
+        major.append("elem_res")
+    if support:
+        major.append("wp")
+    major += ["dmg_pct"] + (["range"] if rng != "melee" else []) + ["wp", "range", "elem_res"]
+    major = list(dict.fromkeys(major))
+
+    return {"intelligence": ["elem_res", "hp_pct"], "strength": strength, "agility": agility,
+            "fortune": fortune, "major": major}
+
+
+def apt_forced(opts: OptimizeOptions) -> set[str]:
+    """Lignes mises au maximum d'office (mode auto), comme le font les joueurs quel que soit le calcul : Résistance
+    élémentaire (si cochée), PA en Majeur, % Critique pour un archétype à palier de critique, Parade pour un tank,
+    Volonté pour un débuff."""
+    arch = ARCHETYPES.get(opts.archetype)
+    out = {"major.ap"}
+    if opts.apt_elem_res:
+        out.add("intelligence.elem_res")
+    if opts.crit and opts.crit_target:
+        out.add("fortune.crit_rate")
+    if arch is not None and arch.role == "tank":
+        out.add("fortune.block")
+    if opts.willpower_weight >= 20:
+        out.add("agility.willpower")
+    return out & profile_keys(opts)
+
+
+def profile_keys(opts: OptimizeOptions) -> set[str]:
+    return {f"{b}.{line}" for b, lines in apt_profile(opts).items() for line in lines}
+
+
+def profile_points(opts: OptimizeOptions, game: dict[str, Any]) -> dict[str, int]:
+    """Répartition « rapide » d'un profil : chaque ligne remplie à son maximum, dans l'ordre."""
+    maxes = {cl.key: cl.max_points for cl in char_lines(game)}
+    out: dict[str, int] = {}
+    for branch, lines in apt_profile(opts).items():
+        left = branch_points(branch, opts.level, game)
+        for line in lines:
+            key = f"{branch}.{line}"
+            if key not in maxes or left <= 0:
+                continue
+            n = left if maxes[key] is None else min(left, maxes[key])  # type: ignore[type-var]
+            if n > 0:
+                out[key] = n
+                left -= n
+    return out
+
+
+def profile_desc(opts: OptimizeOptions) -> str:
+    """Le profil d'aptitudes en clair : « Force : Maîtrise Distance, puis Maîtrise Élémentaire… »."""
+    parts = []
+    for branch, lines in apt_profile(opts).items():
+        parts.append(f"{BRANCH_FR.get(branch, branch)} : " + ", puis ".join(LINE_FR.get(x, x) for x in lines))
+    return " ; ".join(parts) + "."
+
+
+def preset(data: GameData, archetype: str, class_key: str, level: int) -> dict[str, int]:
+    """Aptitudes rapides d'un archétype (onglet Aptitudes) : son profil rempli dans l'ordre."""
+    return profile_points(archetype_options(data, class_key, level, archetype), data.game)
+
+
+def meta_archetypes() -> list[dict[str, Any]]:
+    """Archétypes pour l'interface (ordre d'affichage)."""
+    return [{"key": a.key, "name": a.name, "desc": a.desc, "role": a.role, "range": a.range, "crit": a.crit,
+             "rear": a.rear, "rear_share": a.rear_share, "berserk": a.berserk, "heal": a.heal,
+             "res": [a.res_target, a.res_tol], "offense": a.offense, "will": a.will, "res_free": a.res_free,
+             "crit_floor": a.crit_floor, "hide_range": a.hide_range, "mins": dict(a.mins),
+             "count_conditional": a.count_conditional} for a in ARCHETYPES.values()]

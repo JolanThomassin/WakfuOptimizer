@@ -44,6 +44,8 @@ class OptimizeOptions:
     res_free: bool = False               # tank : la résistance continue de compter au-delà du plancher
     archetype: str = ""                  # archétype choisi dans l'interface (tank, dps_melee…), pour mémoire
     willpower_weight: int = 0            # poids de la Volonté (retraits PA/PM) dans le score, comme offense_weight
+    crit_target: int = 0                 # % critique visé (archétypes DPS) : chaque % manquant coûte au score
+    custom_panels: tuple[str, ...] = ()  # panneaux activés dans l'interface (priorities, constraints, subs), pour mémoire
     res_max: int = 90                    # obsolète (remplacé par res_target / res_tol)
     balance_res: bool = True             # obsolète : les résistances sont toujours équilibrées (gardé pour les anciens réglages)
     count_conditional: bool = True       # sublimations « PV > 90 % », « sans armure »
@@ -131,6 +133,7 @@ class OptimizeOptions:
         self.res_tol = max(0, min(self.res_target, int(self.res_tol)))
         self.min_res_pct = max(0, min(90, int(self.min_res_pct)))
         self.rear_share = max(0, min(100, int(self.rear_share)))
+        self.crit_target = max(0, min(100, int(self.crit_target)))
         self.forced_sub_levels = {str(k): max(1, int(v)) for k, v in self.forced_sub_levels.items()
                                   if int(k) in self.forced_subs}
         if self.neutral_combo:

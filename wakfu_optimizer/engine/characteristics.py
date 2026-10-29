@@ -42,8 +42,10 @@ def branch_points(branch: str, level: int, game: dict[str, Any]) -> int:
 DEFAULT_LINES = {"melee": ["agility.lock"], "distance": ["agility.dodge"], "mixed": ["agility.lock_dodge"]}
 
 
-def fill_unspent(points: dict[str, int], level: int, game: dict[str, Any], range_kind: str) -> dict[str, int]:
-    """Répartit les points restants de chaque branche : ligne habituelle d'abord, puis la première ligne libre."""
+def fill_unspent(points: dict[str, int], level: int, game: dict[str, Any], range_kind: str,
+                 profile: dict[str, list[str]] | None = None) -> dict[str, int]:
+    """Répartit les points restants de chaque branche : lignes du profil de l'archétype dans l'ordre
+    (voir archetypes.apt_profile), sinon ligne habituelle d'abord, puis la première ligne libre."""
     out = dict(points)
     lines = char_lines(game)
     for branch in game["characteristics"]:
@@ -51,7 +53,11 @@ def fill_unspent(points: dict[str, int], level: int, game: dict[str, Any], range
         if left <= 0:
             continue
         mine = [cl for cl in lines if cl.branch == branch]
-        order = [cl for k in DEFAULT_LINES.get(range_kind, []) for cl in mine if cl.key == k] + mine
+        if profile is not None and profile.get(branch):
+            first = [f"{branch}.{x}" for x in profile[branch]]
+        else:
+            first = DEFAULT_LINES.get(range_kind, [])
+        order = [cl for k in first for cl in mine if cl.key == k] + mine
         for cl in order:
             room = left if cl.max_points is None else cl.max_points - out.get(cl.key, 0)
             n = max(0, min(left, room))
@@ -80,64 +86,4 @@ def characteristic_stats(points: dict[str, int], game: dict[str, Any]) -> dict[s
         if n:
             for stat, v in cl.per_point.items():
                 out[stat] = out.get(stat, 0) + n * v
-    return out
-
-
-# Répartitions « rapides » habituelles des joueurs. Pour chaque branche, les lignes sont remplies
-# dans l'ordre (jusqu'à `max` points, ou jusqu'au plafond de la ligne) ; la dernière prend le reste.
-PRESETS: dict[str, dict[str, object]] = {
-    "distance": {"name": "Distance", "desc": "Résistance élémentaire puis % PV ; Maîtrise distance au max puis élémentaire ; "
-                 "Esquive ; % Critique au max puis Maîtrise critique ; Majeur PA, PM, % Dommages, Portée.",
-                 "lines": {"intelligence": [("elem_res", None), ("hp_pct", None)],
-                           "strength": [("distance_mastery", None), ("elem_mastery", None)],
-                           "agility": [("dodge", None)],
-                           "fortune": [("crit_rate", None), ("crit_mastery", None)],
-                           "major": [("ap", None), ("mp", None), ("dmg_pct", None), ("range", None)]}},
-    "melee": {"name": "Mêlée", "desc": "Résistance élémentaire puis % PV ; Maîtrise mêlée au max puis élémentaire ; "
-              "Tacle ; % Critique au max puis Maîtrise critique ; Majeur PA, PM, % Dommages, PW.",
-              "lines": {"intelligence": [("elem_res", None), ("hp_pct", None)],
-                        "strength": [("melee_mastery", None), ("elem_mastery", None)],
-                        "agility": [("lock", None)],
-                        "fortune": [("crit_rate", None), ("crit_mastery", None)],
-                        "major": [("ap", None), ("mp", None), ("dmg_pct", None), ("wp", None)]}},
-    "elemental": {"name": "Élémentaire", "desc": "Résistance élémentaire puis % PV ; tout en Maîtrise élémentaire ; "
-                  "Tacle et Esquive ; % Critique au max puis Maîtrise critique ; Majeur PA, PM, % Dommages, Portée.",
-                  "lines": {"intelligence": [("elem_res", None), ("hp_pct", None)],
-                            "strength": [("elem_mastery", None)],
-                            "agility": [("lock_dodge", None)],
-                            "fortune": [("crit_rate", None), ("crit_mastery", None)],
-                            "major": [("ap", None), ("mp", None), ("dmg_pct", None), ("range", None)]}},
-    "tank": {"name": "Tank", "desc": "Résistance élémentaire puis % PV ; tout en Points de vie ; Tacle ; "
-             "% Parade, Résistances critique et dos au max ; Majeur PA, PM, Résistance élémentaire, % Dommages.",
-             "lines": {"intelligence": [("elem_res", None), ("hp_pct", None)],
-                       "strength": [("hp", None)],
-                       "agility": [("lock", None)],
-                       "fortune": [("block", None), ("crit_res", None), ("rear_res", None), ("crit_mastery", None)],
-                       "major": [("ap", None), ("mp", None), ("elem_res", None), ("dmg_pct", None)]}},
-    "heal": {"name": "Soin", "desc": "Résistance élémentaire puis % PV ; tout en Maîtrise élémentaire ; Esquive ; "
-             "% Critique au max puis Maîtrise soin ; Majeur PA, PM, % Soins réalisés, Portée.",
-             "lines": {"intelligence": [("elem_res", None), ("hp_pct", None)],
-                       "strength": [("elem_mastery", None)],
-                       "agility": [("dodge", None)],
-                       "fortune": [("crit_rate", None), ("heal_mastery", None)],
-                       "major": [("ap", None), ("mp", None), ("heal_pct", None), ("range", None)]}},
-}
-
-
-def preset_points(name: str, level: int, game: dict[str, Any]) -> dict[str, int]:
-    """Points de caractéristiques d'un preset rapide pour un niveau donné."""
-    spec = PRESETS[name]["lines"]
-    maxes = {cl.key: cl.max_points for cl in char_lines(game)}
-    out: dict[str, int] = {}
-    for branch, lines in spec.items():  # type: ignore[union-attr]
-        left = branch_points(branch, level, game)
-        for line, cap in lines:
-            key = f"{branch}.{line}"
-            if key not in maxes or left <= 0:
-                continue
-            lim = [left] + [x for x in (maxes[key], cap) if x is not None]
-            n = min(lim)
-            if n > 0:
-                out[key] = n
-                left -= n
     return out

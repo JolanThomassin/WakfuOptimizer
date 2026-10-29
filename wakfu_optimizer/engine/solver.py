@@ -38,6 +38,7 @@ from ..data.models import (
     Slot,
     Sublimation,
 )
+from .archetypes import apt_forced, apt_profile, profile_keys
 from .characteristics import BRANCH_FR, branch_points, char_lines, fill_unspent
 from .options import NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice, SlotChoice
 from .scoring import WILL_CAP, WILL_FLOOR, flat_for_pct, gradient, res_cap, res_need, res_pct, utility_table
@@ -429,16 +430,19 @@ class BuildModel:
         if not self.opts.optimize_characteristics:
             return
         game = self.data.game
+        manual = self.opts.char_mode == "manual"
+        allowed = profile_keys(self.opts)   # lignes qui ont un sens pour l'archétype (voir archetypes.apt_profile)
+        forced = apt_forced(self.opts)      # lignes au maximum d'office (PA en Majeur, % Critique d'un DPS…)
         per_branch: dict[str, list[Any]] = defaultdict(list)
         for cl in char_lines(game):
             pts = branch_points(cl.branch, self.L, game)
             hi = pts if cl.max_points is None else min(pts, cl.max_points)
-            if hi <= 0:
+            if hi <= 0 or not manual and cl.key not in allowed:
                 continue
             var = self.m.NewIntVar(0, hi, f"c_{cl.key}")
-            if self.opts.char_mode == "manual":
+            if manual:
                 self.m.Add(var == max(0, min(hi, int(self.opts.manual_chars.get(cl.key, 0)))))
-            elif self.opts.apt_elem_res and cl.key == "intelligence.elem_res":
+            elif cl.key in forced:
                 self.m.Add(var == hi)
             self.v.chars[cl.key] = var
             per_branch[cl.branch].append(var)
@@ -732,6 +736,10 @@ class BuildModel:
             m.AddMinEquality(t, [self.stat("crit_rate"), 100])
             f["crit"] = t
             f["crit_mastery"] = 0 if opts.neutral_combo else self.stat("crit_mastery")
+            if opts.crit_target:   # palier de critique de l'archétype (voir scoring.crit_short)
+                sh = m.NewIntVar(0, BIG, "crit_short")
+                m.AddMaxEquality(sh, [opts.crit_target - self.stat("crit_rate"), 0])
+                f["crit_short"] = sh
         if opts.rear and not opts.heal:
             f["rear_mastery"] = self.stat("rear_mastery")
         f["dmg_pct"] = self.stat("dmg_pct")
@@ -1065,7 +1073,7 @@ class Optimizer:
             score, b, tot = best
             b, added = fill_empty_subs(self.data, opts, b)
             if opts.char_mode != "manual" and opts.optimize_characteristics:
-                filled = fill_unspent(b.characteristics, opts.level, self.data.game, opts.range)
+                filled = fill_unspent(b.characteristics, opts.level, self.data.game, opts.range, apt_profile(opts))
                 added += [] if filled == b.characteristics else ["aptitudes"]
                 b.characteristics = filled
             if added:
@@ -1154,7 +1162,8 @@ def _initial_point(opts: OptimizeOptions) -> dict[str, float]:
     L = opts.level
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
-            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "res_short": 0.0, "will": 0.0}
+            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "res_short": 0.0, "will": 0.0,
+            "crit_short": 0.0}
 
 
 def optimize(data: GameData, opts: OptimizeOptions, progress: ProgressFn | None = None) -> SolveResult:

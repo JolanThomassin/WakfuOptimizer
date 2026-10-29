@@ -93,65 +93,67 @@ classes:
   #   (mode flat = valeur fixe, pct_level = % du niveau). Les passifs à équiper ne sont pas pris en compte.
   #   Source : pages de classe de wakfu.wiki.gg.
   # range : melee | distance | mixed (les deux à moitié) | best (la meilleure des deux compte, ex. Roublard)
+  # archetypes : archétypes habituellement joués (engine/archetypes.py), le plus courant en premier. Ils sont proposés
+  #   en tête de liste dans l'interface ; le premier est l'archétype par défaut de la classe.
   feca:
-    {fr: Féca, elements: [fire, water, earth], range: distance, role: tank,
+    {fr: Féca, elements: [fire, water, earth], range: distance, role: tank, archetypes: [tank, support_buff, dps_distance],
      passive: {name: Protecteur, desc: "Débloque Armure de paix ; régénère ses PW grâce à Paix intérieure."}}
   osamodas:
-    {fr: Osamodas, elements: [fire, earth, air], range: distance, role: dps,
+    {fr: Osamodas, elements: [fire, earth, air], range: distance, role: dps, archetypes: [dps_distance, support_buff],
      passive: {name: Invocateur animal, desc: "Débloque ses invocations, la Forme draconique et le Gobgob ; partage ses PW avec ses invocations ; +1 PW en fin de tour."}}
   enutrof:
-    {fr: Enutrof, elements: [fire, water, earth], range: distance, role: dps,
+    {fr: Enutrof, elements: [fire, water, earth], range: distance, role: dps, archetypes: [dps_distance, support_debuff],
      passive: {name: Chasseur de trésors, desc: "Invoque la Foreuse en début de combat, déterre 4 mines par tour ; +1 PW en fin de tour."}}
   sram:
-    {fr: Sram, elements: [fire, water, air], range: melee, role: dps, rear: true,
+    {fr: Sram, elements: [fire, water, air], range: melee, role: dps, archetypes: [dps_rear, dps_melee], rear: true,
      passive: {name: Assassin squelettique, desc: "+20 % Coup critique en début de combat ; +50 % de dommages sur les ennemis isolés ; gagne du Point faible.",
                effects: [{stat: crit_rate, value: 20}]}}
   xelor:
-    {fr: Xélor, elements: [fire, water, air], range: distance, role: dps,
+    {fr: Xélor, elements: [fire, water, air], range: distance, role: dps, archetypes: [dps_distance, support_debuff],
      passive: {name: Mage du temps, desc: "+6 PW (12 au lieu de 6) ; regagne 1 PW (+1 par PA non utilisé) en fin de tour ; Cadran, Vol du temps, Distorsion.",
                effects: [{stat: wp, value: 6}]}}
   ecaflip:
-    {fr: Ecaflip, elements: [fire, water, earth], range: melee, role: dps,
+    {fr: Ecaflip, elements: [fire, water, earth], range: melee, role: dps, archetypes: [dps_melee, tank],
      passive: {name: Guerrier joueur, desc: "+20 % Coup critique en début de combat ; les critiques au-delà de 100 % augmentent les dommages ; +1 PW en fin de tour.",
                effects: [{stat: crit_rate, value: 20}]}}
   eniripsa:
-    {fr: Eniripsa, elements: [fire, water, air], range: distance, role: heal,
+    {fr: Eniripsa, elements: [fire, water, air], range: distance, role: heal, archetypes: [heal, dps_distance],
      passive: {name: Soigneur, desc: "Bonus de PV pour toute l'équipe : 200 % du niveau ; +1 PW en fin de tour (+2 si PV >= 80 %).",
                effects: [{stat: hp, value: 200, mode: pct_level}]}}
   iop:
-    {fr: Iop, elements: [fire, earth, air], range: melee, role: dps,
+    {fr: Iop, elements: [fire, earth, air], range: melee, role: dps, archetypes: [dps_melee, tank],
      passive: {name: Guerrier, desc: "+1 PM ; Puissance en début de combat ; combos de sorts et Concentration.",
                effects: [{stat: mp, value: 1}]}}
   cra:
-    {fr: Crâ, elements: [fire, earth, air], range: distance, role: dps,
+    {fr: Crâ, elements: [fire, earth, air], range: distance, role: dps, archetypes: [dps_distance],
      passive: {name: Archer, desc: "+1 Portée ; Affûtage et Précision en lançant des sorts ; état Évasif loin des ennemis ; balises.",
                effects: [{stat: range, value: 1}]}}
   sadida:
-    {fr: Sadida, elements: [water, earth, air], range: distance, role: dps,
+    {fr: Sadida, elements: [water, earth, air], range: distance, role: dps, archetypes: [dps_distance, heal, support_debuff],
      passive: {name: Invocateur végétal, desc: "Graine, Ultra-Puissante, Poupée vaudou ; +1 PW en fin de tour (+1 par Arbre)."}}
   sacrier:
-    {fr: Sacrieur, elements: [fire, earth, air], range: melee, role: tank, berserk: true,
+    {fr: Sacrieur, elements: [fire, earth, air], range: melee, role: tank, archetypes: [tank, berserk], berserk: true,
      passive: {name: Berserker, desc: "+400 % du niveau en PV ; chaque % de PV perdu donne de la Furie (PA, PM, PW, Châtiment).",
                effects: [{stat: hp, value: 400, mode: pct_level}]}}
   pandawa:
-    {fr: Pandawa, elements: [fire, water, earth], range: melee, role: tank,
+    {fr: Pandawa, elements: [fire, water, earth], range: melee, role: tank, archetypes: [tank, dps_melee],
      passive: {name: Savoir-faire pandawa, desc: "Tonneau, Karcham, Chamrak ; +2 PW en fin de tour (1 si Gai) ; soins en portant son tonneau."}}
   rogue:
-    {fr: Roublard, elements: [fire, earth, air], range: best, role: dps,
+    {fr: Roublard, elements: [fire, earth, air], range: best, role: dps, archetypes: [dps_distance, dps_melee],
      passive: {name: Maître de la diversion, desc: "Passe en mode Sournois au contact et Fuyard à distance : sa meilleure maîtrise (mêlée ou distance) compte. Bombes ; +1 PW en fin de tour."}}
   masqueraider:
-    {fr: Zobal, elements: [fire, water, air], range: melee, role: support,
+    {fr: Zobal, elements: [fire, water, air], range: melee, role: support, archetypes: [support_buff, tank, dps_melee],
      passive: {name: Soldat lunatique, desc: "Masques Psychopathe, Lâche et Classique ; +3 PW en fin de tour sans masque ; collisions sans perte de PA."}}
   ouginak:
-    {fr: Ouginak, elements: [water, earth, air], range: melee, role: dps,
+    {fr: Ouginak, elements: [water, earth, air], range: melee, role: dps, archetypes: [dps_melee, tank],
      passive: {name: Ouginak, desc: "Jauge de Rage (forme Ouginak), Proie ; ses poisons utilisent sa meilleure maîtrise (mêlée ou distance)."}}
   foggernaut:
-    {fr: Steamer, elements: [fire, water, earth], range: distance, role: dps,
+    {fr: Steamer, elements: [fire, water, earth], range: distance, role: dps, archetypes: [dps_distance, support_buff],
      passive: {name: Maître du sabotage, desc: "La moitié des PW devient des Points de Stasis ; Microbot, Tourelle, Steamergeur, Canonnier."}}
   eliotrope:
-    {fr: Eliotrope, elements: [water, earth, air], range: mixed, role: dps,
+    {fr: Eliotrope, elements: [water, earth, air], range: mixed, role: dps, archetypes: [dps_mixed, heal],
      passive: {name: Guerrier mobile, desc: "Convertit 2 Portée en 1 PM en début de combat (max 1) ; portails ; débute sous Calme.",
                effects: [{stat: mp, value: 1}, {stat: range, value: -2}]}}
   huppermage:
-    {fr: Huppermage, elements: [fire, water, earth, air], range: mixed, role: dps,
+    {fr: Huppermage, elements: [fire, water, earth, air], range: mixed, role: dps, archetypes: [dps_mixed, dps_distance],
      passive: {name: Guerrier élémentaire, desc: "Runes élémentaires (+1 PA par rune générée) ; PW convertis en Brise quadramentale (75 par PW)."}}

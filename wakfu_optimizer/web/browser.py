@@ -16,9 +16,8 @@ from ..data.fetch import DataBundle
 from ..data.models import GameData
 from ..data.parse import load_game_data
 from ..data.sources import load_crafts
-from ..engine.characteristics import preset_points
 from ..engine.options import Build
-from .server import (CRAFTS, alternatives_view, build_view, meta, opts_from, result_view, search,
+from .server import (CRAFTS, alternatives_view, build_view, meta, opts_from, preset_view, result_view, search,
                      sub_alternatives_view, subs_view)
 
 DATA: GameData | None = None
@@ -42,11 +41,11 @@ def request(method: str, path: str, body_json: str, settings_json: str) -> str:
     if method == "GET" and p == "/api/meta":
         out = meta(d, json.loads(settings_json or "{}"))
     elif method == "GET" and p == "/api/preset":
-        out = preset_points(q.get("name", ["distance"])[0], int(q.get("level", ["245"])[0]), d.game)
+        out = preset_view(d, q)
     elif method == "GET" and p == "/api/items":
         out = search(d, q)
     elif p == "/api/view":
-        out = build_view(d, opts_from(body.get("opts", {})), Build.from_dict(body["build"]))
+        out = build_view(d, opts_from(body.get("opts", {}), d), Build.from_dict(body["build"]))
     elif p == "/api/alternatives":
         out = alternatives_view(d, body)
     elif p == "/api/subs":
@@ -62,7 +61,7 @@ def optimize(opts_json: str, progress: Callable[[str, float], None]) -> str:
     from ..engine.solver import Optimizer
 
     assert DATA is not None
-    opts = opts_from(json.loads(opts_json))
+    opts = opts_from(json.loads(opts_json), DATA)
     try:
         r = Optimizer(DATA, opts, progress=progress).run()
         out = result_view(DATA, opts, r)
