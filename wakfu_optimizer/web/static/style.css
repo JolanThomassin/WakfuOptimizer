@@ -581,3 +581,15 @@ body.side-collapsed .sidebar { opacity: 0; padding: 0; border: none; overflow: h
 .items-grid.list .pv-tile b { font-size: 13px; }
 .items-grid.list .passive-ribbon, .items-grid.list .passive-foot { display: none; }
 .range-note { margin: 0 0 10px; color: var(--accent); }
+
+/* ----- stats d'items : libellés courts (liste), style « badge » comme le passif */
+.chip b { font-weight: 700; }
+.chip .lb { display: none; font-size: .9em; font-weight: 400; color: var(--muted); }
+.items-grid.list .chip-row, .it-row .chip-row { gap: 5px 6px; }
+.items-grid.list .chip, .it-row .chip { gap: 5px; padding: 3px 9px 3px 4px; border-radius: 8px; font-size: 12px;
+  background: rgba(255, 255, 255, .03); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .09); }
+.items-grid.list .chip .lb, .it-row .chip .lb { display: inline; }
+.items-grid.list .chip.neg b, .it-row .chip.neg b { color: var(--bad); }
+.items-grid.list .chip .ic, .it-row .chip .ic { width: 20px; height: 20px; }
+.items-grid.list .chip .ic img, .it-row .chip .ic img { max-width: 18px; max-height: 18px; }
+.item .obtain, .item .obtain .craft { white-space: nowrap; }

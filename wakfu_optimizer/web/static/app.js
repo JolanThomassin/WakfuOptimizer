@@ -852,6 +852,16 @@ async function exportPng(v) {
   }, "image/png");
 }
 
+// Libellés courts des stats (affichés en mode liste)
+const SHORT = {
+  ap: "PA", mp: "PM", wp: "PW", range: "Portée", hp: "PV", hp_pct: "% PV", crit_rate: "% Crit.", block: "% Parade",
+  elem_mastery: "Maîtrise élém.", melee_mastery: "M. mêlée", distance_mastery: "M. distance", crit_mastery: "M. critique",
+  rear_mastery: "M. dos", berserk_mastery: "M. berserk", heal_mastery: "M. soin", dmg_pct: "% Dommages",
+  elem_res: "Rés. élém.", lock: "Tacle", dodge: "Esquive", initiative: "Initiative", willpower: "Volonté", control: "Contrôle",
+  crit_res: "Rés. critique", rear_res: "Rés. dos", wisdom: "Sagesse", prospecting: "Prospection",
+};
+const lbl = (k) => (SHORT[k] ? ` <span class="lb">${SHORT[k]}</span>` : "");
+
 // Stats d'un item : les maîtrises (et résistances) d'élément de même valeur sont regroupées sur une seule
 // pastille avec les icônes des éléments côte à côte, au lieu d'une ligne par élément.
 function statChips(it, withEls = true) {
@@ -863,7 +873,7 @@ function statChips(it, withEls = true) {
     if (m) add(m[2] === "res" ? "res" : "mastery", x.value, m[1]);
     else others.push(x);
   }
-  const out = others.map((x) => chip(x.stat, signed(x.value), x.label, x.value < 0 ? "neg" : ""));
+  const out = others.map((x) => chip(x.stat, `<b>${signed(x.value)}</b>${lbl(x.stat)}`, x.label, x.value < 0 ? "neg" : ""));
   const randLabel = [];
   for (const [kind, list] of [["mastery", it.rand_mastery], ["res", it.rand_res]]) {
     for (const r of list || []) {
@@ -878,7 +888,8 @@ function statChips(it, withEls = true) {
       const what = kind === "res" ? "Résistance" : "Maîtrise";
       const tip = `${what} ${order.map((e) => EL_FR[e]).join(", ")} : ${signed(v)}`;
       const icons = order.map((e) => `<img src="assets/stats/${e}_${kind === "res" ? "res" : "mastery"}.png" alt="">`).join("");
-      out.push(`<span class="chip els ${v < 0 ? "neg" : ""}" title="${esc(tip)}"><span class="el-icons">${icons}</span>${signed(v)}</span>`);
+      out.push(`<span class="chip els ${v < 0 ? "neg" : ""}" title="${esc(tip)}"><span class="el-icons">${icons}</span><b>${signed(v)}</b>`
+        + ` <span class="lb">${kind === "res" ? "Rés." : "Maîtrise"}</span></span>`);
     }
   }
   out.push(...randLabel);
