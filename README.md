@@ -41,8 +41,18 @@ une version allégée de `items.json` et `equipmentItemTypes.json` (champs lus p
 Tester en local : `python tools/build_site.py` puis `python -m http.server 8766 --directory _site`.
 Pour tester le solveur HiGHS hors navigateur : `WAKFU_SOLVER=highs pytest`.
 
-Le solveur maximise `w_att × ln(dégâts) + w_déf × ln(PV effectifs) + valeur des PA/PM/PO/PW` par linéarisations successives
-(chaque passe est un problème linéaire CP-SAT, résolu en quelques secondes).
+Le solveur maximise `85 × ln(dégâts) + 15 × ln(PV effectifs) + valeur des PA/PM/PO/PW − pénalité` par linéarisations
+successives (chaque passe est un problème linéaire CP-SAT, résolu en quelques secondes). La pénalité porte sur la
+**résistance visée** : 1 point de score par point de résistance fixe manquant, par élément. La cible est donc atteinte dès que
+c'est possible, sans rendre le calcul impossible à bas niveau.
+
+- **Portée** : mêlée, distance ou **mixte** (les deux maîtrises comptent à moitié : Huppermage, Eliotrope).
+- **Coups de dos** : part des coups portés de dos (25 / 50 / 80 %) ; seule cette part profite de la Maîtrise Dos.
+- **Contraintes** : minimum et maximum de PA, PM, PO, PW et % critique.
+- **Sublimations** (onglet dédié) : apport chiffré de chacune sur le build, sublimations **imposées** (même celles dont
+  l'effet n'est pas chiffré, ex. Destruction) ou **exclues** ; sur le build, clic sur une sublimation pour la changer.
+- **Version navigateur (HiGHS)** : HiGHS trouve mal un premier build quand il doit aussi placer les châsses. On lui en
+  construit un (items choisis sans châsses, puis châsses complétées items fixés), et chaque passe repart du build précédent.
 
 ## Utilisation (étape 1)
 

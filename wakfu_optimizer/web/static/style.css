@@ -257,3 +257,53 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .preset-detail li { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #2c2940; color: var(--text); }
 .preset-detail li span:first-child { color: var(--muted); }
 @media (max-width: 1100px) { .apt-layout { grid-template-columns: 1fr; } }
+
+/* ----- contraintes min / max */
+.mm-grid { display: grid; grid-template-columns: 1fr 92px 92px; gap: 6px 8px; align-items: center; margin-bottom: 12px; }
+.mm-grid label { margin: 0; color: var(--text); font-size: 13px; }
+.mm-grid .mm-h { font-size: 11px; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: .5px; }
+.mm-grid .ctl { grid-template-columns: 26px 1fr 26px; }
+.seg.four { grid-template-columns: repeat(4, 1fr); }
+
+/* ----- item forcé, sublimations d'un item */
+.forced { margin-right: 4px; font-size: 13px; }
+.item .sub { cursor: pointer; border-radius: 6px; padding: 1px 4px; margin: -1px -4px; }
+.item .sub:hover { background: var(--card-hi); }
+.item .sub.empty { color: var(--muted); font-weight: 400; font-style: italic; }
+.sub-swap { font-size: 11px; color: var(--muted); }
+.item .sub.special.empty::before { content: ""; }
+.active-subs span.over { outline: 1px solid #ffcf6e; }
+img.pat { width: 15px; height: 15px; vertical-align: -3px; }
+.pat-box { display: flex; gap: 1px; justify-content: center; min-width: 42px; color: var(--muted); font-size: 18px; }
+.sub-desc { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
+
+/* ----- onglet Sublimations */
+.subs-top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+.subs-top > div:first-child { flex: 1 1 380px; }
+.subs-tools { display: flex; flex-direction: column; gap: 8px; min-width: 280px; }
+.subs-tools .seg.four { margin: 0; }
+.sub-group { margin-bottom: 10px; }
+.sub-group summary { cursor: pointer; list-style: none; }
+.sub-group summary::-webkit-details-marker { display: none; }
+.sub-group summary h2 { display: inline; }
+.sub-group summary::before { content: "▸ "; color: var(--accent); }
+.sub-group[open] summary::before { content: "▾ "; }
+.sub-group .hint { margin: 4px 0 8px; }
+.sub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 8px; }
+.sub-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.sub-card.fo { border-color: var(--good); }
+.sub-card.ex { opacity: .55; }
+.sc-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.sc-name { font-weight: 700; color: var(--accent); }
+.sc-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+.sc-foot .btns { display: flex; gap: 6px; }
+.lvls { display: flex; gap: 10px; flex-wrap: wrap; }
+.lv { display: inline-flex; align-items: center; gap: 1px; }
+.lv small { margin-left: 3px; color: var(--muted); }
+.tag { font-size: 10.5px; font-weight: 600; background: var(--card-hi); color: var(--muted); border-radius: 8px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; vertical-align: 1px; }
+.tag.epic { color: #d96bff; }
+.tag.relic { color: #ff6fa8; }
+.tag.on { color: var(--good); }
+.gain { font-weight: 700; font-size: 13px; white-space: nowrap; }
+.gain.pos { color: var(--good); }
+.gain.neg { color: var(--bad); }

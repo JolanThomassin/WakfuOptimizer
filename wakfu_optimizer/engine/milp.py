@@ -121,6 +121,7 @@ class CpModel:
         self.rows: list[tuple[dict[int, float], float, float]] = []
         self.objective: dict[int, float] = {}
         self.hints: dict[int, float] = {}
+        self.incumbent: np.ndarray | None = None   # dernière solution trouvée (point de départ suivant)
 
     # ------------------------------------------------------------ variables
     def NewIntVar(self, lo: int, hi: int, name: str) -> IntVar:  # noqa: N802
@@ -262,7 +263,7 @@ class CpModel:
 class CpSolver:
     def __init__(self) -> None:
         self.parameters = SimpleNamespace(max_time_in_seconds=10.0, num_search_workers=1, random_seed=0,
-                                          relative_gap_limit=1e-4)
+                                          relative_gap_limit=1e-4, fix_variables_to_their_hinted_value=False)
         self._values: np.ndarray = np.zeros(0)
         self._highs: highspy.Highs | None = None
         self.wall_time = 0.0
@@ -275,13 +276,19 @@ class CpSolver:
         h.setOptionValue("time_limit", float(self.parameters.max_time_in_seconds))
         h.setOptionValue("mip_rel_gap", float(self.parameters.relative_gap_limit))
         h.setOptionValue("random_seed", int(self.parameters.random_seed))
-        h.passModel(model.to_highs())
-        if model.hints:
-            sol = highspy.HighsSolution()
-            col = np.array(model.lb, dtype=float)
+        lp = model.to_highs()
+        fix = bool(self.parameters.fix_variables_to_their_hinted_value) and model.hints
+        if fix:
+            lo, hi = np.array(lp.col_lower_), np.array(lp.col_upper_)
             for i, v in model.hints.items():
-                col[i] = v
-            sol.col_value = col
+                lo[i] = hi[i] = v
+            lp.col_lower_, lp.col_upper_ = lo, hi
+        h.passModel(lp)
+        # Point de départ : le dernier build trouvé sur ce modèle (seul l'objectif change d'une passe à l'autre).
+        # HiGHS trouve mal une première solution (châsses, runes, sublimations) mais améliore vite une solution donnée.
+        if not fix and model.incumbent is not None and len(model.incumbent) == len(model.lb):
+            sol = highspy.HighsSolution()
+            sol.col_value = model.incumbent
             sol.value_valid = True
             h.setSolution(sol)
         h.run()
@@ -290,6 +297,7 @@ class CpSolver:
         has_sol = h.getInfo().primal_solution_status == 2
         if has_sol:
             self._values = np.round(np.array(h.getSolution().col_value))
+            model.incumbent = self._values.copy()
         if status == highspy.HighsModelStatus.kOptimal:
             return OPTIMAL
         if status == highspy.HighsModelStatus.kInfeasible:

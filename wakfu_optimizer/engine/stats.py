@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from ..data.models import ELEMENTS, GameData, Item, Slot
 from .characteristics import characteristic_stats
 from .options import Build, OptimizeOptions
-from .scoring import RES_CAP_FLAT, damage_d2, defense_value, ehp_factor, log_score, res_pct
+from .scoring import RES_CAP_FLAT, damage_d2, defense_value, ehp_factor, log_score, res_need, res_pct, secondary_mastery
 from .shards import condition_holds, effect_targets
 
 DISPLAY_STATS = [
@@ -51,7 +51,8 @@ def item_rune_level(item: Item, cap_level: int, rune_reqs: tuple[int, ...]) -> i
     return lvl
 
 
-def evaluate(data: GameData, opts: OptimizeOptions, build: Build) -> Totals:
+def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: dict[int, int] | None = None) -> Totals:
+    """`extra_states` : niveaux d'état ajoutés (pour estimer l'apport d'une sublimation)."""
     items = data.item_by_id()
     runes = data.rune_by_id()
     subs = data.sub_by_id()
@@ -96,6 +97,8 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build) -> Totals:
             if sid is not None and sid in subs:
                 state_levels[subs[sid].state_id] += subs[sid].state_level
 
+    for sid, lvl in (extra_states or {}).items():
+        state_levels[sid] += lvl
     for k, v in characteristic_stats(build.characteristics, data.game).items():
         s[k] += v
 
@@ -125,7 +128,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build) -> Totals:
 
     played = [e for e in opts.elements if e in ELEMENTS] or list(ELEMENTS)
     m = min(t.mastery[e] for e in played)
-    sec = s["melee_mastery"] if opts.range == "melee" else s["distance_mastery"]
+    sec = secondary_mastery(s["melee_mastery"], s["distance_mastery"], opts.range)
     mtot = m + sec + (s["berserk_mastery"] if opts.berserk else 0) + (s["heal_mastery"] if opts.heal else 0)
     t.mastery_used = mtot
     crit = max(0, min(100, s["crit_rate"])) if opts.crit else 0
@@ -145,6 +148,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build) -> Totals:
         "hp": float(hp_base), "hp_pct": float(s["hp_pct"]),
         "res": float(min(capped) if opts.balance_res else sum(capped) / 4),
         "ap": float(s["ap"]), "mp": float(s["mp"]), "range": float(s["range"]), "wp": float(s["wp"]),
+        "res_short": float(sum(max(0, res_need(opts) - t.res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
     }
     t.score = log_score(t.features, opts)
     return t

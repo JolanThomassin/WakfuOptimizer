@@ -22,6 +22,8 @@ from ..data.models import (
     COLOR_FR,
     ELEMENT_FR,
     ELEMENTS,
+    PROP_EPIC_GEM,
+    PROP_RELIC_GEM,
     RARITY_COLOR,
     RARITY_FR,
     SLOT_FR,
@@ -38,6 +40,7 @@ from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min
 from ..engine.report import SLOT_ORDER, build_json, build_text
 from ..engine.scoring import damage_multiplier
 from ..engine.stats import Totals, evaluate
+from ..engine.sublimations import SubFamily, build_levels, catalog, sub_alternatives
 
 log = logging.getLogger(__name__)
 
@@ -151,14 +154,21 @@ def build_view(data: GameData, opts: OptimizeOptions, build: Build, t: Totals | 
         for key, sid in (("sub", ch.sublimation_id), ("special", ch.special_sublimation_id)):
             if sid in subs:
                 st = data.states.get(subs[sid].state_id)
-                c[key] = {"name": subs[sid].name(lang), "desc": st.description if st else ""}
+                c[key] = {"id": sid, "state": subs[sid].state_id, "name": subs[sid].name(lang),
+                          "desc": st.description if st else "", "modeled": bool(st and st.modeled),
+                          "pattern": [int(x) for x in subs[sid].pattern]}
+        it_special = it.is_epic or it.is_relic or PROP_EPIC_GEM in it.properties or PROP_RELIC_GEM in it.properties
+        c["can_special"] = it_special
+        c["forced"] = it.id in opts.forced_ids
         cards.append(c)
     s = t.stats
     active = []
+    raw = build_levels(data, build)
     for sid, lvl in t.active_states.items():
         st = data.states.get(sid)
         if st:
-            active.append({"name": st.name, "level": lvl, "desc": st.description})
+            active.append({"name": st.name, "level": lvl, "desc": st.description, "limit": st.limit,
+                           "raw": raw.get(sid, lvl), "modeled": st.modeled})
     cp = data.classes.get(opts.class_key)
     return {
         "class": {"key": opts.class_key, "name": cp.name if cp else opts.class_key},
@@ -247,6 +257,38 @@ def search(d: GameData, q: dict[str, list[str]]) -> list[dict[str, Any]]:
             if len(out) >= 80:
                 break
     return out
+
+
+def family_json(d: GameData, f: SubFamily, lang: str) -> dict[str, Any]:
+    return {"state": f.state_id, "name": f.name, "desc": f.desc, "limit": f.limit, "kind": f.kind,
+            "modeled": f.modeled, "applicable": f.applicable, "in_build": f.in_build, "gain": f.gain,
+            "levels": [{"id": s.id, "name": s.name(lang), "level": s.state_level,
+                        "pattern": [int(x) for x in s.pattern]} for s in f.subs]}
+
+
+def subs_view(d: GameData, body: dict[str, Any]) -> list[dict[str, Any]]:
+    """Catalogue des sublimations (onglet Sublimations), avec leur apport sur le build affiché."""
+    opts = opts_from(body.get("opts", {}))
+    build = Build.from_dict(body["build"]) if body.get("build") else None
+    return [family_json(d, f, opts.lang) for f in catalog(d, opts, build)]
+
+
+def sub_alternatives_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
+    opts = opts_from(body.get("opts", {}))
+    build = Build.from_dict(body["build"])
+    slot = Slot(body["slot"])
+    special = bool(body.get("special"))
+    base = evaluate(d, opts, build)
+    options, other_colors = sub_alternatives(d, opts, build, slot, special)
+    out = []
+    for o in options:
+        st = d.states.get(o.sub.state_id) if o.sub else None
+        out.append({"id": o.sub.id if o.sub else None, "name": o.sub.name(opts.lang) if o.sub else "Aucune sublimation",
+                    "desc": st.description if st else "", "modeled": bool(st and st.modeled),
+                    "pattern": [int(x) for x in o.sub.pattern] if o.sub else [], "delta": o.delta,
+                    "build": o.build.to_dict(), "compare": compare(base, o.totals, opts)})
+    return {"slot": slot.value, "slot_name": SLOT_FR[slot], "special": special, "items": out,
+            "other_colors": other_colors}
 
 
 def alternatives_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
@@ -419,6 +461,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(build_view(d, opts, Build.from_dict(body["build"])))
             if p == "/api/alternatives":
                 return self._json(alternatives_view(d, body))
+            if p == "/api/subs":
+                return self._json(subs_view(d, body))
+            if p == "/api/sub_alternatives":
+                return self._json(sub_alternatives_view(d, body))
             return self._send(404, b"not found", "text/plain")
         except (BrokenPipeError, ConnectionResetError):
             return None

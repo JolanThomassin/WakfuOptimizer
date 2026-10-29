@@ -18,7 +18,8 @@ from ..data.parse import load_game_data
 from ..data.sources import load_crafts
 from ..engine.characteristics import preset_points
 from ..engine.options import Build
-from .server import CRAFTS, alternatives_view, build_view, meta, opts_from, result_view, search
+from .server import (CRAFTS, alternatives_view, build_view, meta, opts_from, result_view, search,
+                     sub_alternatives_view, subs_view)
 
 DATA: GameData | None = None
 
@@ -48,6 +49,10 @@ def request(method: str, path: str, body_json: str, settings_json: str) -> str:
         out = build_view(d, opts_from(body.get("opts", {})), Build.from_dict(body["build"]))
     elif p == "/api/alternatives":
         out = alternatives_view(d, body)
+    elif p == "/api/subs":
+        out = subs_view(d, body)
+    elif p == "/api/sub_alternatives":
+        out = sub_alternatives_view(d, body)
     else:
         out = {"error": f"requête inconnue : {method} {p}"}
     return json.dumps(out, ensure_ascii=False)

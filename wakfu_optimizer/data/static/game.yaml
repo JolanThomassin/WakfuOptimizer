@@ -86,6 +86,7 @@ characteristics:
       indirect_pct: {per_point: {indirect_pct: 10}, max: 1}
 
 # Classes : éléments préremplis et priorités par défaut (tout est modifiable dans l'interface).
+# range : melee | distance | mixed (frappe aussi bien au contact qu'à distance : les deux maîtrises comptent à moitié).
 # Les éléments sont une valeur de départ : à corriger ici si la classe a évolué.
 classes:
   feca:        {fr: Féca,       elements: [fire, water, earth], range: distance, role: tank}
@@ -104,5 +105,5 @@ classes:
   masqueraider: {fr: Zobal,     elements: [fire, water, air],   range: melee,    role: dps}
   ouginak:     {fr: Ouginak,    elements: [water, earth, air],  range: melee,    role: dps}
   foggernaut:  {fr: Steamer,    elements: [fire, water, earth], range: distance, role: dps}
-  eliotrope:   {fr: Eliotrope,  elements: [fire, water, air],   range: distance, role: dps}
-  huppermage:  {fr: Huppermage, elements: [fire, water, earth, air], range: distance, role: dps}
+  eliotrope:   {fr: Eliotrope,  elements: [fire, water, air],   range: mixed,    role: dps}
+  huppermage:  {fr: Huppermage, elements: [fire, water, earth, air], range: mixed,    role: dps}

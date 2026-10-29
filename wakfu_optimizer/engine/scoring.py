@@ -108,7 +108,10 @@ RES_CAP_FLAT = 1032                   # résistance fixe donnant 90 % (au-delà 
 
 # Valeur automatique (fraction de la valeur globale) de chaque PA/PM/PO/PW, jusqu'au plafond.
 UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12)}
-RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.005, 4)}
+RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.005, 4), "mixed": (0.025, 5)}
+# Pénalité (points de score) par point de résistance fixe manquant sous la résistance visée, par élément :
+# assez forte pour que la cible soit atteinte dès que possible, sans rendre le calcul infaisable sinon.
+RES_SHORT_PENALTY = 1.0
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:
@@ -133,7 +136,8 @@ def ln_defense(hp: float, hp_pct: float, res: float) -> float:
     return math.log(max(1.0, hp)) + math.log(max(1.0, 100 + hp_pct)) + LN_RES * min(res, RES_CAP_FLAT)
 
 
-FEATURES = ("mtot", "crit", "crit_mastery", "rear_mastery", "dmg_pct", "hp", "hp_pct", "res", "ap", "mp", "range", "wp")
+FEATURES = ("mtot", "crit", "crit_mastery", "rear_mastery", "dmg_pct", "hp", "hp_pct", "res", "ap", "mp", "range", "wp",
+            "res_short")
 
 
 def log_score(f: dict[str, float], opts: object) -> float:
@@ -147,7 +151,21 @@ def log_score(f: dict[str, float], opts: object) -> float:
         s += (100 - w_off) * ln_defense(f["hp"], f["hp_pct"], f["res"])
     for k, (v, cap) in utility_table(opts).items():
         s += 100 * v * max(0.0, min(float(f.get(k, 0)), cap))
+    s -= RES_SHORT_PENALTY * f.get("res_short", 0.0)
     return s
+
+
+def secondary_mastery(melee: int, distance: int, rng: str) -> int:
+    """Maîtrise de portée utile : mêlée, distance, ou moyenne des deux (classes « mixtes »)."""
+    if rng == "mixed":
+        return (melee + distance) // 2
+    return melee if rng == "melee" else distance
+
+
+def res_need(opts: object) -> int:
+    """Résistance fixe visée par élément (0 si pas de cible)."""
+    t = int(getattr(opts, "res_target", 0) or 0)
+    return flat_for_pct(t) if t > 0 else 0
 
 
 def gradient(f: dict[str, float], opts: object) -> dict[str, float]:

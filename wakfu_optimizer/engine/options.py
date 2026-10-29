@@ -25,14 +25,15 @@ class OptimizeOptions:
     elements: tuple[str, ...] = ("fire", "earth", "air")
     lang: str = "fr"
     # --- Priorités
-    range: str = "melee"                 # melee | distance
+    range: str = "melee"                 # melee | distance | mixed (moitié mêlée, moitié distance)
     target: str = "single"               # single | area (sans effet : n'existe plus sur l'équipement)
     crit: bool = True
     rear: bool = False
     rear_share: int = 50                 # % des frappes de dos si « rear »
     berserk: bool = False
     heal: bool = False
-    offense_weight: int = 70             # 0..100 ; défense = 100 - offense
+    offense_weight: int = 85             # 0..100 ; défense = 100 - offense (fixe : la défense passe par res_target)
+    res_target: int = 50                 # % de résistance visé sur chaque élément (objectif souple, pénalisé si manqué)
     balance_res: bool = True
     count_conditional: bool = True       # sublimations « PV > 90 % », « sans armure »
     # Valeur (en points de score) de chaque PA/PM/PO/PW, au-delà des minimums, jusqu'aux plafonds.
@@ -51,7 +52,13 @@ class OptimizeOptions:
     min_wp: int = 0
     min_crit: int = 0
     min_control: int = 0
-    min_res_pct: int = 0                 # résistance minimale (%) sur chaque élément
+    min_res_pct: int = 0                 # résistance minimale (%) sur chaque élément (contrainte stricte)
+    # maximums (0 = pas de maximum)
+    max_ap: int = 0
+    max_mp: int = 0
+    max_range: int = 0
+    max_wp: int = 0
+    max_crit: int = 0
     allowed_rarities: tuple[int, ...] = tuple(int(r) for r in Rarity)
     lower_brackets: bool = False
     exclude_relic: bool = False
@@ -63,6 +70,8 @@ class OptimizeOptions:
     manual_chars: dict[str, int] = field(default_factory=dict)   # "branche.ligne" -> points
     excluded_ids: tuple[int, ...] = ()
     forced_ids: tuple[int, ...] = ()
+    forced_subs: tuple[int, ...] = ()     # sublimations imposées (id d'état : n'importe quel niveau)
+    excluded_subs: tuple[int, ...] = ()   # sublimations interdites (id d'état)
     # --- Châsses
     shard_mode: str = "ideal"            # ideal | mine | none
     shard_count: int = 4

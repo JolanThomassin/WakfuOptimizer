@@ -56,7 +56,9 @@ function toast(text) {
 const S = {
   meta: null, excluded: new Set(), forced: new Set(), colors: {}, job: null,
   view: null, original: null, opts: null, changed: new Set(),
+  subForced: new Set(), subExcluded: new Set(),
 };
+const MINMAX = [["ap", "PA", 20], ["mp", "PM", 10], ["range", "PO", 10], ["wp", "PW", 20], ["crit", "% Crit", 100, "crit_rate"]];
 
 // ===================================================================== widgets
 function stepper(id, label, stat, min, max, suffix = "") {
@@ -101,10 +103,12 @@ function buildForm() {
   $$("#rarities .toggle").forEach((b) => b.addEventListener("click", () => b.classList.toggle("on")));
   ["crit", "rear", "berserk", "heal"].forEach((id) => $("#" + id).addEventListener("click", () => { $("#" + id).classList.toggle("on"); refreshVis(); }));
 
-  const mins = $("#mins");
-  [["min_ap", "PA min", "ap", 0, 20], ["min_mp", "PM min", "mp", 0, 10], ["min_range", "PO min", "range", 0, 10],
-   ["min_wp", "PW min", "wp", 0, 20], ["min_crit", "% Crit min", "crit_rate", 0, 100],
-   ["min_res_pct", "% Rés. min (chaque élém.)", "elem_res", 0, 90]].forEach(([id, l, st, a, b]) => mins.appendChild(stepper(id, l, st, a, b)));
+  const mm = $("#minmax");
+  for (const [k, label, hi, st] of MINMAX) {
+    mm.insertAdjacentHTML("beforeend", `<label><img src="assets/stats/${STAT_ICON[st || k]}.png" alt="">${label}</label>`);
+    mm.appendChild($(".ctl", stepper(`min_${k}`, "", null, 0, hi)));
+    mm.appendChild($(".ctl", stepper(`max_${k}`, "", null, 0, hi)));
+  }
   const ss = $("#shard-steps");
   ss.appendChild(stepper("shard_count", "Châsses par item", null, 1, 4));
   ss.appendChild(stepper("max_jokers", "Jaunes (joker) max", null, 0, 4, "Châsses jaunes : acceptent toutes les runes"));
@@ -118,10 +122,9 @@ function buildForm() {
   $("#my-colors").appendChild(grid);
   $("#my-colors").insertAdjacentHTML("beforeend", `<p class="hint">Clic : rouge → verte → bleue → jaune (joker) → aucune. Clic droit : aucune.</p>`);
 
-  seg("range"); seg("shard_mode");
+  seg("range"); seg("shard_mode"); seg("rear_share"); seg("subs-kind");
   $("#shard_mode").addEventListener("change", refreshVis);
-  $("#weight").addEventListener("input", refreshVis);
-  $("#rear_share").addEventListener("input", refreshVis);
+  $("#res_target").addEventListener("input", refreshVis);
   cls.addEventListener("change", () => { applyClass(cls.value); refreshVis(); });
   $("#level").addEventListener("change", () => {
     const l = m.levels.find((x) => x.level === +$("#level").value);
@@ -130,6 +133,14 @@ function buildForm() {
     renderApt();
   });
   buildAptForm();
+  setSeg("subs-kind", "all");
+  $("#subs-kind").addEventListener("change", () => subsCache && renderSubs());
+  $("#subs-q").addEventListener("input", () => { clearTimeout(subsTimer); subsTimer = setTimeout(() => subsCache && renderSubs(), 150); });
+  $("#subs-go").addEventListener("click", start);
+  $("#subs-list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sfo],[data-sex]");
+    if (b) setSubPref(+(b.dataset.sfo || b.dataset.sex), b.dataset.sfo ? "fo" : "ex");
+  });
   $("#items-btn").addEventListener("click", openPicker);
   $("#go").addEventListener("click", start);
   $("#stop").addEventListener("click", () => S.job && api("/api/cancel", { job: S.job }));
@@ -168,14 +179,14 @@ function applyClass(key) {
   toggleBtn($("#rear"), c.rear);
   toggleBtn($("#berserk"), c.berserk);
   toggleBtn($("#heal"), c.role === "heal");
-  $("#weight").value = c.role === "tank" ? 40 : 70;
+  setSeg("rear_share", c.rear ? "80" : "50");
+  $("#res_target").value = c.role === "tank" ? 65 : c.role === "heal" ? 55 : 50;
 }
 
 function refreshVis() {
   $("#class-icon").src = `assets/classes/${$("#cls").value}.png`;
-  const w = +$("#weight").value;
-  $("#weight-lab").textContent = `Attaque ${w} % · Défense ${100 - w} %`;
-  $("#rear-lab").textContent = `${$("#rear_share").value} %`;
+  const rt = +$("#res_target").value;
+  $("#res-lab").textContent = rt ? `${rt} % sur chaque élément` : "aucune";
   $("#rear-box").classList.toggle("hidden", !isOn("rear"));
   const mode = segVal("shard_mode");
   $("#shard-steps").classList.toggle("hidden", mode !== "ideal");
@@ -193,9 +204,13 @@ function applyOptions(o) {
   $$("#elements .toggle").forEach((b) => toggleBtn(b, (o.elements || []).includes(b.dataset.el)));
   setSeg("range", o.range || "melee");
   toggleBtn($("#crit"), o.crit); toggleBtn($("#rear"), o.rear); toggleBtn($("#berserk"), o.berserk); toggleBtn($("#heal"), o.heal);
-  set("rear_share", o.rear_share); set("weight", o.offense_weight);
+  const rs = +o.rear_share || 50;
+  setSeg("rear_share", rs >= 70 ? "80" : rs <= 35 ? "25" : "50");
+  set("res_target", o.res_target ?? 50);
   $("#balance").checked = o.balance_res; $("#cond").checked = o.count_conditional;
-  ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_res_pct", "shard_count", "max_jokers"].forEach((k) => set(k, o[k]));
+  ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "max_ap", "max_mp", "max_range", "max_wp", "max_crit",
+   "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
+  S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
   $$("#rarities .toggle").forEach((b) => toggleBtn(b, (o.allowed_rarities || []).includes(+b.dataset.r)));
   $("#lower").checked = o.lower_brackets; $("#no_relic").checked = o.exclude_relic; $("#no_epic").checked = o.exclude_epic;
   $("#no_shop").checked = o.exclude_shop; $("#pets").checked = o.include_pet_mount;
@@ -204,6 +219,7 @@ function applyOptions(o) {
   S.apt = Object.assign({}, o.manual_chars || {});
   setSeg("char_mode", o.char_mode || "auto");
   S.colors = o.my_colors || {};
+  updateSubsBadge();
   renderShardRows();
   refreshVis();
 }
@@ -213,11 +229,13 @@ function options() {
   const els = $$("#elements .toggle.on").map((b) => b.dataset.el);
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
-    range: segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: n("rear_share"),
-    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: n("weight"),
+    range: segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
+    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"),
     balance_res: $("#balance").checked, count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
-    min_crit: n("min_crit"), min_control: 0, min_res_pct: n("min_res_pct"),
+    min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,
+    max_ap: n("max_ap"), max_mp: n("max_mp"), max_range: n("max_range"), max_wp: n("max_wp"), max_crit: n("max_crit"),
+    forced_subs: [...S.subForced], excluded_subs: [...S.subExcluded],
     allowed_rarities: $$("#rarities .toggle.on").map((b) => +b.dataset.r),
     lower_brackets: $("#lower").checked, exclude_relic: $("#no_relic").checked, exclude_epic: $("#no_epic").checked,
     exclude_shop: $("#no_shop").checked, include_pet_mount: $("#pets").checked, optimize_characteristics: true,
@@ -271,6 +289,7 @@ async function poll() {
   setProgress(1, `Terminé — ${r.status} en ${r.elapsed} s`, false);
   $("#msg").innerHTML = warn;
   S.original = r.view; S.view = r.view; S.changed = new Set();
+  subsCache = null;
   showTab("build");
   renderResult();
   $("#apt-from-build").disabled = false;
@@ -289,7 +308,11 @@ function renderResult() {
   const masteries = ELEMENTS.map((e) => sc(`${e}_mastery`, EL_FR[e], fmt(v.mastery[e]))).join("");
   const res = ELEMENTS.map((e) => sc(`${e}_res`, EL_FR[e], `${v.res_pct[e]} % <small class="muted">(${v.res_flat[e]})</small>`)).join("");
   const g = (k, label, suffix = "") => sc(k, label, `${fmt(s[k] || 0)}${suffix}`, pn(s[k] || 0));
-  const subs = v.active.map((a) => `<span title="${esc(a.desc)}">${esc(a.name)} <b>${a.level}</b></span>`).join("");
+  const subs = v.active.map((a) => {
+    const over = a.limit && a.raw > a.limit;
+    const tip = `${a.desc}${a.limit ? `\nNiveau max : ${a.limit}` : ""}${over ? `\n⚠ ${a.raw - a.limit} niveau(x) perdu(s) : au-delà du maximum` : ""}${a.modeled ? "" : "\nEffet non chiffré par l'optimiseur"}`;
+    return `<span class="${over ? "over" : ""}" title="${esc(tip)}">${esc(a.name)} <b>${a.level}${a.limit ? `/${a.limit}` : ""}</b>${over ? " ⚠" : ""}</span>`;
+  }).join("");
   $("#result").innerHTML = `
   <div class="result-grid">
     <div class="summary card">
@@ -321,6 +344,10 @@ function renderResult() {
     <div class="items-grid">${v.items.map(itemCard).join("")}</div>
   </div>`;
   $$(".item[data-slot]").forEach((c) => c.addEventListener("click", () => openSwap(c.dataset.slot)));
+  $$(".item [data-subslot]").forEach((el) => el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openSubSwap(el.dataset.subslot, el.dataset.special === "1");
+  }));
   $("#copy").addEventListener("click", () => navigator.clipboard.writeText(v.text).then(() => toast("Build copié.")));
   $("#export").addEventListener("click", () => {
     const a = document.createElement("a");
@@ -367,16 +394,27 @@ function itemCard(it) {
   const runeTxt = summarizeRunes(it.shards || []);
   return `<div class="item ${S.changed.has(it.slot) ? "changed" : ""}" data-slot="${it.slot}" title="Cliquer pour voir les autres items possibles">
     <div class="it-head"><img class="it-icon" src="${iconUrl(it.gfx)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
-      <div class="it-names"><div class="it-name" style="color:${it.color}">${esc(it.name)}</div>
+      <div class="it-names"><div class="it-name" style="color:${it.color}">${S.forced.has(it.id) ? `<span class="forced" title="Item forcé : gardé à chaque optimisation">📌</span>` : ""}${esc(it.name)}</div>
       <div class="it-sub">${esc(it.slot_name)} · niv. ${it.level} · ${esc(it.rarity_name)}</div></div>
       <span class="it-swap">Changer ⇄</span></div>
     <div class="chip-row">${statChips(it)}</div>
     ${runes ? `<div class="runes">${runes}<span>${esc(runeTxt)}</span></div>` : ""}
-    ${it.sub ? `<div class="sub" title="${esc(it.sub.desc)}">${esc(it.sub.name)}</div>` : ""}
-    ${it.special ? `<div class="sub special" title="${esc(it.special.desc)}">${esc(it.special.name)}</div>` : ""}
+    ${subLine(it, false)}${subLine(it, true)}
     ${obtain(it)}
   </div>`;
 }
+// Sublimation d'un item : cliquable pour en changer (comme un item)
+function subLine(it, special) {
+  const s = special ? it.special : it.sub;
+  if (!s && (special ? !it.can_special : !(it.shards || []).length)) return "";
+  const txt = s ? esc(s.name) : `+ ${special ? "sublimation épique / relique" : "sublimation"}`;
+  const tip = s ? `${s.desc}${s.modeled ? "" : "\n(effet non chiffré)"}\n\nCliquer pour changer de sublimation` : "Cliquer pour choisir une sublimation";
+  return `<div class="sub ${special ? "special" : ""} ${s ? "" : "empty"}" data-subslot="${it.slot}" data-special="${special ? 1 : 0}" title="${esc(tip)}">${txt} <span class="sub-swap">⇄</span></div>`;
+}
+function patternHtml(pattern) {
+  return pattern.map((c) => `<img class="pat" src="assets/shards/shard${SHARD_FILE[c]}Full.png" alt="">`).join("");
+}
+
 function summarizeRunes(shards) {
   const acc = {};
   for (const s of shards) if (s.rune) acc[s.label] = (acc[s.label] || 0) + s.value;
@@ -392,8 +430,8 @@ async function openSwap(slot) {
     <div class="chip-row" style="margin-top:4px">${statChips(cur)}</div>${obtain(cur)}</div>
     <div class="btns"><button class="btn small" id="dr-ex" title="Ne plus proposer cet item aux prochaines optimisations">Exclure</button>
     <button class="btn small" id="dr-fo" title="Garder cet item aux prochaines optimisations">Forcer</button></div></div>`;
-  $("#dr-ex").addEventListener("click", () => { S.forced.delete(cur.id); S.excluded.add(cur.id); refreshVis(); toast("Item exclu pour les prochaines optimisations."); });
-  $("#dr-fo").addEventListener("click", () => { S.excluded.delete(cur.id); S.forced.add(cur.id); refreshVis(); toast("Item forcé pour les prochaines optimisations."); });
+  $("#dr-ex").addEventListener("click", () => { S.forced.delete(cur.id); S.excluded.add(cur.id); refreshVis(); renderResult(); toast("Item exclu pour les prochaines optimisations."); });
+  $("#dr-fo").addEventListener("click", () => { S.excluded.delete(cur.id); S.forced.add(cur.id); refreshVis(); renderResult(); toast("Item forcé pour les prochaines optimisations."); });
   $("#dr-list").innerHTML = `<div class="loading"><div class="spinner"></div>Recherche des items qui conviennent…</div>`;
   $("#dr-compare").innerHTML = `<p class="muted pad">Choisissez un item à gauche pour voir ce que vous gagnez et perdez.</p>`;
   $("#drawer").classList.remove("hidden");
@@ -440,6 +478,140 @@ function showCompare(slot, cur, a) {
       renderResult();
     } catch (e) { toast("Erreur : " + e.message); }
   });
+}
+
+// ===================================================================== changement de sublimation sur un item
+async function openSubSwap(slot, special) {
+  const cur = S.view.items.find((i) => i.slot === slot);
+  const s = special ? cur.special : cur.sub;
+  $("#dr-title").textContent = `${special ? "Sublimation épique / relique" : "Sublimation"} : ${cur.name}`;
+  $("#dr-current").innerHTML = `<div class="cmp-head"><img class="it-icon" src="${iconUrl(cur.gfx)}" alt="">
+    <div style="flex:1"><div class="it-name">${s ? esc(s.name) : "Aucune sublimation"}</div>
+    <div class="it-sub">${special ? "Emplacement épique / relique de l'item" : `Châsses : ${patternHtml(cur.shards.map((x) => x.color))}`}</div>
+    ${s ? `<div class="sub-desc">${esc(s.desc)}</div>` : ""}</div>
+    ${s ? `<div class="btns"><button class="btn small" id="dr-sex" title="Ne plus utiliser cette sublimation aux prochaines optimisations">Exclure</button>
+    <button class="btn small" id="dr-sfo" title="L'imposer aux prochaines optimisations">Imposer</button></div>` : ""}</div>`;
+  if (s) {
+    $("#dr-sex").addEventListener("click", () => { setSubPref(s.state, "ex"); toast("Sublimation exclue pour les prochaines optimisations."); });
+    $("#dr-sfo").addEventListener("click", () => { setSubPref(s.state, "fo"); toast("Sublimation imposée pour les prochaines optimisations."); });
+  }
+  $("#dr-list").innerHTML = `<div class="loading"><div class="spinner"></div>Recherche des sublimations qui vont sur cet item…</div>`;
+  $("#dr-compare").innerHTML = `<p class="muted pad">Choisissez une sublimation à gauche pour voir ce que vous gagnez et perdez.</p>`;
+  $("#drawer").classList.remove("hidden");
+  try {
+    const r = await api("/api/sub_alternatives", { opts: S.opts, build: S.view.build, slot, special });
+    const note = !special && r.other_colors
+      ? `<p class="hint pad">${r.other_colors} autre(s) demandent d'autres couleurs de châsses : imposez-les dans l'onglet Sublimations et relancez.</p>` : "";
+    if (!r.items.length) { $("#dr-list").innerHTML = `<p class="muted pad">Aucune sublimation possible ici.</p>${note}`; return; }
+    $("#dr-list").innerHTML = r.items.map((a, k) => `<div class="alt" data-k="${k}">
+      <div class="pat-box">${a.id ? patternHtml(a.pattern) : "∅"}</div>
+      <div><div class="it-name">${esc(a.name)}${a.id && !a.modeled ? ` <small class="muted">(non chiffrée)</small>` : ""}</div>
+      <div class="sub-desc">${esc(a.desc)}</div></div>
+      <div class="delta ${pn(a.delta)}">${a.delta > 0 ? "+" : ""}${a.delta.toFixed(1)}<small>score</small></div></div>`).join("") + note;
+    $$("#dr-list .alt").forEach((el) => el.addEventListener("click", () => {
+      $$("#dr-list .alt").forEach((x) => x.classList.remove("sel"));
+      el.classList.add("sel");
+      showSubCompare(slot, s, r.items[+el.dataset.k]);
+    }));
+  } catch (e) {
+    $("#dr-list").innerHTML = `<p class="err pad">Erreur : ${esc(e.message)}</p>`;
+  }
+}
+
+function showSubCompare(slot, cur, a) {
+  const rows = a.compare.map((r) => `<tr><td>${esc(r.label)}</td><td class="num muted">${fmt(r.old)}</td><td class="num">${fmt(r.new)}</td>
+      <td class="num d ${r.diff > 0 ? "pos" : "neg"}">${r.diff > 0 ? "+" : ""}${fmt(r.diff)}</td></tr>`).join("");
+  $("#dr-compare").innerHTML = `
+    <div class="cmp-head"><div class="pat-box">${a.id ? patternHtml(a.pattern) : "∅"}</div>
+      <div><div class="it-name">${esc(a.name)}</div><div class="it-sub">à la place de ${cur ? esc(cur.name) : "aucune"}</div></div></div>
+    ${a.desc ? `<div class="sub-desc">${esc(a.desc)}</div>` : ""}
+    ${a.id && !a.modeled ? `<div class="note">Effet non chiffré par l'optimiseur : le score ne reflète pas son intérêt réel.</div>` : ""}
+    <table class="cmp-table"><tr><td></td><td class="num muted">Actuel</td><td class="num muted">Nouveau</td><td class="num muted">Écart</td></tr>${rows || `<tr><td colspan="4" class="muted">Aucune différence chiffrée</td></tr>`}</table>
+    <button class="btn good" id="apply" style="width:100%">Valider le changement</button>`;
+  $("#apply").addEventListener("click", async () => {
+    try {
+      S.view = await api("/api/view", { opts: S.opts, build: a.build });
+      S.changed.add(slot);
+      closeDrawers();
+      renderResult();
+    } catch (e) { toast("Erreur : " + e.message); }
+  });
+}
+
+// ===================================================================== onglet Sublimations
+const KIND_FR = { normal: "Normale", epic: "Épique", relic: "Relique" };
+let subsCache = null;
+let subsTimer = null;
+
+function setSubPref(state, pref) {
+  // pref : "fo" (imposer), "ex" (exclure) ; un second clic sur le même choix l'annule
+  const was = pref === "fo" ? S.subForced.has(state) : S.subExcluded.has(state);
+  S.subForced.delete(state); S.subExcluded.delete(state);
+  if (!was) (pref === "fo" ? S.subForced : S.subExcluded).add(state);
+  updateSubsBadge();
+  if (subsCache) renderSubs();
+}
+function updateSubsBadge() {
+  const b = $("#subs-badge");
+  const n = S.subForced.size + S.subExcluded.size;
+  b.textContent = `${S.subForced.size} imposée(s) · ${S.subExcluded.size} exclue(s)`;
+  b.classList.toggle("hidden", !n);
+  b.classList.toggle("manual", !!n);
+}
+
+async function loadSubs() {
+  $("#subs-list").innerHTML = `<div class="loading"><div class="spinner"></div>Calcul de l'intérêt de chaque sublimation…</div>`;
+  try {
+    subsCache = await api("/api/subs", { opts: S.opts || options(), build: S.view ? S.view.build : null });
+    renderSubs();
+  } catch (e) {
+    $("#subs-list").innerHTML = `<p class="err pad">Erreur : ${esc(e.message)}</p>`;
+  }
+}
+
+function subCard(f) {
+  const fo = S.subForced.has(f.state), ex = S.subExcluded.has(f.state);
+  const lv = f.levels.map((l) => `<span class="lv" title="${esc(l.name)}">${patternHtml(l.pattern)}<small>${esc(l.name.replace(/^.*\s/, ""))}</small></span>`).join("");
+  const gain = f.gain == null ? "" : `<span class="gain ${pn(f.gain)}" title="Gain de score si on l'ajoute au build (niveau max)">${f.gain > 0 ? "+" : ""}${f.gain.toFixed(1)}</span>`;
+  const tags = [
+    f.kind !== "normal" ? `<span class="tag ${f.kind}">${KIND_FR[f.kind]}</span>` : "",
+    f.in_build ? `<span class="tag on">Dans le build · niv. ${f.in_build}${f.limit ? `/${f.limit}` : ""}</span>` : "",
+    !f.modeled ? `<span class="tag" title="L'optimiseur ne sait pas chiffrer cet effet : il ne la placera que si vous l'imposez">Non chiffrée</span>` : "",
+    f.modeled && !f.applicable ? `<span class="tag" title="Ses conditions ne correspondent pas à vos options (portée, élément, berserk…)">Incompatible</span>` : "",
+  ].join("");
+  return `<div class="sub-card ${fo ? "fo" : ""} ${ex ? "ex" : ""}">
+    <div class="sc-head"><div class="sc-name">${esc(f.name)} ${tags}</div>${gain}</div>
+    <div class="sub-desc">${esc(f.desc || "Pas de description.")}</div>
+    <div class="sc-foot"><div class="lvls">${f.kind === "normal" ? lv : `<small class="muted">Se pose dans un objet ${f.kind === "epic" ? "épique" : "relique"}</small>`}</div>
+      <div class="btns"><button class="btn small ${fo ? "good" : ""}" data-sfo="${f.state}" title="L'optimiseur doit la placer">${fo ? "✓ Imposée" : "Imposer"}</button>
+      <button class="btn small ${ex ? "danger" : ""}" data-sex="${f.state}" title="L'optimiseur ne l'utilisera pas">${ex ? "✕ Exclue" : "Exclure"}</button></div></div>
+  </div>`;
+}
+
+function renderSubs() {
+  const q = $("#subs-q").value.trim().toLowerCase();
+  const kind = segVal("subs-kind") || "all";
+  const list = subsCache.filter((f) => (kind === "all" || f.kind === kind)
+    && (!q || `${f.name} ${f.desc}`.toLowerCase().includes(q)));
+  const pinned = list.filter((f) => S.subForced.has(f.state) || S.subExcluded.has(f.state));
+  const rest = list.filter((f) => !pinned.includes(f));
+  const groups = [
+    ["Vos choix", pinned, ""],
+    ["Dans le build", rest.filter((f) => f.in_build), "Sublimations placées par l'optimiseur."],
+    ["Recommandées pour ce build", rest.filter((f) => !f.in_build && f.applicable && f.gain != null && f.gain >= 0.3),
+      "Elles apporteraient le plus si on les ajoutait (à la place d'une autre ou dans un objet épique / relique)."],
+    ["Autres sublimations utiles", rest.filter((f) => !f.in_build && f.modeled && f.applicable && !(f.gain != null && f.gain >= 0.3)),
+      S.view ? "Apport faible sur ce build (souvent : niveau max déjà atteint, ou stat déjà au plafond)." : "Lancez une optimisation pour voir leur apport chiffré."],
+    ["Non chiffrées par l'optimiseur", rest.filter((f) => !f.in_build && !f.modeled),
+      "Effets trop situationnels pour être chiffrés (déclenchements, dégâts de dos, armure…). Imposez celles qui vont avec votre façon de jouer."],
+    ["Incompatibles avec vos options", rest.filter((f) => !f.in_build && f.modeled && !f.applicable), "Leur condition ne correspond pas à vos réglages."],
+  ];
+  $("#subs-count").textContent = `${list.length} sublimation(s)`;
+  $("#subs-list").innerHTML = groups.filter(([, g]) => g.length).map(([title, g, hint]) => `
+    <details class="sub-group" ${title.startsWith("Non chiffrées") || title.startsWith("Incompatibles") ? (q ? "open" : "") : "open"}>
+      <summary><h2>${title} <span class="muted">(${g.length})</span></h2></summary>
+      ${hint ? `<p class="hint">${hint}</p>` : ""}
+      <div class="sub-grid">${g.map(subCard).join("")}</div></details>`).join("") || `<p class="muted pad">Aucune sublimation ne correspond.</p>`;
 }
 
 function closeDrawers() { $$(".drawer").forEach((d) => d.classList.add("hidden")); }
@@ -504,7 +676,9 @@ function buildAptForm() {
 function showTab(name) {
   $$(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === name));
   $("#tab-apt").classList.toggle("hidden", name !== "apt");
+  $("#tab-subs").classList.toggle("hidden", name !== "subs");
   $("#result").classList.toggle("hidden", name !== "build");
+  if (name === "subs") loadSubs();
 }
 
 // Niveau baissé : on retire les points en trop en partant du bas de chaque branche.

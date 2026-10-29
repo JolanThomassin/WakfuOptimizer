@@ -38,9 +38,9 @@ def static_condition(cond: str, opts: OptimizeOptions) -> bool | None:
     if cond in ("", "none"):
         return True
     if cond == "melee":
-        return opts.range == "melee"
+        return opts.range in ("melee", "mixed")
     if cond == "distance":
-        return opts.range == "distance"
+        return opts.range in ("distance", "mixed")
     if cond == "berserk":
         return opts.berserk
     if cond in ("hp_high", "no_armor"):

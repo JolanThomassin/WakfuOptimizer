@@ -40,7 +40,7 @@ from ..data.models import (
 )
 from .characteristics import BRANCH_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions, ShardChoice, SlotChoice
-from .scoring import RES_CAP_FLAT, flat_for_pct, gradient, utility_table
+from .scoring import RES_CAP_FLAT, flat_for_pct, gradient, res_need, utility_table
 from .shards import effect_targets, rune_fits, static_condition
 from .stats import Totals, evaluate
 
@@ -51,6 +51,7 @@ RGB = (Color.RED, Color.GREEN, Color.BLUE)
 RGBW = (Color.RED, Color.GREEN, Color.BLUE, Color.WHITE)
 BIG = 10**7
 MAX_ITER = 8
+WARM_START = cp_model.__name__.endswith("milp")   # HiGHS : point de départ construit (voir Optimizer._warm_start)
 PASS_TIME = 7.0         # durée max d'une passe (s)
 MAX_TIME = 120.0         # durée maximale d'un calcul (s)
 LIN_SCALE = 10**5        # coefficients entiers de l'objectif linéaire
@@ -95,7 +96,8 @@ def _features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
     f = [g("ap"), g("mp"), g("range"), g("wp"), g("control")]
     if opts.offense_weight > 0:
         f += [g("elem_mastery") + g(f"{e}_mastery") for e in played]
-        f += [rm_v, rm_n, g("melee_mastery" if opts.range == "melee" else "distance_mastery"), g("dmg_pct")]
+        f += [rm_v, rm_n, g("dmg_pct")]
+        f += [g("melee_mastery") + g("distance_mastery")] if opts.range == "mixed" else             [g("melee_mastery" if opts.range == "melee" else "distance_mastery")]
         if opts.crit:
             f += [g("crit_rate"), g("crit_mastery")]
         if opts.rear:
@@ -104,7 +106,7 @@ def _features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
             f.append(g("berserk_mastery"))
         if opts.heal:
             f.append(g("heal_mastery"))
-    if opts.offense_weight < 100 or opts.min_res_pct > 0:
+    if opts.offense_weight < 100 or opts.min_res_pct > 0 or opts.res_target > 0:
         f += [g("hp"), g("hp_pct")] + [g("elem_res") + g(f"{e}_res") for e in ELEMENTS] + [rr_v, rr_n]
     if opts.min_crit > 0 and not opts.crit:
         f.append(g("crit_rate"))
@@ -506,9 +508,12 @@ class BuildModel:
 
     # ----------------------------------------------------------- sublimations
     def _sub_allowed(self, sub: Sublimation) -> tuple[bool, list[str]]:
-        st = self.data.states.get(sub.state_id)
-        if st is None or not st.modeled:
+        if sub.state_id in self.opts.excluded_subs:
             return False, []
+        st = self.data.states.get(sub.state_id)
+        forced = sub.state_id in self.opts.forced_subs
+        if st is None or not st.modeled:
+            return forced, []   # effet non chiffré : placée seulement si l'utilisateur l'impose
         useful, dynamic = False, []
         for e in st.effects:
             s = static_condition(e.condition, self.opts)
@@ -517,7 +522,7 @@ class BuildModel:
                 useful = True
             elif s:
                 useful = True
-        return useful, dynamic
+        return useful or forced, dynamic
 
     def _apply_dynamic(self, var: Any, conds: list[str]) -> None:
         for c in conds:
@@ -574,9 +579,19 @@ class BuildModel:
             m.Add(sum(epic_vars) <= sum(epic_cap))
         if relic_vars:
             m.Add(sum(relic_vars) <= sum(relic_cap))
+        # sublimations imposées : au moins un exemplaire (n'importe quel niveau)
+        self.forced_missing: list[int] = []
+        for sid in opts.forced_subs:
+            ws = [w for c, w in level_terms.get(sid, [])]
+            if ws:
+                m.Add(sum(ws) >= 1)
+            else:
+                self.forced_missing.append(sid)
         # niveaux d'état cumulés, plafonnés
         for sid, terms in level_terms.items():
-            st = self.data.states[sid]
+            st = self.data.states.get(sid)
+            if st is None or not st.modeled:
+                continue
             total_ub = sum(c for c, _ in terms)
             lv = m.NewIntVar(0, total_ub, f"lv_{sid}")
             m.Add(lv == sum(c * w for c, w in terms))
@@ -621,14 +636,19 @@ class BuildModel:
                 mlo, mhi = min(mlo, lo - 10), max(mhi, hi + 10)
         mmin = m.NewIntVar(mlo, mhi, "M_min")
         m.AddMinEquality(mmin, mast)
-        sec = "melee_mastery" if opts.range == "melee" else "distance_mastery"
-        mtot_expr = mmin + self.stat(sec)
+        mtot_expr = mmin
         if opts.berserk:
             mtot_expr += self.stat("berserk_mastery")
         if opts.heal:
             mtot_expr += self.stat("heal_mastery")
         self.mtot = m.NewIntVar(-BIG, BIG, "M_tot")
-        m.Add(self.mtot == mtot_expr)
+        if opts.range == "mixed":
+            # moyenne mêlée / distance, arrondie à l'inférieur comme dans stats.secondary_mastery
+            both = self.stat("melee_mastery") + self.stat("distance_mastery")
+            m.Add(2 * self.mtot <= 2 * mtot_expr + both)
+            m.Add(2 * self.mtot >= 2 * mtot_expr + both - 1)
+        else:
+            m.Add(self.mtot == mtot_expr + self.stat("melee_mastery" if opts.range == "melee" else "distance_mastery"))
         # --- résistances
         self.res = {}
         for e in ELEMENTS:
@@ -645,6 +665,11 @@ class BuildModel:
             if val and stat not in self.skip:
                 m.Add(self.stat(stat) >= val)
                 self.active_mins[stat] = val
+        maxs = {"ap": opts.max_ap, "mp": opts.max_mp, "range": opts.max_range, "wp": opts.max_wp,
+                "crit_rate": opts.max_crit}
+        for stat, val in maxs.items():
+            if val and stat not in self.skip:
+                m.Add(self.stat(stat) <= val)
         if opts.min_res_pct > 0 and "res" not in self.skip:
             need = flat_for_pct(opts.min_res_pct)
             for e in ELEMENTS:
@@ -671,6 +696,14 @@ class BuildModel:
             c = m.NewIntVar(-BIG, RES_CAP_FLAT, f"Rc_{e}")
             m.AddMinEquality(c, [self.res[e], RES_CAP_FLAT])
             capped.append(c)
+        need = res_need(opts)
+        if need:
+            shorts = []
+            for e in ELEMENTS:
+                sh = m.NewIntVar(0, need + BIG, f"short_{e}")
+                m.AddMaxEquality(sh, [need - self.res[e], 0])
+                shorts.append(sh)
+            f["res_short"] = sum(shorts)
         if opts.balance_res:
             r = m.NewIntVar(-BIG, RES_CAP_FLAT, "Rmin")
             m.AddMinEquality(r, capped)
@@ -765,6 +798,40 @@ class BuildModel:
         for xv in self.v.x.values():
             self.m.AddHint(xv, solver.BooleanValue(xv))
 
+    def hint_from_items(self, small: BuildModel, solver: cp_model.CpSolver) -> None:
+        """Indices d'un build complet et valide, à partir d'un modèle sans châsses (`small`) :
+        mêmes items, aptitudes et sublimations épiques/reliques ; châsses d'une seule couleur, sans rune
+        ni sublimation (sauf celles imposées, laissées libres)."""
+        v, val = self.v, solver.Value
+        played = [e for e in self.opts.elements if e in ELEMENTS] or list(ELEMENTS)
+        m = self.m
+        m.ClearHints()
+        x = {k: val(small.v.x[k]) for k in v.x}
+        for k, var in v.x.items():
+            m.AddHint(var, x[k])
+        for k, var in v.chars.items():
+            if k in small.v.chars:
+                m.AddHint(var, val(small.v.chars[k]))
+        for (iid, slot, k, e), var in v.y_m.items():
+            n = self.items[iid].random_mastery[k][1]
+            m.AddHint(var, int(x[(iid, slot)] and e in played[:min(n, len(played))]))
+        for (iid, slot, k, e), var in v.y_r.items():
+            n = self.items[iid].random_resistance[k][1]
+            m.AddHint(var, int(x[(iid, slot)] and e in ELEMENTS[:n]))
+        forced = set(self.opts.forced_subs)
+        subs = {s.id: s for s in self.data.sublimations}
+        if not forced:   # avec des sublimations imposées, le solveur choisit les couleurs qui leur conviennent
+            for (slot, j, c), var in v.color.items():
+                m.AddHint(var, int(c == Color.RED))
+            for var in v.rune.values():
+                m.AddHint(var, 0)
+        for (slot, sid, o), var in v.sub.items():
+            if subs[sid].state_id not in forced:
+                m.AddHint(var, 0)
+        for sid, var in v.special.items():
+            if sid in small.v.special:
+                m.AddHint(var, val(small.v.special[sid]))
+
 
 # =====================================================================  pilote
 class Optimizer:
@@ -802,6 +869,23 @@ class Optimizer:
             raise Cancelled()
         return status, solver
 
+    def _warm_start(self, bm: BuildModel, cand: dict[Slot, list[Item]], opts: OptimizeOptions, budget: float) -> None:
+        """HiGHS trouve mal un premier build quand il doit aussi placer châsses, runes et sublimations,
+        mais améliore très vite un build qu'on lui donne. On en construit un : items choisis sans châsses,
+        puis on complète le modèle entier avec ces items fixés. Les passes suivantes partent de là."""
+        self.progress("Recherche d'un premier build…", 0.04)
+        small = BuildModel(self.data, opts, cand, shard_mode="none")
+        small.set_linear_objective(gradient(_initial_point(opts), opts))
+        st, sv = self._solve(small, min(8.0, budget / 8))
+        if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            return   # infaisable ou trop lent : la passe normale s'en chargera (et le diagnostic)
+        bm.hint_from_items(small, sv)
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = min(6.0, budget / 10)
+        solver.parameters.fix_variables_to_their_hinted_value = True
+        solver.Solve(bm.m)   # en cas de succès, le build sert de point de départ (milp.CpModel.incumbent)
+        bm.m.ClearHints()
+
     def _ticker(self, base: float, span: float, seconds: float, msg: str) -> threading.Event:
         """Fait avancer la barre de progression pendant une résolution."""
         stop = threading.Event()
@@ -835,10 +919,17 @@ class Optimizer:
         try:
             self.progress("Construction du modèle…", 0.03)
             bm = BuildModel(self.data, opts, cand)
+            for sid in bm.forced_missing:
+                st = self.data.states.get(sid)
+                res.warnings.append(f"Sublimation imposée « {st.name if st else sid} » impossible à placer "
+                                    "(pas de châsses, ou épique/relique sans objet compatible) : ignorée.")
             point = _initial_point(opts)
+            if WARM_START:
+                self._warm_start(bm, cand, opts, budget)
             best: tuple[float, Build, Totals] | None = None
             seen: set[tuple[Any, ...]] = set()
-            per_iter = min(PASS_TIME, budget / MAX_ITER)
+            # HiGHS repart du build précédent : des passes moins nombreuses mais plus longues rendent mieux
+            per_iter = budget / MAX_ITER if WARM_START else min(PASS_TIME, budget / MAX_ITER)
             status_opt = True
             stale = 0
             for it in range(MAX_ITER):
@@ -869,11 +960,12 @@ class Optimizer:
                 log.info("passe %d : score %.2f (%s)", it + 1, tot.score, "optimal" if st == cp_model.OPTIMAL else "réalisable")
                 if best is None or tot.score > best[0] + 0.05:
                     stale = 0
-                else:
+                elif st == cp_model.OPTIMAL:   # passe coupée par le temps : pas de conclusion à en tirer
                     stale += 1
                 if best is None or tot.score > best[0]:
                     best = (tot.score, b, tot)
-                if key in seen or stale >= 2:
+                # même build qu'avant : convergé seulement si la passe a fini (sinon elle a manqué de temps)
+                if key in seen and st == cp_model.OPTIMAL or stale >= 3:
                     break
                 seen.add(key)
                 bm.hint(sv)
@@ -935,6 +1027,14 @@ class Optimizer:
                 best = sv.Value(relaxed.stat(stat)) if stat != "res" else None
                 extra = f" (maximum atteignable avec les autres contraintes : {best})" if best is not None else ""
                 diag.append(f"Contrainte bloquante : {labels.get(stat, stat)} ≥ {val}{extra}")
+        if self.opts.forced_subs:
+            diag.append("Vérifiez aussi les sublimations imposées (onglet Sublimations) : leurs couleurs ou "
+                        "leurs conditions peuvent bloquer.")
+        maxs = {"PA": self.opts.max_ap, "PM": self.opts.max_mp, "Portée": self.opts.max_range, "PW": self.opts.max_wp,
+                "% Critique": self.opts.max_crit}
+        for lab, val in maxs.items():
+            if val:
+                diag.append(f"Maximum imposé : {lab} ≤ {val}")
         if not diag:
             diag.append("Combinaison de contraintes impossible : assouplissez plusieurs minimums ou autorisez les tranches inférieures.")
         res.diagnostics = diag
@@ -948,7 +1048,7 @@ def _initial_point(opts: OptimizeOptions) -> dict[str, float]:
     L = opts.level
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
-            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0}
+            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "res_short": 0.0}
 
 
 def optimize(data: GameData, opts: OptimizeOptions, progress: ProgressFn | None = None) -> SolveResult:

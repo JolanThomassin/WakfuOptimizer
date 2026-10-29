@@ -42,8 +42,8 @@
       <h2>Priorités</h2>
       <div class="field">
         <label>Portée</label>
-        <div class="seg" id="range">
-          <button data-v="melee">Mêlée</button><button data-v="distance">Distance</button>
+        <div class="seg three" id="range">
+          <button data-v="melee" title="Maîtrise Mêlée (cibles à 1-2 cases)">Mêlée</button><button data-v="distance" title="Maîtrise Distance (cibles à 3 cases et plus)">Distance</button><button data-v="mixed" title="Classes qui frappent aussi bien au contact qu'à distance (Huppermage…) : les deux maîtrises comptent à moitié">Mixte</button>
         </div>
       </div>
       <div class="field">
@@ -56,12 +56,17 @@
         </div>
       </div>
       <div class="field" id="rear-box">
-        <label>Part des coups de dos <b id="rear-lab"></b></label>
-        <input type="range" id="rear_share" min="0" max="100" step="5">
+        <label>Vous frappez de dos…</label>
+        <div class="seg three" id="rear_share">
+          <button data-v="25">Parfois</button><button data-v="50">Souvent</button><button data-v="80">Presque toujours</button>
+        </div>
+        <p class="hint">La Maîtrise Dos ne s'applique qu'aux coups portés dans le dos de la cible (+25 % de dégâts en plus).
+          « Presque toujours » : build dos type Sram, la Maîtrise Dos devient prioritaire.</p>
       </div>
       <div class="field">
-        <label class="split"><span>Défense</span><b id="weight-lab"></b><span>Attaque</span></label>
-        <input type="range" id="weight" min="0" max="100" step="5">
+        <label class="split"><span>Résistance visée</span><b id="res-lab"></b></label>
+        <input type="range" id="res_target" min="0" max="80" step="5">
+        <p class="hint" id="res-hint">L'optimiseur atteint d'abord ce % de résistance sur chaque élément, puis met tout dans les dégâts.</p>
       </div>
       <label class="check"><input type="checkbox" id="balance"><span>Équilibrer les résistances (monter la plus faible)</span></label>
       <label class="check"><input type="checkbox" id="cond"><span>Compter les sublimations conditionnelles (PV &gt; 90 %, sans armure)</span></label>
@@ -70,7 +75,8 @@
 
     <section class="card">
       <h2>Contraintes</h2>
-      <div class="steppers" id="mins"></div>
+      <div class="mm-grid stepper" id="minmax"><span></span><span class="mm-h">Min</span><span class="mm-h">Max</span></div>
+      <p class="hint" style="margin-top:-4px">Max à 0 : pas de limite.</p>
       <div class="field">
         <label>Raretés autorisées</label>
         <div id="rarities" class="chips"></div>
@@ -106,6 +112,7 @@
     <nav class="tabs">
       <button class="tab on" data-tab="build">Build</button>
       <button class="tab" data-tab="apt">Aptitudes <span id="apt-badge" class="badge">auto</span></button>
+      <button class="tab" data-tab="subs">Sublimations <span id="subs-badge" class="badge hidden"></span></button>
     </nav>
     <div id="tab-apt" class="tab-page hidden">
       <div class="apt-layout">
@@ -130,6 +137,23 @@
           </section>
         </div>
       </div>
+    </div>
+    <div id="tab-subs" class="tab-page hidden">
+      <div class="subs-top card">
+        <div>
+          <h2>Sublimations</h2>
+          <p class="hint" style="margin:0">L'optimiseur choisit les sublimations dont il sait chiffrer l'effet. Ici, <b>imposez</b> celles que
+            vous voulez absolument (même si leur effet n'est pas chiffré, ex. Destruction pour un build dos) ou <b>excluez</b> celles que vous
+            n'avez pas, puis relancez. Après un calcul, le gain affiché est celui obtenu en ajoutant la sublimation au build.</p>
+        </div>
+        <div class="subs-tools">
+          <input id="subs-q" class="search" placeholder="Rechercher (nom, effet)…">
+          <div class="seg four" id="subs-kind"><button data-v="all">Toutes</button><button data-v="normal">Normales</button><button data-v="epic">Épiques</button><button data-v="relic">Reliques</button></div>
+          <span id="subs-count" class="muted"></span>
+          <button class="btn primary small" id="subs-go">Relancer l'optimisation</button>
+        </div>
+      </div>
+      <div id="subs-list"></div>
     </div>
     <div id="result" class="result tab-page">
       <div class="empty">
