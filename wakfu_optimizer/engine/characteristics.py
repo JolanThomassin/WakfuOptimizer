@@ -38,6 +38,31 @@ def branch_points(branch: str, level: int, game: dict[str, Any]) -> int:
     return max(0, (level + offset) // 4)
 
 
+# Où mettre les points qui ne changent pas le score (surtout l'Agilité), comme le font les joueurs
+DEFAULT_LINES = {"melee": ["agility.lock"], "distance": ["agility.dodge"], "mixed": ["agility.lock_dodge"]}
+
+
+def fill_unspent(points: dict[str, int], level: int, game: dict[str, Any], range_kind: str) -> dict[str, int]:
+    """Répartit les points restants de chaque branche : ligne habituelle d'abord, puis la première ligne libre."""
+    out = dict(points)
+    lines = char_lines(game)
+    for branch in game["characteristics"]:
+        left = branch_points(branch, level, game) - sum(out.get(cl.key, 0) for cl in lines if cl.branch == branch)
+        if left <= 0:
+            continue
+        mine = [cl for cl in lines if cl.branch == branch]
+        order = [cl for k in DEFAULT_LINES.get(range_kind, []) for cl in mine if cl.key == k] + mine
+        for cl in order:
+            room = left if cl.max_points is None else cl.max_points - out.get(cl.key, 0)
+            n = max(0, min(left, room))
+            if n:
+                out[cl.key] = out.get(cl.key, 0) + n
+                left -= n
+            if not left:
+                break
+    return out
+
+
 def char_lines(game: dict[str, Any]) -> list[CharLine]:
     out: list[CharLine] = []
     for branch, spec in game["characteristics"].items():

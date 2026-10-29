@@ -38,7 +38,7 @@ from ..data.models import (
     Slot,
     Sublimation,
 )
-from .characteristics import BRANCH_FR, branch_points, char_lines
+from .characteristics import BRANCH_FR, branch_points, char_lines, fill_unspent
 from .options import NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice, SlotChoice
 from .scoring import flat_for_pct, gradient, res_cap, res_need, utility_table
 from .shards import effect_targets, parse_stat_condition, rune_fits, static_condition
@@ -1019,6 +1019,10 @@ class Optimizer:
             res.status = "optimal" if status_opt else "bon build (durée max atteinte)" if out_of_time else "bon build"
             score, b, tot = best
             b, added = fill_empty_subs(self.data, opts, b)
+            if opts.char_mode != "manual" and opts.optimize_characteristics:
+                filled = fill_unspent(b.characteristics, opts.level, self.data.game, opts.range)
+                added += [] if filled == b.characteristics else ["aptitudes"]
+                b.characteristics = filled
             if added:
                 tot = evaluate(self.data, opts, b)
                 score = tot.score

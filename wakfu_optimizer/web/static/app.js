@@ -44,6 +44,60 @@ async function api(path, body) {
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 }
+// ===================================================================== effets sonores
+// Synthétisés par le navigateur (Web Audio) : aucun fichier à charger. Coupables depuis l'en-tête.
+const SFX = { on: true, ctx: null };
+try { SFX.on = localStorage.getItem("wakfu-optimizer:sfx") !== "off"; } catch (e) { /* stockage indisponible */ }
+function audio() {
+  if (!SFX.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; SFX.ctx = new AC(); }
+  if (SFX.ctx.state === "suspended") SFX.ctx.resume();
+  return SFX.ctx;
+}
+function tone(ctx, freq, at, dur, type = "sine", vol = 0.12, slideTo = 0) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, at);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, at + dur);
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  o.connect(g).connect(ctx.destination);
+  o.start(at);
+  o.stop(at + dur + 0.02);
+}
+function sfx(kind) {
+  if (!SFX.on) return;
+  try {
+    const ctx = audio();
+    if (!ctx) return;
+    const t = ctx.currentTime + 0.01;
+    if (kind === "done") {   // petit arpège montant + éclat
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(ctx, f, t + i * 0.075, 0.42, "triangle", 0.11));
+      tone(ctx, 2093, t + 0.3, 0.6, "sine", 0.05);
+    } else if (kind === "fail") {
+      tone(ctx, 392, t, 0.22, "triangle", 0.1); tone(ctx, 277.18, t + 0.16, 0.38, "triangle", 0.1);
+    } else if (kind === "apply") {
+      tone(ctx, 880, t, 0.09, "sine", 0.09); tone(ctx, 1318.5, t + 0.07, 0.16, "sine", 0.08);
+    } else if (kind === "start") {
+      tone(ctx, 440, t, 0.18, "sine", 0.06, 880);
+    } else {   // clic
+      tone(ctx, 1200, t, 0.05, "square", 0.025);
+    }
+  } catch (e) { /* audio indisponible */ }
+}
+function renderSfxBtn() {
+  const b = $("#sfx-btn");
+  b.textContent = SFX.on ? "🔊" : "🔇";
+  b.title = SFX.on ? "Sons activés (clic pour couper)" : "Sons coupés (clic pour activer)";
+}
+$("#sfx-btn").addEventListener("click", () => {
+  SFX.on = !SFX.on;
+  try { localStorage.setItem("wakfu-optimizer:sfx", SFX.on ? "on" : "off"); } catch (e) { /* sans effet */ }
+  renderSfxBtn();
+  sfx("click");
+});
+renderSfxBtn();
+
 function toast(text) {
   const t = $("#toast");
   t.textContent = text;
@@ -169,7 +223,7 @@ function buildForm() {
   $("#subs-go").addEventListener("click", start);
   $("#subs-list").addEventListener("change", (e) => {
     const sel = e.target.closest("[data-slvl]");
-    if (sel) { S.subLevels[+sel.dataset.slvl] = +sel.value; toast(`Niveau ${ROMAN[+sel.value] || sel.value} minimum imposé.`); }
+    if (sel) { S.subLevels[+sel.dataset.slvl] = +sel.value; toast(`Au moins le niveau ${ROMAN[+sel.value] || sel.value} : l'optimiseur pourra monter plus haut, jamais en dessous.`); }
   });
   $("#subs-list").addEventListener("click", (e) => {
     if (e.target.closest("[data-slvl]")) return;
@@ -250,7 +304,7 @@ function applyOptions(o) {
   set("res_max", o.res_max ?? 80);
   $("#balance").checked = o.balance_res; $("#cond").checked = o.count_conditional;
   $("#neutral").checked = !!o.neutral_combo;
-  setTimeLimit([60, 180, 360].includes(+o.time_limit) ? +o.time_limit : 180);
+  setTimeLimit(180);   // toujours 3 min à l'ouverture de la page
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
    "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
   S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
@@ -304,6 +358,7 @@ async function start() {
   $("#go").disabled = true; $("#stop").disabled = false;
   $("#msg").innerHTML = "";
   progressStart("Démarrage…");
+  sfx("start");
   try {
     const { job } = await api("/api/optimize", { opts: o });
     S.job = job;
@@ -369,6 +424,7 @@ function progressUpdate(frac, msg) {
   $("#ptext").textContent = phaseLabel(msg);
 }
 function progressEnd(ok, text, elapsedSec) {
+  if (text !== "Annulé") sfx(ok ? "done" : "fail");
   P.running = false;
   P.finishFrom = P.shown;
   P.finishAt = performance.now();
@@ -477,7 +533,18 @@ function renderResult() {
 }
 
 // ===================================================================== détail d'une stat
-const KIND_LABEL = { base: "Base", item: "Item", random: "Item (au choix)", rune: "Rune", apt: "Aptitude", sub: "Sublimation", pct: "% PV" };
+const KIND_LABEL = { base: "Base", item: "Items", random: "Items (au choix)", rune: "Runes", apt: "Aptitudes", sub: "Sublimations", pct: "% PV" };
+function srcIcon(x) {
+  const img = (src, cls = "") => `<img class="sp-ic ${cls}" src="${src}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
+  switch (x.kind) {
+    case "item": case "random": return img(iconUrl(x.ref), "it");
+    case "rune": return img(`assets/shards/shard${SHARD_FILE[x.ref] || "White"}Full.png`);
+    case "apt": return img(`assets/aptitudes/${x.ref}.png`);
+    case "base": return img(`assets/classes/${S.view.class.key}.png`, "it");
+    case "pct": return img("assets/stats/health_points.png");
+    default: return `<span class="sp-ic sub">✦</span>`;
+  }
+}
 function showStatPop(el) {
   const b = S.view.breakdown && S.view.breakdown[el.dataset.stat];
   const pop = $("#stat-pop");
@@ -485,15 +552,16 @@ function showStatPop(el) {
   const sum = b.lines.reduce((t, x) => t + x.value, 0);
   const max = Math.max(1, ...b.lines.map((x) => Math.abs(x.value)));
   const kinds = {};
-  for (const x of b.lines) kinds[x.kind] = (kinds[x.kind] || 0) + x.value;
+  for (const x of b.lines) { const k = x.kind === "random" ? "item" : x.kind; kinds[k] = (kinds[k] || 0) + x.value; }
   pop.innerHTML = `<div class="sp-head">${icon(el.dataset.stat, b.label)}<b>${esc(b.label)}</b><span class="sp-total">${fmt(b.total)}</span>
-      <button class="btn ghost small" data-spclose>✕</button></div>
+      <button class="sp-close" data-spclose aria-label="Fermer">✕</button></div>
     ${b.note ? `<div class="muted sp-note">${esc(b.note)}</div>` : ""}
     ${sum !== b.total ? `<div class="note">Total brut ${fmt(sum)}, plafonné à ${fmt(b.total)}.</div>` : ""}
-    <div class="sp-kinds">${Object.entries(kinds).map(([k, v]) => `<span class="sp-k ${k}">${KIND_LABEL[k] || k} ${signed(v)}</span>`).join("")}</div>
-    <div class="sp-lines">${b.lines.length ? b.lines.map((x) => `<div class="sp-line">
-      <span class="sp-src"><span class="sp-dot ${x.kind}" title="${KIND_LABEL[x.kind] || x.kind}"></span>${esc(x.src)}</span>
-      <span class="sp-bar ${x.value < 0 ? "neg" : ""}" style="width:${Math.round(60 * Math.abs(x.value) / max)}px"></span>
+    <div class="sp-kinds">${Object.entries(kinds).sort((a, c) => c[1] - a[1]).map(([k, v]) =>
+      `<span class="sp-k k-${k}">${KIND_LABEL[k] || k} <b>${signed(v)}</b></span>`).join("")}</div>
+    <div class="sp-lines">${b.lines.length ? b.lines.map((x) => `<div class="sp-line k-${x.kind}">
+      ${srcIcon(x)}<span class="sp-src" title="${esc(x.src)}">${esc(x.src)}</span>
+      <span class="sp-barbox"><span class="sp-bar ${x.value < 0 ? "neg" : ""}" style="width:${Math.max(4, Math.round(100 * Math.abs(x.value) / max))}%"></span></span>
       <span class="sp-val ${x.value < 0 ? "neg" : ""}">${signed(x.value)}</span></div>`).join("") : `<p class="muted">Rien dans ce build.</p>`}</div>`;
   pop.classList.remove("hidden");
   const r = el.getBoundingClientRect();
@@ -541,9 +609,11 @@ function itemCard(it) {
   const runes = (it.shards || []).map((sh) =>
     `<img src="assets/shards/shard${SHARD_FILE[sh.color]}${sh.rune ? "Full" : "Empty"}.png" alt="" title="${sh.rune ? esc(`${sh.rune} niv. ${sh.level} : +${sh.value} ${sh.label}`) : "Châsse vide"}">`).join("");
   const runeTxt = summarizeRunes(it.shards || []);
-  return `<div class="item ${S.changed.has(it.slot) ? "changed" : ""}" data-slot="${it.slot}" title="Cliquer pour voir les autres items possibles">
+  const forced = S.forced.has(it.id);
+  return `<div class="item ${S.changed.has(it.slot) ? "changed" : ""} ${forced ? "forced-item" : ""}" data-slot="${it.slot}" title="Cliquer pour voir les autres items possibles">
+    ${forced ? `<span class="forced-tag" title="Item forcé : gardé à chaque optimisation (retirer : clic sur l'item puis « Forcer », ou Items exclus / forcés)">📌 Forcé</span>` : ""}
     <div class="it-head"><img class="it-icon" src="${iconUrl(it.gfx)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
-      <div class="it-names"><div class="it-name" style="color:${it.color}">${S.forced.has(it.id) ? `<span class="forced" title="Item forcé : gardé à chaque optimisation">📌</span>` : ""}${esc(it.name)}</div>
+      <div class="it-names"><div class="it-name" style="color:${it.color}">${esc(it.name)}</div>
       <div class="it-sub">${esc(it.slot_name)} · niv. ${it.level} · ${esc(it.rarity_name)}</div></div>
       <span class="it-swap">Changer ⇄</span></div>
     <div class="chip-row">${statChips(it)}</div>
@@ -579,8 +649,8 @@ async function openSwap(slot) {
     <div class="chip-row" style="margin-top:4px">${statChips(cur)}</div>${obtain(cur)}</div>
     <div class="btns"><button class="btn small" id="dr-ex" title="Ne plus proposer cet item aux prochaines optimisations">Exclure</button>
     <button class="btn small" id="dr-fo" title="Garder cet item aux prochaines optimisations">Forcer</button></div></div>`;
-  $("#dr-ex").addEventListener("click", () => { S.forced.delete(cur.id); S.excluded.add(cur.id); refreshVis(); renderResult(); toast("Item exclu pour les prochaines optimisations."); });
-  $("#dr-fo").addEventListener("click", () => { S.excluded.delete(cur.id); S.forced.add(cur.id); refreshVis(); renderResult(); toast("Item forcé pour les prochaines optimisations."); });
+  $("#dr-ex").addEventListener("click", () => { S.forced.delete(cur.id); S.excluded.add(cur.id); refreshVis(); renderResult(); sfx("click"); toast("Item exclu pour les prochaines optimisations."); });
+  $("#dr-fo").addEventListener("click", () => { S.excluded.delete(cur.id); S.forced.add(cur.id); refreshVis(); renderResult(); sfx("click"); toast("Item forcé pour les prochaines optimisations."); });
   $("#dr-list").innerHTML = `<div class="loading"><div class="spinner"></div>Recherche des items qui conviennent…</div>`;
   $("#dr-compare").innerHTML = `<p class="muted pad">Choisissez un item à gauche pour voir ce que vous gagnez et perdez.</p>`;
   $("#drawer").classList.remove("hidden");
@@ -625,6 +695,7 @@ function showCompare(slot, cur, a) {
       a.dropped.length && toast(`Retiré : ${a.dropped.join(", ")}`);
       closeDrawers();
       renderResult();
+      sfx("apply");
     } catch (e) { toast("Erreur : " + e.message); }
   });
 }
@@ -683,6 +754,7 @@ function showSubCompare(slot, cur, a) {
       S.changed.add(slot);
       closeDrawers();
       renderResult();
+      sfx("apply");
     } catch (e) { toast("Erreur : " + e.message); }
   });
 }
@@ -698,6 +770,7 @@ function setSubPref(state, pref) {
   S.subForced.delete(state); S.subExcluded.delete(state); delete S.subLevels[state];
   if (!was) (pref === "fo" ? S.subForced : S.subExcluded).add(state);
   updateSubsBadge();
+  sfx("click");
   if (subsCache) renderSubs();
 }
 function updateSubsBadge() {
@@ -743,8 +816,9 @@ function levelSelect(f) {
   const top = f.limit || Math.max(...f.levels.map((l) => l.level), 1);
   if (top <= 1) return "";
   const cur = S.subLevels[f.state] || 1;
-  return `<select class="lvl-sel" data-slvl="${f.state}" title="Niveau minimum imposé (les niveaux de plusieurs sublimations identiques s'additionnent)">${
-    Array.from({ length: top }, (_, i) => `<option value="${i + 1}" ${i + 1 === cur ? "selected" : ""}>Niv. ${ROMAN[i + 1] || i + 1}</option>`).join("")}</select>`;
+  return `<label class="lvl-min" title="Niveau minimum : l'optimiseur peut monter plus haut si ça rapporte, jamais en dessous. Les niveaux de plusieurs sublimations identiques s'additionnent (ex. IV = III + I).">Niveau min.
+    <select class="lvl-sel" data-slvl="${f.state}">${
+    Array.from({ length: top }, (_, i) => `<option value="${i + 1}" ${i + 1 === cur ? "selected" : ""}>≥ ${ROMAN[i + 1] || i + 1}</option>`).join("")}</select></label>`;
 }
 
 function renderSubs() {
@@ -808,7 +882,7 @@ function buildAptForm() {
     for (const l of b.lines) {
       const row = $(`.apt-line[data-key="${l.key}"]`, el);
       const set = (v) => {
-        if (!manualApt()) S.apt = { ...aptPts() };   // on part des aptitudes du build, puis passage en manuel
+        if (!manualApt()) { S.apt = { ...aptPts() }; S.aptMode = "manual"; }   // on part des aptitudes du build
         setSeg("char_mode", "manual");
         const free = branchPoints(b, lvl()) - used(b) + (S.apt[l.key] || 0);
         v = Math.max(0, Math.min(v, free, l.max ?? Infinity));
@@ -833,7 +907,14 @@ function buildAptForm() {
     toast("Aptitudes du build reprises.");
   });
   seg("char_mode");
-  $("#char_mode").addEventListener("change", () => { renderApt(); liveUpdate(); });
+  // passage en manuel : on part des points affichés (ceux du build), pas d'anciens points oubliés
+  S.aptMode = segVal("char_mode");
+  $("#char_mode").addEventListener("change", () => {
+    const mode = segVal("char_mode");
+    if (mode === "manual" && S.aptMode !== "manual" && S.view) S.apt = { ...(S.view.build.characteristics || {}) };
+    S.aptMode = mode;
+    renderApt(); liveUpdate();
+  });
   $$(".tab").forEach((t) => t.addEventListener("click", () => showTab(t.dataset.tab)));
 }
 

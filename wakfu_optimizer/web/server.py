@@ -129,7 +129,7 @@ def item_brief(data: GameData, it: Item, lang: str, level: int) -> dict[str, Any
 def breakdown(t: Totals) -> dict[str, dict[str, Any]]:
     """Détail de chaque stat affichée : ce qui l'augmente ou la baisse (items, runes, aptitudes, sublimations)."""
     def lines(*stats: str) -> list[dict[str, Any]]:
-        out = [{"src": o, "kind": k, "value": v} for st in stats for o, k, v in t.sources.get(st, [])]
+        out = [{"src": o, "kind": k, "value": v, "ref": r} for st in stats for o, k, v, r in t.sources.get(st, [])]
         return sorted(out, key=lambda x: -x["value"])
 
     out: dict[str, dict[str, Any]] = {}

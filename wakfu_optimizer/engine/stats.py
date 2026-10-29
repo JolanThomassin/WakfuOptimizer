@@ -42,8 +42,9 @@ class Totals:
     d2: int = 0
     defense: int = 0
     active_states: dict[int, int] = field(default_factory=dict)   # état -> niveau effectif
-    # d'où vient chaque stat : stat -> [(origine, type, valeur)] ; type : base | item | random | rune | apt | sub
-    sources: dict[str, list[tuple[str, str, int]]] = field(default_factory=dict)
+    # d'où vient chaque stat : stat -> [(origine, type, valeur, référence)] ; type : base | item | random | rune | apt | sub
+    # référence (pour l'icône) : gfx de l'item, couleur de la rune, ligne d'aptitude
+    sources: dict[str, list[tuple[str, str, int, str]]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -65,12 +66,12 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     cls = data.classes.get(opts.class_key)
     s: dict[str, int] = defaultdict(int)
     t = Totals()
-    src: dict[str, list[tuple[str, str, int]]] = defaultdict(list)
+    src: dict[str, list[tuple[str, str, int, str]]] = defaultdict(list)
 
-    def add(stat: str, v: int, origin: str, kind: str) -> None:
+    def add(stat: str, v: int, origin: str, kind: str, ref: str = "") -> None:
         if v:
             s[stat] += v
-            src[stat].append((origin, kind, v))
+            src[stat].append((origin, kind, v, ref))
 
     add("ap", int(base["ap"]), "Base du personnage", "base")
     add("mp", int(base["mp"]), "Base du personnage", "base")
@@ -94,19 +95,20 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
             second_used = True
         iname = it.name(opts.lang)
         for k, v in it.stats_at(L).items():
-            add(k, int(v), iname, "item")
+            add(k, int(v), iname, "item", str(it.gfx_id))
         for (v, n), els in zip(it.random_mastery, ch.mastery_elements):
             for e in list(dict.fromkeys(els))[:n]:
                 rand_m[e] += v
-                src[f"{e}_mastery"].append((f"{iname} (élément au choix)", "random", v))
+                src[f"{e}_mastery"].append((f"{iname} (élément au choix)", "random", v, str(it.gfx_id)))
         for (v, n), els in zip(it.random_resistance, ch.resistance_elements):
             for e in list(dict.fromkeys(els))[:n]:
                 rand_r[e] += v
-                src[f"{e}_res"].append((f"{iname} (élément au choix)", "random", v))
+                src[f"{e}_res"].append((f"{iname} (élément au choix)", "random", v, str(it.gfx_id)))
         for sh in ch.shards:
             if sh.rune_id is not None and sh.rune_id in runes:
                 r = runes[sh.rune_id]
-                add(r.stat, r.value(sh.rune_level, slot), f"{r.name(opts.lang)} niv. {sh.rune_level} ({iname})", "rune")
+                add(r.stat, r.value(sh.rune_level, slot), f"{r.name(opts.lang)} niv. {sh.rune_level} ({iname})", "rune",
+                    str(int(sh.color)))
         for sid in (ch.sublimation_id, ch.special_sublimation_id):
             if sid is not None and sid in subs:
                 state_levels[subs[sid].state_id] += subs[sid].state_level
@@ -116,7 +118,8 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     for cl in char_lines(data.game):
         n = build.characteristics.get(cl.key, 0)
         for stat, v in cl.per_point.items():
-            add(stat, n * v, f"Aptitude {BRANCH_FR.get(cl.branch, cl.branch)} · {LINE_FR.get(cl.line, cl.line)} ({n} pt)", "apt")
+            add(stat, n * v, f"Aptitude {BRANCH_FR.get(cl.branch, cl.branch)} · {LINE_FR.get(cl.line, cl.line)} ({n} pt)", "apt",
+                cl.line)
 
     later = []   # effets « si la stat X est <= / >= v » : vérifiés une fois les autres effets appliqués
     for sid, lvl in state_levels.items():
