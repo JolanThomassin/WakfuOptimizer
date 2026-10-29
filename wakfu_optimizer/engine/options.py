@@ -39,8 +39,8 @@ class OptimizeOptions:
     berserk: bool = False
     heal: bool = False
     offense_weight: int = 85             # 0..100 ; défense = 100 - offense (fixe : la défense passe par res_target)
-    res_target: int = 50                 # % de résistance visé sur chaque élément (objectif souple, pénalisé si manqué)
-    res_max: int = 80                    # % au-delà duquel la résistance ne compte plus (90 = pas de maximum)
+    res_target: int = 50                 # % de résistance visé (environ) sur chaque élément : objectif souple
+    res_max: int = 55                    # au-delà, la résistance ne compte plus (l'interface envoie cible + 5)
     balance_res: bool = True             # obsolète : les résistances sont toujours équilibrées (gardé pour les anciens réglages)
     count_conditional: bool = True       # sublimations « PV > 90 % », « sans armure »
     # Combo Neutralité + Dénouement : maîtrises secondaires <= 0, >= 40 % critique, Maîtrise Critique convertie

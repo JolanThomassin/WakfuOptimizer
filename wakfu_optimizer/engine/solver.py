@@ -52,6 +52,7 @@ RGB = (Color.RED, Color.GREEN, Color.BLUE)
 RGBW = (Color.RED, Color.GREEN, Color.BLUE, Color.WHITE)
 BIG = 10**7
 MAX_ITER = 8
+RES_TOLERANCE = 6        # écart accepté sous la résistance visée (en %) avant de signaler qu'elle est impossible
 WARM_START = cp_model.__name__.endswith("milp")   # HiGHS : point de départ construit (voir Optimizer._warm_start)
 # durée max d'une passe (s) : la durée choisie est un plafond, on vise la vitesse.
 # HiGHS (navigateur) a besoin de passes plus longues pour garder la même qualité.
@@ -739,10 +740,9 @@ class BuildModel:
                 m.AddMaxEquality(sh, [need - self.res[e], 0])
                 shorts.append(sh)
             f["res_short"] = sum(shorts)
-        # résistances toujours équilibrées : seule la plus faible compte (c'est elle que l'ennemi vise)
-        r = m.NewIntVar(-BIG, cap, "Rmin")
-        m.AddMinEquality(r, capped)
-        f["res"] = r
+        # moyenne des quatre résistances (plafonnées) : pas besoin d'un équilibre parfait,
+        # chaque élément est tiré vers la résistance visée par la pénalité res_short
+        f["res4"] = sum(capped)
         for stat, (_v, cap) in utility_table(opts).items():
             capped_u = m.NewIntVar(-100, max(0, cap), f"cap_{stat}")
             m.AddMinEquality(capped_u, [self.stat(stat), cap])
@@ -761,7 +761,7 @@ class BuildModel:
         """Objectif linéaire : somme des variables pondérées par le gradient du score."""
         terms = []
         for k, var in self.feat.items():
-            g = grad.get(k, 0.0)
+            g = grad.get("res", 0.0) / 4 if k == "res4" else grad.get(k, 0.0)
             c = int(round(g * LIN_SCALE))
             if c:
                 terms.append(c * var)
@@ -923,7 +923,7 @@ class Optimizer:
             pass
         res.status = "aucune solution"
         res.diagnostics = [
-            f"Résistance visée {opts.res_target} % impossible avec ces réglages : au mieux {best} % sur chaque élément.",
+            f"Résistance visée ≈ {opts.res_target} % impossible avec ces réglages : au mieux {best} % sur l'élément le plus faible.",
             "Baissez la résistance minimum, autorisez plus de raretés ou les tranches inférieures, ou assouplissez "
             "les autres contraintes (PA, PM, items forcés…).",
         ]
@@ -1053,7 +1053,7 @@ class Optimizer:
             if added:
                 tot = evaluate(self.data, opts, b)
                 score = tot.score
-            if opts.res_target > 0 and min(tot.res_pct.values()) < opts.res_target:
+            if opts.res_target > 0 and min(tot.res_pct.values()) < opts.res_target - RES_TOLERANCE:
                 # résistance minimum non atteinte : on n'affiche pas un build qui ne respecte pas la demande
                 return self._res_unreachable(res, cand, tot, t0, budget)
             b.status = res.status

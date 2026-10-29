@@ -173,7 +173,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
                      s["rear_mastery"] if opts.rear and not opts.heal else 0,
                      opts.rear_share if opts.rear and not opts.heal else 0, s["dmg_pct"])
     gs = [ehp_factor(t.res_flat[e]) for e in ELEMENTS]
-    g = min(gs)   # résistances équilibrées : la plus faible compte
+    g = sum(gs) // 4   # moyenne des quatre éléments
     t.defense = defense_value(hp_base, s["hp_pct"], g)
     t.hp_base = hp_base
     capped = [min(t.res_flat[e], res_cap(opts)) for e in ELEMENTS]
@@ -182,7 +182,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
         "mtot": float(mtot), "crit": float(crit), "crit_mastery": float(s["crit_mastery"] if opts.crit else 0),
         "rear_mastery": float(s["rear_mastery"] if rear else 0), "dmg_pct": float(s["dmg_pct"]),
         "hp": float(hp_base), "hp_pct": float(s["hp_pct"]),
-        "res": float(min(capped)),
+        "res": float(sum(capped) / 4),
         "ap": float(s["ap"]), "mp": float(s["mp"]), "range": float(s["range"]), "wp": float(s["wp"]),
         "res_short": float(sum(max(0, res_need(opts) - t.res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
     }

@@ -111,7 +111,7 @@ UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12)}
 RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.005, 4), "mixed": (0.025, 5)}
 # Pénalité (points de score) par point de résistance fixe manquant sous la résistance visée, par élément :
 # assez forte pour que la cible soit atteinte dès que possible, sans rendre le calcul infaisable sinon.
-RES_SHORT_PENALTY = 1.0
+RES_SHORT_PENALTY = 0.5   # tire chaque élément vers la cible, sans en faire une obligation absolue
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:

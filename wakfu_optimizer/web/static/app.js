@@ -188,19 +188,11 @@ function buildForm() {
   seg("range"); seg("shard_mode"); seg("rear_share"); seg("subs-kind");
   $("#shard_mode").addEventListener("change", refreshVis);
   // double curseur : le min ne dépasse pas le max (le curseur qu'on bouge pousse l'autre)
-  // saisie précise : les champs numériques pilotent les curseurs
-  [["#res_min_n", "#res_target"], ["#res_max_n", "#res_max"]].forEach(([num, rng]) => $(num).addEventListener("change", () => {
-    $(rng).value = Math.max(0, Math.min(90, Math.round(+$(num).value || 0)));
-    $(rng).dispatchEvent(new Event("input"));
-  }));
-  $("#res_target").addEventListener("input", () => {
-    if (+$("#res_target").value > +$("#res_max").value) $("#res_max").value = $("#res_target").value;
-    refreshVis();
-  });
-  $("#res_max").addEventListener("input", () => {
-    if (+$("#res_max").value < +$("#res_target").value) $("#res_target").value = $("#res_max").value;
-    refreshVis();
-  });
+  // résistance visée : saisie directe, −/+ (Maj : par 5) et valeurs rapides
+  const setRes = (v) => { $("#res_target").value = Math.max(0, Math.min(90, Math.round(+v || 0))); refreshVis(); };
+  $$("[data-rd]").forEach((bt) => bt.addEventListener("click", (e) => setRes(+$("#res_target").value + (e.shiftKey ? 5 : 1) * +bt.dataset.rd)));
+  $$("[data-res]").forEach((bt) => bt.addEventListener("click", () => setRes(bt.dataset.res)));
+  $("#res_target").addEventListener("change", () => setRes($("#res_target").value));
   $("#time-btn").addEventListener("click", () => {
     const steps = [60, 180, 360];
     setTimeLimit(steps[(steps.indexOf(+$("#time_limit").value) + 1) % steps.length]);
@@ -275,16 +267,12 @@ function applyClass(key) {
   toggleBtn($("#heal"), c.role === "heal");
   setSeg("rear_share", c.rear ? "80" : "50");
   $("#res_target").value = c.role === "tank" ? 65 : c.role === "heal" ? 55 : 50;
-  $("#res_max").value = c.role === "tank" ? 90 : c.role === "heal" ? 85 : 80;
 }
 
 function refreshVis() {
   $("#class-icon").src = `assets/classes/${$("#cls").value}.png`;
-  const rt = +$("#res_target").value, rm = +$("#res_max").value;
-  $("#res_min_n").value = rt; $("#res_max_n").value = rm;
-  $("#res-lab").textContent = `${rt ? `min ${rt} %` : "pas de min"} · ${rm < 90 ? `max ${rm} %` : "pas de max"}`;
-  $("#res-fill").style.left = `${(rt / 90) * 100}%`;
-  $("#res-fill").style.width = `${((rm - rt) / 90) * 100}%`;
+  const rt = +$("#res_target").value;
+  $$("[data-res]").forEach((bt) => bt.classList.toggle("on", +bt.dataset.res === rt));
   const neutral = $("#neutral").checked;
   $("#rear-box").classList.toggle("hidden", !isOn("rear") || neutral);
   ["rear", "berserk", "heal"].forEach((id) => { $("#" + id).disabled = neutral; $("#" + id).classList.toggle("off", neutral); });
@@ -307,7 +295,6 @@ function applyOptions(o) {
   const rs = +o.rear_share || 50;
   setSeg("rear_share", rs >= 70 ? "80" : rs <= 35 ? "25" : "50");
   set("res_target", o.res_target ?? 50);
-  set("res_max", o.res_max ?? 80);
   $("#cond").checked = o.count_conditional;
   $("#neutral").checked = !!o.neutral_combo;
   setTimeLimit(180);   // toujours 3 min à l'ouverture de la page
@@ -336,7 +323,7 @@ function options() {
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
-    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"), res_max: n("res_max"),
+    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"), res_max: Math.min(90, n("res_target") + 5),
     count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
     min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,
