@@ -56,9 +56,9 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
               "dps", range="melee", berserk=True, res_target=40, offense=88, crit_floor=True,
               count_conditional=False),
     Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et tacle ; "
-              "dégâts ensuite. Aptitudes : Force en PV, Chance en parade et résistances.",
+              "dégâts ignorés. Aptitudes : Force en PV, Chance en parade et résistances.",
               "tank", range="melee", hide_range=True, crit=False, res_target=70, res_tol=4, res_free=True,
-              offense=40, will=10, utility={"mp": (0.05, 6)}),
+              offense=0, will=10, utility={"mp": (0.05, 6)}),   # un tank ne compte pas ses dégâts
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
               "heal", heal=True, res_target=55, res_tol=5, offense=80, crit_floor=True),
     Archetype("support_buff", "Support buff", "Boosts / placement : PA, PM, PW et survie avant les dégâts. "
@@ -118,7 +118,8 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
         "allowed_rarities": tuple(int(r) for r in Rarity), "lower_brackets": False, "exclude_relic": False,
         "exclude_epic": False, "exclude_shop": True, "include_pet_mount": True,
         # châsses et sublimations
-        "shard_mode": "ideal", "shard_count": 4, "max_jokers": base.max_jokers, "no_subs": False,
+        "shard_mode": "ideal", "shard_count": 4, "max_jokers": base.max_jokers,
+        "no_subs": True,   # panneau désactivé : aucune sublimation (sauf celles imposées dans l'onglet Sublimations)
     }
 
 

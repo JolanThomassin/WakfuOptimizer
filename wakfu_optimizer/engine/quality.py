@@ -209,32 +209,24 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
          + (" ; sans sublimations" if opts.no_subs else ""), "src": src("subs")},
     ]
     # poids de chaque stat dans le score (1 point ≈ 1 % de valeur globale)
-    st = tot.stats
     arch_util = set(arch.utility) if arch else set()
-    weights = [
-        {"label": "Dégâts", "weight": f"{opts.offense_weight} % du score", "detail": f"+1 % de dégâts ≈ {opts.offense_weight / 100:.2f} pt",
-         "now": f"×{tot.d2 / 1.6e9:.2f}", "cap": "", "src": "archétype"},
-        {"label": "Survie (PV effectifs)", "weight": f"{100 - opts.offense_weight} % du score",
-         "detail": f"+1 % de PV effectifs ≈ {(100 - opts.offense_weight) / 100:.2f} pt", "now": f"{tot.defense / 1e4:,.0f}".replace(",", " "),
-         "cap": "au-delà de la cible : compte encore" if opts.res_free else "", "src": "archétype"},
-    ]
+    weights = []   # points de score par unité (1 point ≈ 1 % de valeur globale) ; 0 = ignoré
+    if opts.offense_weight:
+        weights.append({"stat": "dmg_pct", "label": "Dégâts", "pts": opts.offense_weight / 100, "unit": "par % de dégâts"})
+    if opts.offense_weight < 100:
+        weights.append({"stat": "hp", "label": "PV effectifs", "pts": (100 - opts.offense_weight) / 100, "unit": "par % de PV effectifs"})
     for k, lab in (("ap", "PA"), ("mp", "PM"), ("range", "Portée"), ("wp", "PW")):
-        v, cap = util[k]
-        now = int(st.get(k, 0))
-        weights.append({"label": lab, "weight": f"{100 * v:g} pt par {lab}", "detail": "au-delà des minimums, jusqu'au plafond",
-                        "now": str(now), "cap": f"{cap}" + (" (atteint)" if now >= cap else ""),
-                        "src": "archétype" if k in arch_util else "commun", "boosted": k in arch_util})
+        if util[k][0]:
+            weights.append({"stat": k, "label": lab, "pts": round(100 * util[k][0], 2), "unit": f"par {lab} (max {util[k][1]})",
+                            "boosted": k in arch_util})
     if opts.willpower_weight:
-        weights.append({"label": "Volonté (retraits PA / PM)", "weight": f"poids {opts.willpower_weight}",
-                        "detail": "+1 % de retrait par point", "now": str(int(st.get("willpower", 0))), "cap": "100", "src": "archétype"})
+        weights.append({"stat": "willpower", "label": "Volonté", "pts": round(opts.willpower_weight / 100, 2), "unit": "par point"})
     if opts.crit and opts.crit_target:
-        weights.append({"label": "Palier de critique", "weight": f"−{CRIT_SHORT_PENALTY:g} pt par % manquant",
-                        "detail": "au-dessus du palier, seule la formule de dégâts compte",
-                        "now": f"{int(st.get('crit_rate', 0))} %", "cap": f"{opts.crit_target} % visé", "src": "archétype"})
+        weights.append({"stat": "crit_rate", "label": "Critique sous le palier", "pts": -CRIT_SHORT_PENALTY,
+                        "unit": f"par % sous {opts.crit_target} %"})
     if opts.res_target:
-        weights.append({"label": "Résistance sous le plancher", "weight": f"−{RES_SHORT_PENALTY:g} pt par point manquant",
-                        "detail": "par élément", "now": f"{min(tot.res_pct.values())} % (le plus faible)",
-                        "cap": f"{opts.res_target - opts.res_tol} % plancher", "src": "archétype"})
+        weights.append({"stat": "elem_res", "label": "Résistance sous le plancher", "pts": -RES_SHORT_PENALTY,
+                        "unit": "par point manquant"})
     parts = score_parts(tot.features, opts)
     score = [{"key": k, "label": FEATURE_FR.get(k, k), "points": round(v, 2)} for k, v in parts.items() if round(v, 2)]
     # aptitudes : profil de l'archétype et points placés

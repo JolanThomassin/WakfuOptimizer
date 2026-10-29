@@ -334,7 +334,7 @@ function resetConstraints(a) {
   $("#no_shop").checked = true; $("#pets").checked = true;
 }
 function resetSubsPanel() {
-  setSeg("shard_mode", "ideal"); $("#shard_count").value = 4; $("#max_jokers").value = 1; $("#no_subs").checked = false;
+  setSeg("shard_mode", "ideal"); $("#shard_count").value = 4; $("#max_jokers").value = 1; $("#no_subs").checked = true;
 }
 
 // ===================================================================== panneaux activables
@@ -345,6 +345,7 @@ function setPanel(k, on) {
   const cb = $(`[data-panel="${k}"]`);
   cb.checked = on;
   cb.closest(".card").classList.toggle("panel-off", !on);
+  if (on && k === "subs") $("#no_subs").checked = false;   // activé : sublimations utilisées
   if (!on) {   // retour aux valeurs de l'archétype, pour que l'affichage dise ce qui sera utilisé
     const a = ARCHETYPES[$("#archetype").value];
     if (k === "priorities" && a) applyArchetype(a.key, curClass());
@@ -559,7 +560,6 @@ async function poll() {
   S.explain = r.explain || null;
   renderExplain();
   subsCache = null;
-  setSide(true);   // build trouvé : on replie les réglages pour laisser la place au résultat
   showTab("build");
   renderResult();
   $("#apt-from-build").disabled = false;
@@ -582,6 +582,18 @@ function archName() {
   return a ? a.name : "";
 }
 
+// Score sur 100 : 100 = le build optimisé pour ces réglages ; chaque point de score perdu (≈ 1 % de valeur) en retire
+// environ 1 (changements à la main), et chaque contrôle de qualité en échec en retire 5.
+function rating(v) {
+  const ref = Math.max(S.original ? S.original.score : v.score, v.score);
+  const errors = S.explain ? S.explain.checks.filter((c) => !c.ok && c.severity === "error").length : 0;
+  return Math.max(0, Math.min(100, Math.round(100 * Math.exp((v.score - ref) / 100) - 5 * errors)));
+}
+function ratingTip() {
+  return "À quel point le build est optimisé pour la classe, le niveau et l'archétype : 100 = build optimisé ; "
+    + "il baisse avec vos changements à la main (≈ 1 point par % de valeur perdue) et de 5 par contrôle de qualité en échec (onglet Explication).";
+}
+
 function renderResult() {
   const v = S.view, s = v.stats;
   const changed = S.changed.size
@@ -602,9 +614,9 @@ function renderResult() {
         <img src="assets/classes/${v.class.key}.png" alt="">
         <div><div class="name">${esc(v.class.name)}</div><div class="muted">Niveau ${v.level} · ${v.elements.map((e) => EL_FR[e]).join(", ")}</div>
           ${archName() ? `<div class="arch-tag" title="${esc(ARCHETYPES[S.opts.archetype].desc)}">${esc(archName())}</div>` : ""}</div>
-        <div class="scores"><div><span class="muted">Score</span> <b>${v.score.toFixed(1)}</b></div>
-          <div><span class="muted">Dégâts</span> <b>×${v.damage.toFixed(2)}</b></div>
-          <div><span class="muted">PV effectifs</span> <b>${fmt(v.ehp)}</b></div>
+        <div class="scores"><div title="${esc(ratingTip())}"><span class="muted">Score</span> <b>${rating(v)}/100</b></div>
+          <div title="Maîtrise utilisée par vos sorts : élémentaire (élément le plus faible joué) + portée + secondaires comptées"><span class="muted">Maîtrise totale</span> <b>${fmt(v.mastery_used)}</b></div>
+          <div title="Somme des résistances fixes des quatre éléments"><span class="muted">Résistance totale</span> <b>${fmt(ELEMENTS.reduce((t, e) => t + v.res_flat[e], 0))}</b></div>
           ${v.removal ? `<div title="Retraits PA / PM grâce à la Volonté (cible à 0 Volonté) : base du sort × 0,5 × ce facteur"><span class="muted">Retraits</span> <b>×${v.removal.toFixed(2)}</b></div>` : ""}</div>
       </div>
       <div class="big4">
@@ -1384,9 +1396,8 @@ function renderExplain() {
   badge.className = `badge ${bad.length ? "warnb" : "okb"}`;
   const src = (v) => `<span class="src-tag ${v === "vos réglages" ? "mine" : "arch"}">${esc(v)}</span>`;
   const panels = x.panels.map((p) => `<span class="src-tag ${p.on ? "mine" : "arch"}">${esc(p.name)} : ${p.on ? "vos réglages" : "archétype"}</span>`).join("");
-  const weights = (x.weights || []).map((w) => `<tr class="${w.boosted ? "boost" : ""}"><td>${esc(w.label)}</td>
-      <td><b>${esc(w.weight)}</b>${w.detail ? `<div class="muted">${esc(w.detail)}</div>` : ""}</td>
-      <td class="num">${esc(w.now)}</td><td class="num">${esc(w.cap)}</td><td>${src(w.src)}</td></tr>`).join("");
+  const weights = (x.weights || []).map((w) => `<div class="xw ${w.boosted ? "boost" : ""}" title="${esc(w.unit)}">${icon(w.stat, w.label)}
+      <span>${esc(w.label)}</span><b class="${w.pts < 0 ? "neg" : ""}">${w.pts > 0 ? "" : ""}${String(+w.pts.toFixed(2)).replace(".", ",")} pt${Math.abs(w.pts) > 1 ? "s" : ""}</b></div>`).join("");
   const settings = x.settings.map((r) => `<tr><td>${esc(r.label)}</td><td>${esc(r.value)}</td><td>${src(r.src)}</td></tr>`).join("");
   const maxM = Math.max(0.01, ...x.marginals.map((m) => Math.abs(m.points)));
   const marg = [...x.marginals].filter((m) => m.points).sort((a, b) => b.points - a.points).map((m) =>
@@ -1409,9 +1420,8 @@ function renderExplain() {
       <div class="xpanels">${panels}</div>
     </section>
     <section class="card"><h2>Poids de chaque stat dans le calcul</h2>
-      <table class="xtable xweights"><tr class="xth"><td>Stat</td><td>Poids</td><td class="num">Au build</td><td class="num">Plafond</td><td></td></tr>${weights}</table>
-      <p class="hint">1 point de score ≈ 1 % de valeur globale. « archétype » : poids propre à l'archétype (surligné quand il remplace la
-        valeur commune) ; « commun » : même valeur pour tous les archétypes.</p></section>
+      <div class="xweights">${weights}</div>
+      <p class="hint">Points de score par unité (survol : unité) ; 1 point ≈ 1 % de valeur globale. En vert : poids propre à l'archétype.</p></section>
     <div class="xgrid">
       <section class="card"><h2>Réglages utilisés par le calcul</h2>
         <table class="xtable">${settings}</table>

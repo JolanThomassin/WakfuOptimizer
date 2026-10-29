@@ -208,7 +208,7 @@ def build_view(data: GameData, opts: OptimizeOptions, build: Build, t: Totals | 
         "removal": round(removal_factor(t.stats.get("willpower", 0)), 2) if opts.willpower_weight else None,
         "class": {"key": opts.class_key, "name": cp.name if cp else opts.class_key},
         "level": opts.level, "elements": list(opts.elements),
-        "score": round(t.score, 2), "damage": round(damage_multiplier(t.d2), 2), "ehp": round(t.defense / 1e4),
+        "score": round(t.score, 2), "mastery_used": t.mastery_used, "damage": round(damage_multiplier(t.d2), 2), "ehp": round(t.defense / 1e4),
         "hp": t.hp, "mastery": t.mastery, "res_flat": t.res_flat, "res_pct": t.res_pct,
         "stats": {k: int(v) for k, v in s.items()}, "active": active, "items": cards, "breakdown": breakdown(t),
         "build": build.to_dict(), "text": build_text(data, opts, build, t, t.score),

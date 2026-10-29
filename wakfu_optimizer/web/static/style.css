@@ -664,3 +664,8 @@ body.side-collapsed .sidebar { opacity: 0; padding: 0; border: none; overflow: h
 .xweights tr.xth td { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; }
 .xweights tr.boost td:first-child { color: var(--rec); font-weight: 700; }
 .xweights td .muted { font-size: 12px; }
+.xweights { display: flex; flex-wrap: wrap; gap: 8px; }
+.xw { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 5px; border-radius: 8px; background: var(--card-hi); font-size: 13px; cursor: help; }
+.xw b { color: var(--accent-hi); }
+.xw.boost { box-shadow: inset 0 0 0 1px var(--rec); }
+.xw.boost span { color: var(--rec); font-weight: 600; }

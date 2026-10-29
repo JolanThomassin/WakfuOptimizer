@@ -60,13 +60,13 @@ def test_options_crâ_dps_distance(data: GameData) -> None:
     assert o.range == "distance" and o.crit
     assert o.crit_target == crit_target(140) >= 30
     assert (o.min_ap, o.min_mp) == (default_min_ap(140), default_min_mp(140))
-    assert o.shard_mode == "ideal" and not o.no_subs and len(o.allowed_rarities) == 8
+    assert o.shard_mode == "ideal" and o.no_subs and len(o.allowed_rarities) == 8   # panneau Sublimations désactivé
 
 
 def test_options_tank_sans_critique(data: GameData) -> None:
     o = archetype_options(data, "pandawa", 140, "tank")
     assert not o.crit and o.crit_target == 0
-    assert o.res_free and o.offense_weight < 50
+    assert o.res_free and o.offense_weight == 0
 
 
 def test_poids_pm_du_tank(data: GameData) -> None:
