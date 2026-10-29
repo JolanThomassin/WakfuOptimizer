@@ -81,6 +81,59 @@ STAT_CONDITIONAL: dict[int, list[tuple[str, int, str]]] = {
     6707: [("hp_pct", 30, "stat_ge:block:50")],                                            # Pilier
 }
 
+# Valeurs officielles par niveau (encyclopédie Ankama, /fr/linker/state?id=X&level=k), vérifiées en jeu
+# (Visibilité I : -300 Tacle, II : -150). L'encyclopédie affiche le niveau k-1 et s'arrête au niveau max - 1 :
+# le dernier niveau est donc prolongé avec le même pas (-450, -300, -150). WakForge a le même défaut.
+# id d'état -> (niveau max, valeurs par niveau de chaque effet, dans l'ordre des effets) ; remplace les valeurs WakForge.
+OFFICIAL_LEVELS: dict[int, tuple[int, list[list[int]]]] = {
+    5073: (1, [[15], [10]]),  # Inflexible
+    5074: (1, [[20], [50]]),  # Constant
+    5075: (1, [[10]]),  # Mesure
+    5158: (1, [[-2], [2]]),  # Maniement : Deux mains
+    5370: (1, [[10], [15]]),  # Pacte Wakfu
+    5444: (1, [[50], [-200]]),  # Science du placement
+    5981: (3, [[1, 1, 1], [-30, -20, -10]]),  # Dévastation
+    5982: (4, [[5, 10, 15, 20], [3, 6, 9, 12]]),  # Ravage
+    5983: (6, [[15, 30, 45, 60, 75, 90]]),  # Carnage
+    5984: (6, [[5, 10, 15, 20, 25, 30]]),  # Cicatrisation
+    5985: (6, [[2, 4, 6, 8, 10, 12]]),  # Embuscade
+    6000: (2, [[50, 100], [-50, -50]]),  # Théorie de la matière
+    6005: (2, [[1, 1], [-20, -10]]),  # Vélocité
+    6008: (2, [[1, 1], [-150, -75]]),  # Vivacité
+    6009: (6, [[5, 10, 15, 20, 25, 30]]),  # Critique Berserk
+    6010: (2, [[1, 1], [-300, -150], [-300, -150]]),  # Visibilité
+    6013: (6, [[1, 3, 4, 6, 7, 9], [1, 3, 4, 6, 7, 9], [1, 3, 4, 6, 7, 9]]),  # Ravage secondaire
+    6024: (6, [[5, 10, 15, 20, 25, 30]]),  # Parade Berserk
+    6026: (6, [[3, 6, 9, 12, 15, 18]]),  # Influence
+    6036: (6, [[2, 4, 6, 8, 10, 12]]),  # Longueur
+    6707: (1, [[30]]),  # Pilier
+    6821: (6, [[25, 50, 75, 100, 125, 150]]),  # Expert des armes légères
+    6931: (4, [[8, 16, 24, 32]]),  # Neutralité
+    6933: (6, [[5, 10, 15, 20, 25, 30]]),  # Prétention
+    7075: (2, [[-1, -1], [50, 100], [50, 100]]),  # Combat rapproché
+    7076: (2, [[-2, -1], [75, 75]]),  # Carapace
+    7077: (2, [[-1, -1], [5, 10]]),  # Armure lourde
+    7115: (6, [[5, 10, 15, 20, 25, 30]]),  # Ambition
+    7257: (1, [[3], [15]]),  # Sentinelle
+    7722: (4, [[10, 20, 30, 40]]),  # Conservation
+    7859: (6, [[3, 6, 9, 12, 15, 18]]),  # Force légère
+    7860: (2, [[1, 1]]),  # Agilité vitale
+    7861: (2, [[1, 1]]),  # Force vitale
+    7862: (6, [[4, 8, 12, 16, 20, 24]]),  # Influence vitale
+    7864: (6, [[50, 100, 150, 200, 250, 300]]),  # Evasion
+    7865: (6, [[50, 100, 150, 200, 250, 300]]),  # Interception
+    7870: (1, [[20]]),  # Pétillance
+    8380: (0, [[50, 50, 50, 50, 50]]),  # Aplomb naturel
+    8388: (6, [[2, 4, 6, 8, 10, 12]]),  # Acribie
+    8390: (6, [[3, 6, 9, 12, 15, 18]]),  # Dérobade continue
+    8391: (6, [[5, 10, 15, 20, 25, 30]]),  # Bouclier critique
+    8393: (6, [[5, 10, 15, 20, 25, 30]]),  # Bouclier dorsal
+    8518: (4, [[4, 8, 12, 16]]),  # Brûlure
+    8519: (4, [[4, 8, 12, 16]]),  # Gel
+    8520: (4, [[4, 8, 12, 16]]),  # Tellurisme
+    8521: (4, [[4, 8, 12, 16]]),  # Ventilation
+}
+
 # Valeurs à forcer quand le texte WakForge n'a pas de nombre exploitable
 CONST_FIXES: dict[tuple[int, int, str], list[int]] = {}
 
@@ -128,6 +181,12 @@ def main(wakforge: Path) -> None:
                 effects.append({"stat": stat, "values": [sign * v for v in values], "mode": mode, "condition": cond})
         for stat, v, cond in STAT_CONDITIONAL.get(sid, []):
             effects.append({"stat": stat, "values": [v] * 5, "mode": "flat", "condition": cond})
+        if sid in OFFICIAL_LEVELS:
+            lim, vals = OFFICIAL_LEVELS[sid]
+            for eff, v in zip(effects, vals):
+                eff["values"] = v
+            if lim:
+                entry["limit"] = lim
         if effects:
             entry["effects"] = effects
         out[sid] = entry

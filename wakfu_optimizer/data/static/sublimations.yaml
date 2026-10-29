@@ -9,6 +9,8 @@
 #   stat_le:<stat>:<v> / stat_ge:<stat>:<v> = la stat totale doit être <= / >= v (épiques « au lancement du
 #   combat ») : le solveur impose la condition quand il place la sublimation.
 # Après un patch : ajouter ici les nouveaux états (sinon : affichés, mais non optimisés).
+# Valeurs par niveau vérifiées sur l'encyclopédie Ankama et en jeu (voir OFFICIAL_LEVELS dans
+# tools/build_sublimations_yaml.py) : l'encyclopédie et WakForge se trompent sur le dernier niveau.
 states:
   751: {name: Enflammé, desc: '0/1/2 Tacle ; En début de tour, autour du lanceur : ; Aux : Dommage : 1/2/3/4/5 ; Si la cible meurt : ; Dommage : 1/2/3/4/5'}
   1284: {name: Makabrano Ksion, desc: 'Si dommages subis : ; 0/1% de gagner 1 PA'}
@@ -60,11 +62,11 @@ states:
     limit: 1
     effects:
     - stat: dmg_pct
-      values: [15, 15, 15, 15, 15]
+      values: [15]
       mode: flat
       condition: stat_le:ap:10
     - stat: willpower
-      values: [10, 10, 10, 10, 10]
+      values: [10]
       mode: flat
       condition: stat_le:ap:10
   5074:
@@ -73,11 +75,11 @@ states:
     limit: 1
     effects:
     - stat: dmg_pct
-      values: [20, 20, 20, 20, 20]
+      values: [20]
       mode: flat
       condition: stat_le:crit_rate:10
     - stat: crit_res
-      values: [50, 50, 50, 50, 50]
+      values: [50]
       mode: flat
       condition: stat_le:crit_rate:10
   5075:
@@ -86,7 +88,7 @@ states:
     limit: 1
     effects:
     - stat: crit_rate
-      values: [10, 10, 10, 10, 10]
+      values: [10]
       mode: flat
       condition: stat_ge:block:40
   5076: {name: Précis, desc: 'Au lancement du combat, si le porteur de l''état a 1 Portée ou moins : ; 20% Soins réalisés ; 15% Armure donnée et reçue', limit: 1}
@@ -104,11 +106,11 @@ states:
     limit: 1
     effects:
     - stat: mp
-      values: [-2, -2, -2, -2, -2]
+      values: [-2]
       mode: flat
       condition: two_handed
     - stat: ap
-      values: [2, 2, 2, 2, 2]
+      values: [2]
       mode: flat
       condition: two_handed
   5174: {name: Alternance II, desc: 'Si le porteur inflige des dommages dans un élément, il gagne +15% Maîtrise Elémentaire dans les autres éléments pour le prochain sort.', limit: 1}
@@ -127,11 +129,11 @@ states:
     limit: 1
     effects:
     - stat: willpower
-      values: [10, 10, 10, 10, 10]
+      values: [10]
       mode: flat
       condition: stat_ge:wp:8
     - stat: block
-      values: [15, 15, 15, 15, 15]
+      values: [15]
       mode: flat
       condition: stat_ge:wp:8
   5443: {name: Santé de fer, desc: 'Au lancement du combat, pour le porteur de l''état : ; -30% PV (malus sur le modificateur de PV) ; 30% Soins et Armures de reçus', limit: 1}
@@ -141,11 +143,11 @@ states:
     limit: 1
     effects:
     - stat: elem_res
-      values: [50, 50, 50, 50, 50]
+      values: [50]
       mode: flat
       condition: none
     - stat: rear_res
-      values: [-200, -200, -200, -200, -200]
+      values: [-200]
       mode: flat
       condition: none
   5445: {name: Anatomie, desc: Convertit 50% de la Maîtrise Élémentaire en Maîtrise Dos (à taux de 1 vers 1.3) au lancement du combat., limit: 1}
@@ -161,55 +163,55 @@ states:
   5980: {name: Ruine, desc: 5/10/15/20/25% Dommages indirects, limit: 6}
   5981:
     name: Dévastation
-    desc: 1 PW ; -30/20 Volonté
+    desc: '1 PW ; -30/-20/-10 Volonté'
     limit: 3
     effects:
     - stat: wp
-      values: [1, 1, 1, 1, 1]
+      values: [1, 1, 1]
       mode: flat
       condition: none
     - stat: willpower
-      values: [-30, -20, -20, -20, -20]
+      values: [-30, -20, -10]
       mode: flat
       condition: none
   5982:
     name: Ravage
-    desc: 'En début de combat : ; Toutes les Maîtrises : 5/10/15% du niveau ; Toutes les Résistances : 3/6/9'
+    desc: 'En début de combat : ; Toutes les Maîtrises : 5/10/15/20% du niveau ; Toutes les Résistances : 3/6/9/12'
     limit: 4
     effects:
     - stat: all_mastery
-      values: [5, 10, 15, 15, 15]
+      values: [5, 10, 15, 20]
       mode: pct_level
       condition: none
     - stat: elem_res
-      values: [3, 6, 9, 9, 9]
+      values: [3, 6, 9, 12]
       mode: flat
       condition: none
   5983:
     name: Carnage
-    desc: 'Lorsque les PV sont supérieurs à 90% : ; 15/30/45/60/75% du niveau en Maîtrise élémentaire'
+    desc: 'Lorsque les PV sont supérieurs à 90% : ; 15/30/45/60/75/90% du niveau en Maîtrise élémentaire'
     limit: 6
     effects:
     - stat: elem_mastery
-      values: [15, 30, 45, 60, 75]
+      values: [15, 30, 45, 60, 75, 90]
       mode: pct_level
       condition: hp_high
   5984:
     name: Cicatrisation
-    desc: 5/10/15/20/25% point de vie (bonus sur le modificateur de PV)
+    desc: '5/10/15/20/25/30% point de vie (bonus sur le modificateur de PV)'
     limit: 6
     effects:
     - stat: hp_pct
-      values: [5, 10, 15, 20, 25]
+      values: [5, 10, 15, 20, 25, 30]
       mode: flat
       condition: none
   5985:
     name: Embuscade
-    desc: 2/4/6/8/10% Dommages infligés aux cibles au contact
+    desc: '2/4/6/8/10/12% Dommages infligés aux cibles au contact'
     limit: 6
     effects:
     - stat: dmg_pct
-      values: [2, 4, 6, 8, 10]
+      values: [2, 4, 6, 8, 10, 12]
       mode: flat
       condition: melee
   5986: {name: Dérobade, desc: 'En début de combat : ; 5/10/15/20/25% Parade (1 tour)', limit: 6}
@@ -224,15 +226,15 @@ states:
   5999: {name: Dimensionnalité, desc: 'Au premier tour du porteur de l''état : ; 1 PW (non-régénérable)', limit: 2}
   6000:
     name: Théorie de la matière
-    desc: 50% Coup critique ; -50% Dommages et Soins
+    desc: '50/100% Coup critique ; -50% Dommages et Soins'
     limit: 2
     effects:
     - stat: crit_rate
-      values: [50, 50, 50, 50, 50]
+      values: [50, 100]
       mode: flat
       condition: none
     - stat: dmg_pct
-      values: [-50, -50, -50, -50, -50]
+      values: [-50, -50]
       mode: flat
       condition: none
   6001: {name: Retour PA, desc: Regagne 0/1 PA en tuant un ennemi (2 activations par tour), limit: 4}
@@ -241,75 +243,75 @@ states:
   6004: {name: Ecailles de Lune, desc: 3/6/9/12/15% Armure reçue, limit: 6}
   6005:
     name: Vélocité
-    desc: 1 PM ; -20% Dommages infligés
+    desc: '1 PM ; -20/-10% Dommages infligés'
     limit: 2
     effects:
     - stat: mp
-      values: [1, 1, 1, 1, 1]
+      values: [1, 1]
       mode: flat
       condition: none
     - stat: dmg_pct
-      values: [-20, -20, -20, -20, -20]
+      values: [-20, -10]
       mode: flat
       condition: none
   6006: {name: Sauvegarde, desc: 'En fin de tour : ; Les PA non utilisés sont transmis au tour suivant ; Max 0/1/2 PA', limit: 6}
   6007: {name: Bonne action, desc: 'En fin de tour, le porteur de l''état transmet 1 PA non-utilisé à l''allié le plus proche'}
   6008:
     name: Vivacité
-    desc: 1 PA ; -150 Résistance élémentaire
+    desc: '1 PA ; -150/-75 Résistance élémentaire'
     limit: 2
     effects:
     - stat: ap
-      values: [1, 1, 1, 1, 1]
+      values: [1, 1]
       mode: flat
       condition: none
     - stat: elem_res
-      values: [-150, -150, -150, -150, -150]
+      values: [-150, -75]
       mode: flat
       condition: none
   6009:
     name: Critique Berserk
-    desc: 'Lorsque les PV sont inférieurs à 50% : ; 5/10/15/20/25% Coup critique'
+    desc: 'Lorsque les PV sont inférieurs à 50% : ; 5/10/15/20/25/30% Coup critique'
     limit: 6
     effects:
     - stat: crit_rate
-      values: [5, 10, 15, 20, 25]
+      values: [5, 10, 15, 20, 25, 30]
       mode: flat
       condition: berserk
   6010:
     name: Visibilité
-    desc: 1 Portée ; -300 Tacle ; -300 Esquive
+    desc: '1 Portée ; -300/-150 Tacle ; -300/-150 Esquive'
     limit: 2
     effects:
     - stat: range
-      values: [1, 1, 1, 1, 1]
+      values: [1, 1]
       mode: flat
       condition: none
     - stat: lock
-      values: [-300, -300, -300, -300, -300]
+      values: [-300, -150]
       mode: flat
       condition: none
     - stat: dodge
-      values: [-300, -300, -300, -300, -300]
+      values: [-300, -150]
       mode: flat
       condition: none
   6011: {name: Ruine cyclique, desc: 10% Dommages indirects dans les tours de table pairs, limit: 2}
   6012: {name: Tacle Berserk, desc: 'Lorsque les PV sont inférieurs à 50% : ; 50/100/150/200/250% du niveau en Tacle', limit: 6}
   6013:
     name: Ravage secondaire
-    desc: 'En début de combat : ; 1/3/4/6/7% Coup critique, 1/3/4/6/7% Parade, 1/3/4/6/7 Volonté'
+    desc: 'En début de combat : ; 1/3/4/6/7/9% Coup critique, 1/3/4/6/7/9% Parade, 1/3/4/6/7/9 Volonté'
     limit: 6
     effects:
     - stat: crit_rate
-      values: [1, 3, 4, 6, 7]
+      values: [1, 3, 4, 6, 7, 9]
       mode: flat
       condition: none
     - stat: block
-      values: [1, 3, 4, 6, 7]
+      values: [1, 3, 4, 6, 7, 9]
       mode: flat
       condition: none
     - stat: willpower
-      values: [1, 3, 4, 6, 7]
+      values: [1, 3, 4, 6, 7, 9]
       mode: flat
       condition: none
   6014: {name: Dérobade lente, desc: 1/3/4% Parade par tour (max 40), limit: 4}
@@ -323,21 +325,21 @@ states:
   6023: {name: Aisance, desc: 'Après avoir subi une perte de 2 PM : ; 5 Volonté (3 tours)', limit: 2}
   6024:
     name: Parade Berserk
-    desc: 'Lorsque les PV sont inférieurs à 50% : ; 5/10/15/20/25% Parade'
+    desc: 'Lorsque les PV sont inférieurs à 50% : ; 5/10/15/20/25/30% Parade'
     limit: 6
     effects:
     - stat: block
-      values: [5, 10, 15, 20, 25]
+      values: [5, 10, 15, 20, 25, 30]
       mode: flat
       condition: berserk
   6025: {name: Puits de Vitalité, desc: Augmente de 5/10/15/20/25% les Vols de vie réalisés, limit: 6}
   6026:
     name: Influence
-    desc: 3/6/9/12/15% Coup critique
+    desc: '3/6/9/12/15/18% Coup critique'
     limit: 6
     effects:
     - stat: crit_rate
-      values: [3, 6, 9, 12, 15]
+      values: [3, 6, 9, 12, 15, 18]
       mode: flat
       condition: none
   6027: {name: Fureur, desc: 'En début de tour : ; 5% Dommages infligés par entité touchée dans le tour précédent.', limit: 2}
@@ -350,11 +352,11 @@ states:
   6034: {name: Focalisation, desc: '-15% Dommages infligés ; En début de tour : ; 25% Dommages infligés si un seul ennemi a été touché au tour précédent', limit: 2}
   6036:
     name: Longueur
-    desc: 2/4/6/8/10% Dommages infligés aux cibles alignées et à 2 cases et plus du porteur de l'état
+    desc: '2/4/6/8/10/12% Dommages infligés aux cibles alignées et à 2 cases et plus du porteur de l''état'
     limit: 6
     effects:
     - stat: dmg_pct
-      values: [2, 4, 6, 8, 10]
+      values: [2, 4, 6, 8, 10, 12]
       mode: flat
       condition: distance
   6037: {name: Expert des Parades, desc: -50 Résistance élémentaire ; -7% Dommages reçus lors d'une Parade, limit: 2}
@@ -376,7 +378,7 @@ states:
     limit: 1
     effects:
     - stat: hp_pct
-      values: [30, 30, 30, 30, 30]
+      values: [30]
       mode: flat
       condition: stat_ge:block:50
   6708: {name: Contrôle de l'espace, desc: 'Au lancement du combat, si le porteur de l''état a exactement 1 Portée : ; 15% Dommages infligés et Soins réalisés sur les cibles à 2, 4 ou 4 cases de distance
@@ -401,12 +403,11 @@ states:
       du niveau)', limit: 6}
   6821:
     name: Expert des armes légères
-    desc: 'Si aucun bouclier, ni dague, ni arme à deux mains n''est équipé, en début de combat : ; 25/50/75/100/125% du niveau en Maîtrise Élémentaire ; 2/4/6/8/10% Dommages infligés sur une cible avec
-      de l''Armure'
+    desc: 'Si aucun bouclier, ni dague, ni arme à deux mains n''est équipé, en début de combat : ; 25/50/75/100/125/150% du niveau en Maîtrise Élémentaire ; 2/4/6/8/10/12% Dommages infligés sur une cible avec de l''Armure'
     limit: 6
     effects:
     - stat: elem_mastery
-      values: [25, 50, 75, 100, 125]
+      values: [25, 50, 75, 100, 125, 150]
       mode: pct_level
       condition: light_weapons
   6822: {name: Arcanes, desc: 'Si le porteur de l''état ne possède pas d''armure en fin de tour : ; 50/100/150/200/250% du niveau en Armure', limit: 6}
@@ -430,21 +431,21 @@ states:
   6930: {name: Critique tactique, desc: 3/6/9% Dommages critiques infligés si la cible a > 50% PV ; -3/6/9% Dommages critiques infligés si la cible a <= 50%PV, limit: 4}
   6931:
     name: Neutralité
-    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 8/16/24% Dommages infligés'
+    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 8/16/24/32% Dommages infligés'
     limit: 4
     effects:
     - stat: dmg_pct
-      values: [8, 16, 24, 24]
+      values: [8, 16, 24, 32]
       mode: flat
       condition: no_secondary
   6932: {name: Abandon, desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 0/1/2 PW max et 0/1/2 Portée ; -5/10/15/20/25% Armure donnée et reçue', limit: 6}
   6933:
     name: Prétention
-    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25% Parade'
+    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25/30% Parade'
     limit: 6
     effects:
     - stat: block
-      values: [5, 10, 15, 20, 25]
+      values: [5, 10, 15, 20, 25, 30]
       mode: flat
       condition: no_secondary
   7069: {name: Pacte d'Anathar I, desc: '+5% Dommages infligés lorsque le porteur respecte certaines conditions (varient chaque tour). ; Tour impair : Le porteur est à distance ; Tour pair : Le porteur
@@ -455,45 +456,45 @@ states:
   7073: {name: Pacte d'Anathar V, desc: 'Lorsque le porteur de l''état commence son tour avec 80% de ses PV ou plus : ; 10% Dommages infligés ; -50 Résistance élémentaire'}
   7075:
     name: Combat rapproché
-    desc: -1 Portée ; 50% du niveau en Tacle et Esquive
+    desc: '-1 Portée ; 50/100% du niveau en Tacle et Esquive'
     limit: 2
     effects:
     - stat: range
-      values: [-1, -1, -1, -1, -1]
+      values: [-1, -1]
       mode: flat
       condition: none
     - stat: lock
-      values: [50, 50, 50, 50, 50]
+      values: [50, 100]
       mode: pct_level
       condition: none
     - stat: dodge
-      values: [50, 50, 50, 50, 50]
+      values: [50, 100]
       mode: pct_level
       condition: none
   7076:
     name: Carapace
-    desc: -2 PA max ; 75 Résistance Élémentaire
+    desc: '-2/-1 PA max ; 75 Résistance élémentaire'
     limit: 2
     effects:
     - stat: ap
-      values: [-2, -2, -2, -2, -2]
+      values: [-2, -1]
       mode: flat
       condition: none
     - stat: elem_res
-      values: [75, 75, 75, 75, 75]
+      values: [75, 75]
       mode: flat
       condition: none
   7077:
     name: Armure lourde
-    desc: -1 PM max ; 5% Dommages infligés
+    desc: '-1 PM max ; 5/10% Dommages infligés'
     limit: 2
     effects:
     - stat: mp
-      values: [-1, -1, -1, -1, -1]
+      values: [-1, -1]
       mode: flat
       condition: none
     - stat: dmg_pct
-      values: [5, 5, 5, 5, 5]
+      values: [5, 10]
       mode: flat
       condition: none
   7078: {name: Temporisation, desc: 'En début de tour, si aucun PW n''a été utilisé au tour précédent : ; 4/8/12% Dommages infligés ; 4/8/12% Soins réalisés', limit: 4}
@@ -503,11 +504,11 @@ states:
   7106: {name: Dofushu, desc: Dofushu ; Les sorts lancés doivent coûter au moins 1 PA ; Dofushu}
   7115:
     name: Ambition
-    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25% Coup critique'
+    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25/30% Coup critique'
     limit: 6
     effects:
     - stat: crit_rate
-      values: [5, 10, 15, 20, 25]
+      values: [5, 10, 15, 20, 25, 30]
       mode: flat
       condition: no_secondary
   7252: {name: Excès II, desc: '-10% Dommages infligés ; Tous les 5 sorts lancés, le porteur de l''état gagne 50% Dommages infligés pour le prochain sort. ; Les sorts lancés doivent coûter au moins 1 PA
@@ -521,11 +522,11 @@ states:
     limit: 1
     effects:
     - stat: range
-      values: [3, 3, 3, 3, 3]
+      values: [3]
       mode: flat
       condition: none
     - stat: dmg_pct
-      values: [15, 15, 15, 15, 15]
+      values: [15]
       mode: flat
       condition: distance
   7258: {name: Assimilation, desc: '-50 Résistance élémentaire ; Si le porteur de l''état subit des dommages d''un ennemi :', limit: 1}
@@ -537,11 +538,11 @@ states:
   7719: {name: Accumulation, desc: '-20% Soins réalisés ; Chaque tour passé sans soigner : ; 5/10/15% Soins réalisés ; Cumulable jusqu''à 40%', limit: 4}
   7722:
     name: Conservation
-    desc: 'Lorsque les PV sont supérieurs à 90% : ; 10/20/30% Parade'
+    desc: 'Lorsque les PV sont supérieurs à 90% : ; 10/20/30/40% Parade'
     limit: 4
     effects:
     - stat: block
-      values: [10, 20, 30, 30, 30]
+      values: [10, 20, 30, 40]
       mode: flat
       condition: hp_high
   7853: {name: Carapace sanguine, desc: 'En début de tour : ; Convertit 10/20/30/40/50% des PV courants en Armure', limit: 6}
@@ -549,11 +550,11 @@ states:
   7856: {name: Profit, desc: Regagne 1 PA en retirant un PA ou un PM à un ennemi (0/1/2 max par tour), limit: 6}
   7859:
     name: Force légère
-    desc: 'Tant que le porteur ne possède pas d''Armure : ; 3/6/9/12/15% Dommages infligés'
+    desc: 'Tant que le porteur ne possède pas d''Armure : ; 3/6/9/12/15/18% Dommages infligés'
     limit: 6
     effects:
     - stat: dmg_pct
-      values: [3, 6, 9, 12, 15]
+      values: [3, 6, 9, 12, 15, 18]
       mode: flat
       condition: no_armor
   7860:
@@ -562,7 +563,7 @@ states:
     limit: 2
     effects:
     - stat: mp
-      values: [1, 1, 1, 1, 1]
+      values: [1, 1]
       mode: flat
       condition: hp_high
   7861:
@@ -571,35 +572,35 @@ states:
     limit: 2
     effects:
     - stat: ap
-      values: [1, 1, 1, 1, 1]
+      values: [1, 1]
       mode: flat
       condition: hp_high
   7862:
     name: Influence vitale
-    desc: 'Lorsque les PV sont supérieurs à 90% : ; 4/8/12/16/20% Coup critique'
+    desc: 'Lorsque les PV sont supérieurs à 90% : ; 4/8/12/16/20/24% Coup critique'
     limit: 6
     effects:
     - stat: crit_rate
-      values: [4, 8, 12, 16, 20]
+      values: [4, 8, 12, 16, 20, 24]
       mode: flat
       condition: hp_high
   7863: {name: Influence paradoxale, desc: 'Si un coup non critique est effectué avec un sort élémentaire : ; 5/10/15% Coup critique au tour suivant', limit: 4}
   7864:
     name: Evasion
-    desc: 'En début de combat : ; 50/100/150/200/250% du niveau en Esquive'
+    desc: 'En début de combat : ; 50/100/150/200/250/300% du niveau en Esquive'
     limit: 6
     effects:
     - stat: dodge
-      values: [50, 100, 150, 200, 250]
+      values: [50, 100, 150, 200, 250, 300]
       mode: pct_level
       condition: none
   7865:
     name: Interception
-    desc: 'En début de combat : ; 50/100/150/200/250% du niveau en Tacle'
+    desc: 'En début de combat : ; 50/100/150/200/250/300% du niveau en Tacle'
     limit: 6
     effects:
     - stat: lock
-      values: [50, 100, 150, 200, 250]
+      values: [50, 100, 150, 200, 250, 300]
       mode: pct_level
       condition: none
   7867: {name: Fuite, desc: 'Après avoir esquivé (avec pertes) : ; 1 PM (0/1/2 max par tour)', limit: 6}
@@ -610,7 +611,7 @@ states:
     limit: 1
     effects:
     - stat: dmg_pct
-      values: [20, 20, 20, 20, 20]
+      values: [20]
       mode: flat
       condition: no_armor
   7872: {name: Contact, desc: 'En fin de tour, par ennemi au contact : ; 5% des PV max en Armure', limit: 1}
@@ -654,36 +655,40 @@ states:
   8387: {name: Volonté indirecte, desc: 'En dehors du tour du porteur : 3/6/9/12/15 Volonté ; Pendant le tour du porteur : -4/8/12/16/20 Volonté'}
   8388:
     name: Acribie
-    desc: 2/4/6/8/10% Dommages infligés aux cibles à 5 cases ou plus
+    desc: '2/4/6/8/10/12% Dommages infligés aux cibles à 5 cases ou plus'
+    limit: 6
     effects:
     - stat: dmg_pct
-      values: [2, 4, 6, 8, 10]
+      values: [2, 4, 6, 8, 10, 12]
       mode: flat
       condition: distance
   8389: {name: Vision intermédiaire, desc: 3/6/9/12/15% Dommages infligés aux cibles à exactement 3 cases}
   8390:
     name: Dérobade continue
-    desc: 3/6/9/12/15% Parade
+    desc: '3/6/9/12/15/18% Parade'
+    limit: 6
     effects:
     - stat: block
-      values: [3, 6, 9, 12, 15]
+      values: [3, 6, 9, 12, 15, 18]
       mode: flat
       condition: none
   8391:
     name: Bouclier critique
-    desc: 5/10/15/20/25 Résistance Critique
+    desc: '5/10/15/20/25/30 Résistance Critique'
+    limit: 6
     effects:
     - stat: crit_res
-      values: [5, 10, 15, 20, 25]
+      values: [5, 10, 15, 20, 25, 30]
       mode: flat
       condition: none
   8392: {name: Sauvegarde du Wakfu, desc: -1 PW max}
   8393:
     name: Bouclier dorsal
-    desc: 5/10/15/20/25 Résistance Dos
+    desc: '5/10/15/20/25/30 Résistance Dos'
+    limit: 6
     effects:
     - stat: rear_res
-      values: [5, 10, 15, 20, 25]
+      values: [5, 10, 15, 20, 25, 30]
       mode: flat
       condition: none
   8394: {name: Propagation, desc: 'Lorsque le porteur de l''état inflige des dommages directs, une fois par tour : ; Inflige 10/20/30% du niveau en dommages lumière aux ennemis alignés avec la cible'}
@@ -708,33 +713,37 @@ states:
   8508: {name: Ventilation secondaire, desc: 'En lançant un sort , ou : ; 2/4/6% Dommages infligés dans l''élément Air ; Cumulable, max 30'}
   8518:
     name: Brûlure
-    desc: 4/8/12% Dommages infligés dans l'élément Feu
+    desc: '4/8/12/16% Dommages infligés dans l''élément Feu'
+    limit: 4
     effects:
     - stat: dmg_pct
-      values: [4, 8, 12, 12, 12]
+      values: [4, 8, 12, 16]
       mode: flat
       condition: element:fire
   8519:
     name: Gel
-    desc: 4/8/12% Dommages infligés dans l'élément Eau
+    desc: '4/8/12/16% Dommages infligés dans l''élément Eau'
+    limit: 4
     effects:
     - stat: dmg_pct
-      values: [4, 8, 12, 12, 12]
+      values: [4, 8, 12, 16]
       mode: flat
       condition: element:water
   8520:
     name: Tellurisme
-    desc: 4/8/12% Dommages infligés dans l'élément Terre
+    desc: '4/8/12/16% Dommages infligés dans l''élément Terre'
+    limit: 4
     effects:
     - stat: dmg_pct
-      values: [4, 8, 12, 12, 12]
+      values: [4, 8, 12, 16]
       mode: flat
       condition: element:earth
   8521:
     name: Ventilation
-    desc: 4/8/12% Dommages infligés dans l'élément Air
+    desc: '4/8/12/16% Dommages infligés dans l''élément Air'
+    limit: 4
     effects:
     - stat: dmg_pct
-      values: [4, 8, 12, 12, 12]
+      values: [4, 8, 12, 16]
       mode: flat
       condition: element:air
