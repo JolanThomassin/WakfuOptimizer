@@ -166,7 +166,7 @@ def res_cap(opts: object) -> int:
     """Résistance fixe au-delà de laquelle la résistance ne rapporte plus rien : le plancher (cible − écart).
     Partout dans l'écart, le score est donc le même : aucune stat sacrifiée pour se rapprocher de la cible."""
     t = int(getattr(opts, "res_target", 0) or 0)
-    if not 0 < t < 90:
+    if not 0 < t < 90 or getattr(opts, "res_free", False):
         return RES_CAP_FLAT
     floor = t - int(getattr(opts, "res_tol", 5) or 0)
     return min(RES_CAP_FLAT, flat_for_pct(floor)) if floor > 0 else 0

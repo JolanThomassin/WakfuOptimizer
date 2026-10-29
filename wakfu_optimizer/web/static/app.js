@@ -243,6 +243,11 @@ function buildForm() {
     if (b) setSubPref(+(b.dataset.sfo || b.dataset.sex), b.dataset.sfo ? "fo" : "ex");
   });
   buildItemsTab();
+  $("#archetype").innerHTML = Object.entries(ARCHETYPES).map(([k, a]) => `<option value="${k}">${esc(a.name)}</option>`).join("");
+  $("#archetype").addEventListener("change", () => {
+    applyArchetype($("#archetype").value, S.meta.classes.find((x) => x.key === $("#cls").value));
+    toast(`Archétype « ${ARCHETYPES[$("#archetype").value].name} » appliqué.`);
+  });
   $("#go").addEventListener("click", start);
   $("#stop").addEventListener("click", () => S.job && api("/api/cancel", { job: S.job }));
   $("#reload").addEventListener("click", reloadData);
@@ -272,16 +277,66 @@ function cycleShard(slot, k, clear) {
   renderShardRows();
 }
 
+// ===================================================================== archétypes
+// Un archétype règle d'un coup les priorités, les contraintes et le poids attaque / défense du calcul.
+// range : null = garde la portée de la classe ; hideRange : la portée n'a pas de sens (tank).
+const ARCHETYPES = {
+  custom: { name: "Personnalisé", desc: "Vos propres réglages : rien n'est modifié." },
+  dps_melee: { name: "DPS mêlée", range: "melee", crit: true, rear: false, berserk: false, heal: false,
+    res: [50, 6], offense: 85, desc: "Dégâts au corps-à-corps : Maîtrise mêlée et critique, résistances correctes." },
+  dps_distance: { name: "DPS distance", range: "distance", crit: true, rear: false, berserk: false, heal: false,
+    res: [50, 6], offense: 85, desc: "Dégâts à distance : Maîtrise distance, critique et un peu de portée." },
+  dps_mixed: { name: "DPS mixte", range: "mixed", crit: true, rear: false, berserk: false, heal: false,
+    res: [50, 6], offense: 85, desc: "Frappe au contact comme à distance (Huppermage, Eliotrope…)." },
+  dps_rear: { name: "DPS dos", range: "melee", crit: true, rear: true, rearShare: "80", berserk: false, heal: false,
+    res: [45, 6], offense: 88, desc: "Coups dans le dos (Sram) : Maîtrise dos prioritaire." },
+  berserk: { name: "Berserk", range: "melee", crit: true, rear: false, berserk: true, heal: false,
+    res: [40, 6], offense: 88, desc: "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances plus basses." },
+  tank: { name: "Tank", range: "melee", hideRange: true, crit: false, rear: false, berserk: false, heal: false,
+    res: [70, 4], resFree: true, offense: 45,
+    desc: "Survie d'abord : résistances (même au-delà de la cible) et PV, dégâts ensuite. La portée ne compte pas." },
+  heal: { name: "Soigneur", range: null, crit: true, rear: false, berserk: false, heal: true,
+    res: [55, 5], offense: 80, desc: "Soins : Maîtrise soin et critique, bonne survie." },
+  support_buff: { name: "Support buff", range: null, crit: false, rear: false, berserk: false, heal: false,
+    res: [60, 5], offense: 60, mins: { ap: 11, mp: 5, wp: 8 },
+    desc: "Boosts / placement : PA, PM, PW et survie avant les dégâts. (Armure donnée non chiffrée.)" },
+  support_debuff: { name: "Support débuff", range: null, crit: false, rear: false, berserk: false, heal: false,
+    res: [60, 5], offense: 60, mins: { ap: 11, mp: 5 },
+    desc: "Retraits PA / PM : PA, PM et survie avant les dégâts. (La Volonté n'est pas encore chiffrée.)" },
+};
+S.offense = 85; S.resFree = false;
+
+function defaultArchetype(c) {
+  if (c.role === "tank") return "tank";
+  if (c.role === "heal") return "heal";
+  if (c.rear) return "dps_rear";
+  if (c.berserk) return "berserk";
+  return c.range === "distance" ? "dps_distance" : c.range === "mixed" ? "dps_mixed" : "dps_melee";
+}
+
+function applyArchetype(key, cls) {
+  const a = ARCHETYPES[key] || ARCHETYPES.custom;
+  $("#archetype").value = key;
+  $("#arch-hint").textContent = a.desc;
+  if (key === "custom") { refreshVis(); return; }
+  setSeg("range", a.range || (cls && cls.range) || segVal("range") || "distance");
+  toggleBtn($("#crit"), a.crit); toggleBtn($("#rear"), a.rear); toggleBtn($("#berserk"), a.berserk); toggleBtn($("#heal"), a.heal);
+  setSeg("rear_share", a.rearShare || "50");
+  $("#res_target").value = a.res[0]; $("#res_tol").value = a.res[1];
+  S.offense = a.offense; S.resFree = !!a.resFree;
+  const lv = S.meta.levels.find((x) => x.level === +$("#level").value);
+  $("#min_ap").value = Math.max(lv ? lv.min_ap : 0, (a.mins && a.mins.ap) || 0);
+  $("#min_mp").value = Math.max(lv ? lv.min_mp : 0, (a.mins && a.mins.mp) || 0);
+  $("#min_wp").value = (a.mins && a.mins.wp) || 0;
+  refreshVis();
+}
+
 function applyClass(key) {
   const c = S.meta.classes.find((x) => x.key === key);
   if (!c) return;
   $$("#elements .toggle").forEach((b) => toggleBtn(b, c.elements.includes(b.dataset.el)));
   setSeg("range", c.range);
-  toggleBtn($("#rear"), c.rear);
-  toggleBtn($("#berserk"), c.berserk);
-  toggleBtn($("#heal"), c.role === "heal");
-  setSeg("rear_share", c.rear ? "80" : "50");
-  $("#res_target").value = c.role === "tank" ? 65 : c.role === "heal" ? 55 : 50;
+  applyArchetype(defaultArchetype(c), c);
 }
 
 function refreshVis() {
@@ -290,6 +345,8 @@ function refreshVis() {
   $("#res-hint").textContent = rt
     ? `Chaque élément entre ${Math.max(0, rt - tol)} et ${rt} % : aucun malus dans cet écart, le reste part dans les stats.`
     : "Pas de résistance visée : tout part dans les stats.";
+  const arch = ARCHETYPES[$("#archetype").value];
+  $("#range-box").classList.toggle("hidden", !!(arch && arch.hideRange));
   const neutral = $("#neutral").checked;
   $("#rear-box").classList.toggle("hidden", !isOn("rear") || neutral);
   ["rear", "berserk", "heal"].forEach((id) => { $("#" + id).disabled = neutral; $("#" + id).classList.toggle("off", neutral); });
@@ -314,11 +371,13 @@ function applyOptions(o) {
   set("res_target", o.res_target ?? 50);
   set("res_tol", o.res_tol ?? 5);
   $("#cond").checked = o.count_conditional;
+  S.offense = +o.offense_weight || 85; S.resFree = !!o.res_free;
   $("#neutral").checked = !!o.neutral_combo;
   setTimeLimit(180);   // toujours 3 min à l'ouverture de la page
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
    "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
   S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
+  if (o.archetype && ARCHETYPES[o.archetype]) { $("#archetype").value = o.archetype; $("#arch-hint").textContent = ARCHETYPES[o.archetype].desc; }
   S.subLevels = Object.fromEntries(Object.entries(o.forced_sub_levels || {}).map(([k, v]) => [+k, +v]));
   $("#no_subs").checked = !!o.no_subs;
   $$("#rarities .toggle").forEach((b) => toggleBtn(b, (o.allowed_rarities || []).includes(+b.dataset.r)));
@@ -341,7 +400,8 @@ function options() {
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
-    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"), res_tol: n("res_tol"),
+    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: S.offense || 85, res_free: !!S.resFree, archetype: $("#archetype").value,
+    res_target: n("res_target"), res_tol: n("res_tol"),
     count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
     min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,

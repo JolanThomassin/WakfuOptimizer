@@ -39,11 +39,16 @@
         <label>Éléments joués</label>
         <div id="elements" class="chips"></div>
       </div>
+      <div class="field">
+        <label>Archétype</label>
+        <select id="archetype"></select>
+        <p class="hint" id="arch-hint"></p>
+      </div>
     </section>
 
     <section class="card">
       <h2>Priorités</h2>
-      <div class="field">
+      <div class="field" id="range-box">
         <label>Portée</label>
         <div class="seg three" id="range">
           <button data-v="melee" title="Maîtrise Mêlée (cibles à 1-2 cases)">Mêlée</button><button data-v="distance" title="Maîtrise Distance (cibles à 3 cases et plus)">Distance</button><button data-v="mixed" title="Classes qui frappent aussi bien au contact qu'à distance (Huppermage…) : les deux maîtrises comptent à moitié">Mixte</button>
