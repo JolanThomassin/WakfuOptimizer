@@ -77,13 +77,3 @@ def char_lines(game: dict[str, Any]) -> list[CharLine]:
                                 {k: int(v) for k, v in ls["per_point"].items()},
                                 None if ls.get("max") is None else int(ls["max"])))
     return out
-
-
-def characteristic_stats(points: dict[str, int], game: dict[str, Any]) -> dict[str, int]:
-    out: dict[str, int] = {}
-    for cl in char_lines(game):
-        n = points.get(cl.key, 0)
-        if n:
-            for stat, v in cl.per_point.items():
-                out[stat] = out.get(stat, 0) + n * v
-    return out

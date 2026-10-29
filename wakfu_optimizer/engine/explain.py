@@ -1,0 +1,150 @@
+"""Onglet Explication : ce que l'algorithme a privilégié pour ce personnage et cet archétype, et pourquoi.
+
+Réglages utilisés et leur origine (archétype ou panneaux), poids de chaque stat, composition du score,
+valeur d'un petit gain sur chaque stat au build final, profil d'aptitudes et contrôles de qualité (quality.py).
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, replace
+from typing import Any
+
+from ..data.models import ELEMENT_FR, ELEMENTS, GameData
+from .archetypes import ARCHETYPES, PANELS, apt_forced, apt_profile, class_archetypes, crit_target
+from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
+from .options import Build, OptimizeOptions
+from .quality import check_build
+from .scoring import CRIT_SHORT_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts, utility_table
+from .stats import Totals, evaluate
+
+FEATURE_FR = {"offense": "Dégâts", "defense": "Survie (PV effectifs)", "ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW",
+              "will": "Volonté (retraits)", "res_short": "Pénalité : résistance sous le plancher",
+              "crit_short": "Pénalité : critique sous le palier"}
+
+
+def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
+    """Ce que rapporterait un petit gain sur chaque stat, au build final (points de score ; 1 point ≈ 1 % de valeur)."""
+    f = dict(tot.features)
+    base = log_score(f, opts)
+    cap, need = res_cap(opts), res_need(opts)
+    crit_raw = tot.stats.get("crit_rate", 0)
+
+    def gain(**ch: float) -> float:
+        g = dict(f)
+        g.update(ch)
+        return round(log_score(g, opts) - base, 2)
+
+    def res_plus(d: int) -> dict[str, float]:
+        flats = [tot.res_flat[e] + d for e in ELEMENTS]
+        return {"res": sum(min(r, cap) for r in flats) / 4,
+                "res_short": float(sum(max(0, need - r) for r in flats)) if need else 0.0}
+
+    rows = [
+        ("Maîtrise utilisée", "+100", gain(mtot=f["mtot"] + 100)),
+        ("% Coup critique", "+1 %", gain(crit=min(100.0, f["crit"] + 1), crit_short=crit_short(crit_raw + 1, opts)) if opts.crit else 0.0),
+        ("Maîtrise critique", "+100", gain(crit_mastery=f["crit_mastery"] + 100) if opts.crit else 0.0),
+        ("Maîtrise dos", "+100", gain(rear_mastery=f["rear_mastery"] + 100) if opts.rear and not opts.heal else 0.0),
+        ("% Dommages infligés", "+10 %", gain(dmg_pct=f["dmg_pct"] + 10)),
+        ("Points de vie (fixes)", "+1 000", gain(hp=f["hp"] + 1000)),
+        ("% Points de vie", "+10 %", gain(hp_pct=f["hp_pct"] + 10)),
+        ("Résistance élémentaire", "+100 (4 él.)", gain(**res_plus(100))),
+        ("PA", "+1", gain(ap=f["ap"] + 1)), ("PM", "+1", gain(mp=f["mp"] + 1)),
+        ("Portée", "+1", gain(range=f["range"] + 1)), ("PW", "+1", gain(wp=f["wp"] + 1)),
+        ("Volonté", "+10", gain(will=f["will"] + 10) if opts.willpower_weight else 0.0),
+    ]
+    return [{"label": lab, "unit": u, "points": p} for lab, u, p in rows]
+
+
+def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) -> dict[str, Any]:
+    """Ce que l'algorithme a privilégié pour ce personnage et cet archétype (onglet Explication)."""
+    arch = ARCHETYPES.get(opts.archetype)
+    cls = data.classes.get(opts.class_key)
+    recs = class_archetypes(data, opts.class_key)
+    on = set(opts.custom_panels)
+    panels = [{"key": k, "name": n, "on": k in on} for k, n in
+              (("priorities", "Priorités"), ("constraints", "Contraintes"), ("subs", "Châsses et sublimations"))]
+    src = lambda panel: "vos réglages" if panel in on else "archétype"  # noqa: E731
+    rng = {"melee": "Mêlée", "distance": "Distance", "mixed": "Mixte (moitié / moitié)", "best": "Meilleure des deux (passif)"}
+    secondary = [lab for flag, lab in (("crit", "Critique"), ("rear", f"Dos ({opts.rear_share} % des coups)"),
+                                       ("berserk", "Berserk"), ("heal", "Soin")) if getattr(opts, flag)]
+    util = utility_table(opts)
+    settings = [
+        {"label": "Portée", "value": rng.get(opts.range, opts.range), "src": src("priorities")},
+        {"label": "Maîtrises secondaires", "value": ", ".join(secondary) or "aucune", "src": src("priorities")},
+        {"label": "Résistance visée", "value": (f"{opts.res_target} % ± {opts.res_tol} (−{RES_SHORT_PENALTY:g} point par point "
+                                                 f"de résistance sous le plancher)" + (" ; compte encore au-delà" if opts.res_free else ""))
+         if opts.res_target else "aucune", "src": src("priorities")},
+        {"label": "Minimums", "value": ", ".join(f"{v} {lab}" for v, lab in ((opts.min_ap, "PA"), (opts.min_mp, "PM"),
+                                                                           (opts.min_range, "PO"), (opts.min_wp, "PW"),
+                                                                           (opts.min_crit, "% crit"), (opts.min_block, "% parade")) if v)
+         or "aucun", "src": src("constraints")},
+        {"label": "Châsses", "value": {"ideal": f"idéales ({opts.shard_count} par item, {opts.max_jokers} joker max)",
+                                       "mine": "mes couleurs", "none": "ignorées"}.get(opts.shard_mode, opts.shard_mode)
+         + (" ; sans sublimations" if opts.no_subs else ""), "src": src("subs")},
+    ]
+    # poids de chaque stat dans le score (1 point ≈ 1 % de valeur globale)
+    arch_util = set(arch.utility) if arch else set()
+    focus = {k for k, _ in arch.focus} if arch else set()
+    weights = []   # points de score par unité (1 point ≈ 1 % de valeur globale) ; en vert : stat privilégiée par l'archétype
+    if opts.offense_weight:
+        weights.append({"stat": "dmg_pct", "label": "Dégâts", "pts": opts.offense_weight / 100, "unit": "par % de dégâts en plus",
+                        "boosted": arch is not None and arch.role in ("dps", "heal")})
+    if opts.offense_weight < 100:
+        d = round((100 - opts.offense_weight) / 100, 2)
+        weights.append({"stat": "hp", "label": "PV", "pts": d, "unit": "par % de PV en plus", "boosted": "hp" in focus})
+        weights.append({"stat": "elem_res", "label": "Résistances", "pts": d,
+                        "unit": "par % de dégâts subis en moins" + (" (même au-delà de la cible)" if opts.res_free else
+                                                                    f" (jusqu'à {opts.res_target} %)"),
+                        "boosted": "elem_res" in focus})
+    for k, lab in (("ap", "PA"), ("mp", "PM"), ("range", "Portée"), ("wp", "PW")):
+        if util[k][0]:
+            weights.append({"stat": k, "label": lab, "pts": round(100 * util[k][0], 2), "unit": f"par {lab} (max {util[k][1]})",
+                            "boosted": k in arch_util or k in focus})
+    if opts.willpower_weight:
+        weights.append({"stat": "willpower", "label": "Volonté", "pts": round(opts.willpower_weight / 100, 2),
+                        "unit": "par point (retraits PA / PM)", "boosted": "willpower" in focus})
+    if opts.crit and opts.crit_target:
+        weights.append({"stat": "crit_rate", "label": f"Critique < {opts.crit_target} %", "pts": -CRIT_SHORT_PENALTY,
+                        "unit": f"malus par % de critique sous {opts.crit_target} %"})
+    if opts.res_target:
+        floor = opts.res_target - opts.res_tol
+        weights.append({"stat": "elem_res", "label": f"Résistance < {floor} %", "pts": -RES_SHORT_PENALTY,
+                        "unit": f"malus par point de résistance manquant pour atteindre {floor} % sur un élément"})
+    parts = score_parts(tot.features, opts)
+    score = [{"key": k, "label": FEATURE_FR.get(k, k), "points": round(v, 2)} for k, v in parts.items() if round(v, 2)]
+    # aptitudes : profil de l'archétype et points placés
+    prof = apt_profile(opts)
+    forced = apt_forced(opts)
+    ch = build.characteristics
+    branches = []
+    all_lines = char_lines(data.game)
+
+    def line_gain(key: str) -> float:
+        """Points de score d'un point de plus dans cette ligne, au build final."""
+        b2 = replace(build, characteristics={**ch, key: ch.get(key, 0) + 1})
+        return round(evaluate(data, opts, b2).score - tot.score, 2)
+
+    for branch in data.game["characteristics"]:  # type: ignore[union-attr]
+        order = [f"{branch}.{x}" for x in prof.get(branch, [])]
+        others = [cl.key for cl in all_lines if cl.branch == branch and cl.key not in order]
+        maxes = {cl.key: cl.max_points for cl in all_lines}
+        lines = [{"key": k, "line": k.split(".")[1], "label": LINE_FR.get(k.split(".")[1], k), "points": ch.get(k, 0),
+                  "in_profile": k in order, "forced": k in forced, "gain": line_gain(k),
+                  "full": maxes.get(k) is not None and ch.get(k, 0) >= maxes[k]}  # type: ignore[operator]
+                 for k in order + others]
+        branches.append({"branch": branch, "name": BRANCH_FR.get(branch, branch),
+                         "total": branch_points(branch, opts.level, data.game), "lines": lines})
+    checks = check_build(data, opts, build, tot)
+    return {
+        "archetype": {"key": opts.archetype, "name": arch.name if arch else opts.archetype, "desc": arch.desc if arch else "",
+                      "recommended": opts.archetype in recs,
+                      "focus": [{"stat": k, "label": lab} for k, lab in (arch.focus if arch else ())]},
+        "class": cls.name if cls else opts.class_key, "level": opts.level,
+        "crit_target_level": crit_target(opts.level),
+        "panels": panels, "settings": settings, "weights": weights, "score": score, "total": round(sum(parts.values()), 2),
+        "marginals": _marginals(opts, tot), "aptitudes": branches,
+        "manual_apt": opts.char_mode == "manual",
+        "checks": [asdict(c) for c in checks],
+        "elements": [ELEMENT_FR[e] for e in opts.elements if e in ELEMENTS],
+        "panel_fields": {k: list(v) for k, v in PANELS.items()},
+    }

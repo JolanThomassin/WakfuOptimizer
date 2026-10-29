@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import io
 import json
+import re
 import shutil
 import sys
 import zipfile
@@ -30,7 +31,7 @@ PKG = ROOT / "wakfu_optimizer"
 WEB = PKG / "web"
 # Fichiers du paquet utiles au navigateur (pas d'interface Qt ni de serveur HTTP lancé)
 PY_FILES = ["__init__.py", "data/*.py", "data/static/*.yaml", "engine/*.py", "web/__init__.py",
-            "web/server.py", "web/browser.py"]
+            "web/views.py", "web/browser.py"]
 DATA_FILES = ["items.json", "equipmentItemTypes.json", "sources.json"]
 
 
@@ -82,17 +83,17 @@ def build(out: Path, force: bool) -> None:
         shutil.copyfile(WEB / "pages" / f, out / "static" / f)
     shutil.copytree(PKG / "gui" / "assets", out / "assets")
     html = (WEB / "static" / "index.html").read_text(encoding="utf-8")
-    tag = '<script src="static/app.js"></script>'
-    if tag not in html:
-        raise SystemExit("index.html : balise app.js introuvable")
-    # change dès qu'un fichier du site change : le navigateur ne garde pas un ancien app.js en cache
+    first = '<script src="static/js/core.js"></script>'
+    if first not in html:
+        raise SystemExit("index.html : balise static/js/core.js introuvable")
+    # change dès qu'un fichier du site change : le navigateur ne garde pas d'anciens scripts en cache
     h = hashlib.sha256(py)
-    for f in sorted((out / "static").iterdir()):
+    for f in sorted(p for p in (out / "static").rglob("*") if p.is_file()):
         h.update(f.read_bytes())
     stamp = h.hexdigest()[:10]
     html = html.replace('href="static/style.css"', f'href="static/style.css?v={stamp}"')
-    html = html.replace(tag, f'<script src="static/bridge.js?v={stamp}"></script>\n'
-                             f'<script src="static/app.js?v={stamp}"></script>')
+    html = html.replace(first, '<script src="static/bridge.js"></script>\n' + first)   # avant l'interface
+    html = re.sub(r'<script src="static/([^"?]+)"></script>', rf'<script src="static/\1?v={stamp}"></script>', html)
     (out / "index.html").write_text(html, encoding="utf-8")
     (out / "build.json").write_text(json.dumps({"version": bundle.version, "data": f"data/{bundle.version}/",
                                                 "files": DATA_FILES, "py": py_name}), encoding="utf-8")

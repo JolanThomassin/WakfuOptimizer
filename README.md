@@ -76,7 +76,10 @@ python -m wakfu_optimizer.data.explore        # rapport des actionId -> reports/
 pytest                                        # tests (dont les tests de qualité rapides, ~4 min)
 pytest --quality=off                          # sans lancer le solveur sur les vraies données
 pytest --quality=full                         # matrice complète : classe × archétype habituel × niveau (long)
+python tools/bench.py --save avant.json       # banc d'essai du calcul ; après un changement : --compare avant.json
 ```
+
+L'organisation du code (où changer quoi) est décrite dans [CLAUDE.md](CLAUDE.md).
 
 **Qualité des builds** (`tests/test_build_quality.py`, règles dans `engine/quality.py`) : un build obtenu avec le seul
 panneau Personnage doit avoir du sens. Équipement complet, PA / PM du niveau, résistance visée, tous les points

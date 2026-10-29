@@ -16,9 +16,7 @@ from ..data.fetch import DataBundle
 from ..data.models import GameData
 from ..data.parse import load_game_data
 from ..data.sources import load_crafts
-from ..engine.options import Build
-from .server import (CRAFTS, alternatives_view, build_view, meta, opts_from, preset_view, result_view, search,
-                     sub_alternatives_view, subs_view)
+from .views import CRAFTS, ROUTES, meta, opts_from, result_view
 
 DATA: GameData | None = None
 
@@ -38,20 +36,11 @@ def request(method: str, path: str, body_json: str, settings_json: str) -> str:
     p, q = u.path, parse_qs(u.query)
     body: dict[str, Any] = json.loads(body_json or "{}")
     out: Any
+    route = ROUTES.get((method, p))
     if method == "GET" and p == "/api/meta":
         out = meta(d, json.loads(settings_json or "{}"))
-    elif method == "GET" and p == "/api/preset":
-        out = preset_view(d, q)
-    elif method == "GET" and p == "/api/items":
-        out = search(d, q)
-    elif p == "/api/view":
-        out = build_view(d, opts_from(body.get("opts", {}), d), Build.from_dict(body["build"]))
-    elif p == "/api/alternatives":
-        out = alternatives_view(d, body)
-    elif p == "/api/subs":
-        out = subs_view(d, body)
-    elif p == "/api/sub_alternatives":
-        out = sub_alternatives_view(d, body)
+    elif route is not None:
+        out = route(d, q, body)
     else:
         out = {"error": f"requête inconnue : {method} {p}"}
     return json.dumps(out, ensure_ascii=False)

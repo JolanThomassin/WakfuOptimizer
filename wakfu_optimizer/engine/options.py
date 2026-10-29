@@ -6,7 +6,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from ..data.models import Color, Rarity, Slot
+from ..data.models import ELEMENTS, Color, Rarity, Slot
 
 
 DENOUEMENT_CRIT = 40     # % critique requis par Dénouement
@@ -149,6 +149,10 @@ class OptimizeOptions:
 
     def colors_for(self, slot: Slot) -> list[Color]:
         return [Color(c) for c in self.my_colors.get(slot.value, [])]
+
+    def played_elements(self) -> list[str]:
+        """Éléments joués (tous si aucun n'est choisi) : la maîtrise utile est la plus faible d'entre eux."""
+        return [e for e in self.elements if e in ELEMENTS] or list(ELEMENTS)
 
 
 @dataclass

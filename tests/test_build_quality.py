@@ -23,7 +23,8 @@ from wakfu_optimizer.engine.archetypes import (ARCHETYPES, PANELS, apt_profile, 
                                                crit_target, preset, profile_points)
 from wakfu_optimizer.engine.characteristics import branch_points, char_lines, fill_unspent
 from wakfu_optimizer.engine.options import default_min_ap, default_min_mp
-from wakfu_optimizer.engine.quality import check_aptitudes, check_build, explain, failures
+from wakfu_optimizer.engine.explain import explain
+from wakfu_optimizer.engine.quality import check_aptitudes, check_build, failures
 
 LEVELS = (20, 50, 80, 110, 140, 170, 200, 230, 245)
 QUALITY_TIME = float(os.environ.get("WAKFU_QUALITY_TIME", "30"))

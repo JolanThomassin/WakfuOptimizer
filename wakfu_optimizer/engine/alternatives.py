@@ -6,6 +6,7 @@ import copy
 from dataclasses import dataclass
 
 from ..data.models import ELEMENTS, PROP_EPIC_GEM, PROP_RELIC_GEM, GameData, Item, Slot
+from .candidates import item_pool
 from .options import Build, OptimizeOptions, ShardChoice, SlotChoice
 from .stats import Totals, evaluate, spare_elements
 
@@ -21,7 +22,7 @@ class Alternative:
 
 
 def _random_elements(data: GameData, it: Item, opts: OptimizeOptions, totals: Totals) -> tuple[list[tuple[str, ...]], list[tuple[str, ...]]]:
-    played = [e for e in opts.elements if e in ELEMENTS] or list(ELEMENTS)
+    played = opts.played_elements()
     by_m = sorted(played, key=lambda e: totals.mastery.get(e, 0)) + spare_elements(data, opts, played)
     by_r = sorted(ELEMENTS, key=lambda e: totals.res_flat.get(e, 0))
     return ([tuple(by_m[:n]) for _v, n in it.random_mastery], [tuple(by_r[:n]) for _v, n in it.random_resistance])
@@ -75,8 +76,6 @@ def swap(data: GameData, opts: OptimizeOptions, build: Build, slot: Slot, it: It
 
 def alternatives(data: GameData, opts: OptimizeOptions, build: Build, slot: Slot, limit: int = 40) -> list[Alternative]:
     """Items de l'emplacement, triés par gain de score si on les met à la place de l'actuel."""
-    from .solver import item_pool  # import local : évite le cycle solver -> alternatives
-
     base = evaluate(data, opts, build)
     pool, _ = item_pool(data, opts, rarity_filter=False, lower=True)
     current = build.slots.get(slot)

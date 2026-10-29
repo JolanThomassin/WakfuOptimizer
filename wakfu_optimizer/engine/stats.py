@@ -10,11 +10,12 @@ from dataclasses import dataclass, field
 
 from ..data.models import ELEMENTS, GameData, Item, Slot
 from .characteristics import BRANCH_FR, LINE_FR, char_lines
+from .features import evaluator_features
 from .options import DENOUEMENT_CRIT, NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions
+from .scoring import damage_d2, defense_value, ehp_factor, log_score, res_pct, secondary_mastery
+from .shards import condition_holds, effect_targets, parse_stat_condition
 
 DENOUEMENT_STATE = NEUTRAL_COMBO_STATES[1]
-from .scoring import WILL_CAP, WILL_FLOOR, crit_short, damage_d2, res_cap, defense_value, ehp_factor, log_score, res_need, res_pct, secondary_mastery
-from .shards import condition_holds, effect_targets, parse_stat_condition
 
 DISPLAY_STATS = [
     ("hp", "PV"), ("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("range", "Portée"),
@@ -172,8 +173,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     t.stats["crit_rate"] = max(-10, min(100, s["crit_rate"]))
     t.stats["block"] = min(100, s["block"])
 
-    played = [e for e in opts.elements if e in ELEMENTS] or list(ELEMENTS)
-    m = min(t.mastery[e] for e in played)
+    m = min(t.mastery[e] for e in opts.played_elements())
     sec = secondary_mastery(s["melee_mastery"], s["distance_mastery"], opts.range)
     mtot = m + sec + (s["berserk_mastery"] if opts.berserk else 0) + (s["heal_mastery"] if opts.heal else 0)
     t.mastery_used = mtot
@@ -186,18 +186,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     g = sum(gs) // 4   # moyenne des quatre éléments
     t.defense = defense_value(hp_base, s["hp_pct"], g)
     t.hp_base = hp_base
-    capped = [min(t.res_flat[e], res_cap(opts)) for e in ELEMENTS]
-    rear = opts.rear and not opts.heal
-    t.features = {
-        "mtot": float(mtot), "crit": float(crit), "crit_mastery": float(s["crit_mastery"] if opts.crit else 0),
-        "rear_mastery": float(s["rear_mastery"] if rear else 0), "dmg_pct": float(s["dmg_pct"]),
-        "hp": float(hp_base), "hp_pct": float(s["hp_pct"]),
-        "res": float(sum(capped) / 4),
-        "ap": float(s["ap"]), "mp": float(s["mp"]), "range": float(s["range"]), "wp": float(s["wp"]),
-        "will": float(max(WILL_FLOOR, min(WILL_CAP, s["willpower"]))),
-        "res_short": float(sum(max(0, res_need(opts) - t.res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
-        "crit_short": crit_short(s["crit_rate"], opts),
-    }
+    t.features = evaluator_features(s, t.res_flat, mtot, crit, opts)
     t.score = log_score(t.features, opts)
     t.sources = dict(src)
     return t

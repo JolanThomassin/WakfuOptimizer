@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ..data.models import Color, Rune, Slot, SubEffect, Sublimation
+from ..data.models import Color, Rune, SubEffect
 from .options import OptimizeOptions
 
 # Stats regroupées par « Toutes les maîtrises ».
@@ -27,10 +27,6 @@ def pattern_offsets(colors: Sequence[Color], pattern: Sequence[Color]) -> list[i
     n, k = len(colors), len(pattern)
     return [o for o in range(0, n - k + 1)
             if all(color_matches(colors[o + j], pattern[j]) for j in range(k))]
-
-
-def sublimation_fits(colors: Sequence[Color], sub: Sublimation) -> bool:
-    return sub.is_normal and bool(pattern_offsets(colors, sub.pattern))
 
 
 def static_condition(cond: str, opts: OptimizeOptions) -> bool | None:
@@ -81,11 +77,3 @@ def condition_holds(cond: str, opts: OptimizeOptions, two_handed: bool, second_h
 
 def effect_targets(effect: SubEffect) -> tuple[str, ...]:
     return ALL_MASTERY_TARGETS if effect.stat == "all_mastery" else (effect.stat,)
-
-
-def rune_level_for(rune: Rune, item_level: int) -> int:
-    return rune.max_level_for_item(item_level)
-
-
-def default_ideal_colors(slot: Slot, count: int) -> list[Color]:
-    return [Color.RED] * count

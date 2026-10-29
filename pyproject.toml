@@ -23,7 +23,7 @@ exclude = ["tests*", "tools*"]
 [tool.setuptools.package-data]
 "wakfu_optimizer.data" = ["static/*.yaml"]
 "wakfu_optimizer.gui" = ["assets/*/*.png"]
-"wakfu_optimizer.web" = ["static/*"]
+"wakfu_optimizer.web" = ["static/*", "static/js/*"]
 
 [tool.mypy]
 python_version = "3.12"

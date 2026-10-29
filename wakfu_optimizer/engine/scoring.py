@@ -21,7 +21,6 @@ Survie : PV effectifs = PV × 100 / (100 − %rés).
 from __future__ import annotations
 
 import math
-from functools import lru_cache
 
 RES_CAP = 90
 RES_TABLE_MIN = -1000      # bornes de la table de conversion résistance fixe -> %
@@ -41,17 +40,6 @@ def res_pct(flat: int) -> int:
 def ehp_factor(flat: int) -> int:
     """G(rés) = floor(10000 / (100 − %rés))."""
     return 10000 // (100 - res_pct(flat))
-
-
-@lru_cache(maxsize=None)
-def ehp_table() -> tuple[int, ...]:
-    """Table G indexée par rés − RES_TABLE_MIN (pour AddElement du solveur)."""
-    return tuple(ehp_factor(r) for r in range(RES_TABLE_MIN, RES_TABLE_MAX + 1))
-
-
-@lru_cache(maxsize=None)
-def pct_table() -> tuple[int, ...]:
-    return tuple(res_pct(r) for r in range(RES_TABLE_MIN, RES_TABLE_MAX + 1))
 
 
 def flat_for_pct(pct: int) -> int:
@@ -83,17 +71,6 @@ def damage_d2(mastery: int, crit_pct: int, crit_mastery: int, rear_mastery: int,
 
 def damage_multiplier(d2: int) -> float:
     return d2 / D2_SCALE
-
-
-def utility_bonus(stats: dict[str, int], opts: object) -> int:
-    """Bonus de score (en points × 1e5) pour PA/PM/PO/PW, plafonnés. Identique au solveur."""
-    total = 0
-    for stat, vk, ck in (("ap", "ap_value", "ap_cap"), ("mp", "mp_value", "mp_cap"),
-                         ("range", "range_value", "range_cap"), ("wp", "wp_value", "wp_cap")):
-        v = int(getattr(opts, vk, 0))
-        if v:
-            total += v * max(0, min(int(stats.get(stat, 0)), int(getattr(opts, ck, 0))))
-    return total * 100000
 
 
 def defense_value(hp_base: int, hp_pct: int, ehp_g: int) -> int:
@@ -144,8 +121,23 @@ def ln_defense(hp: float, hp_pct: float, res: float) -> float:
     return math.log(max(1.0, hp)) + math.log(max(1.0, 100 + hp_pct)) + LN_RES * min(res, RES_CAP_FLAT)
 
 
-FEATURES = ("mtot", "crit", "crit_mastery", "rear_mastery", "dmg_pct", "hp", "hp_pct", "res", "ap", "mp", "range", "wp",
-            "res_short", "will", "crit_short")
+# Variables du score : nom -> pas des différences centrées (gradient). Chacune est calculée exactement par
+# l'évaluateur et modélisée linéairement par le solveur : voir features.py (les deux côtés sont dans ce fichier).
+FEATURES: dict[str, float] = {
+    "mtot": 5.0,          # maîtrise utilisée (élémentaire la plus faible + portée + berserk / soin)
+    "crit": 0.5,          # % critique, plafonné à 100 (0 si le critique ne compte pas)
+    "crit_mastery": 5.0,
+    "rear_mastery": 5.0,  # seulement si « dos » (et pas soigneur)
+    "dmg_pct": 0.5,
+    "hp": 5.0,            # PV fixes (avant % PV)
+    "hp_pct": 0.5,
+    "res": 5.0,           # résistance fixe moyenne des quatre éléments, plafonnée (scoring.res_cap)
+    "ap": 0.5, "mp": 0.5, "range": 0.5, "wp": 0.5,   # utilité, plafonnée (utility_table)
+    "res_short": 5.0,     # points de résistance manquants sous le plancher, sommés sur les éléments
+    "will": 5.0,          # Volonté bornée [WILL_FLOOR, WILL_CAP]
+    "crit_short": 5.0,    # % critique manquant sous le palier de l'archétype
+}
+UTILITY_FEATURES = ("ap", "mp", "range", "wp")   # gradient constant (plafond géré dans le modèle)
 
 # Volonté (Wakfu Calc) : retrait = base du sort × 0,5 × FF, FF = 1 + (Volonté lanceur − Volonté cible) / 100,
 # borné entre 0 et 2. Contre une cible à 0 Volonté : +1 % de retrait par point, jusqu'à 100.
@@ -216,9 +208,8 @@ def res_need(opts: object) -> int:
 def gradient(f: dict[str, float], opts: object) -> dict[str, float]:
     """Dérivées partielles du score (différences centrées)."""
     out = {}
-    for k in FEATURES:
-        h = 0.5 if k in ("crit", "ap", "mp", "range", "wp", "dmg_pct", "hp_pct") else 5.0
-        if k in ("ap", "mp", "range", "wp"):
+    for k, h in FEATURES.items():
+        if k in UTILITY_FEATURES:
             out[k] = 100 * utility_table(opts)[k][0]   # plafond géré dans le modèle
             continue
         a, b = dict(f), dict(f)
