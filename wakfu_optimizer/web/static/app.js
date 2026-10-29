@@ -899,17 +899,15 @@ function obtain(it) {
 }
 
 // Passif inné de la classe : toujours actif, en tête des items
+// Bandeau fin sur toute la largeur, seulement s'il donne des stats (description complète au survol)
 function passiveCard(v) {
   const p = v.passive;
-  if (!p) return "";
-  const chips = p.stats.map((x) => chip(x.stat, signed(x.value), x.label, x.value < 0 ? "neg" : "")).join("");
-  return `<div class="item passive-item" style="--rc:#e8a93a" title="${esc(p.desc)}">
-    <div class="it-head">
-      <span class="it-iconbox"><img class="it-icon" src="assets/classes/${v.class.key}.png" alt=""></span>
-      <div class="it-names"><div class="it-name">${esc(p.name)}</div><div class="it-sub">Passif de classe · ${esc(v.class.name)} · toujours actif</div></div>
-    </div>
-    <div class="chip-row">${chips || `<span class="muted passive-none">Pas de stat chiffrée</span>`}</div>
-    <div class="it-foot"><div class="it-subs passive-desc">${esc(p.desc)}</div></div>
+  if (!p || !p.stats.length) return "";
+  const chips = p.stats.map((x) => chip(x.stat, `${signed(x.value)} <small>${esc(x.label)}</small>`, x.label, x.value < 0 ? "neg" : "")).join("");
+  return `<div class="passive-bar" title="${esc(`${p.name} (passif de classe) : ${p.desc}`)}">
+    <img src="assets/classes/${v.class.key}.png" alt="">
+    <span class="pb-name">${esc(p.name)}</span><span class="pb-tag">Passif de classe</span>
+    <span class="pb-stats">${chips}</span>
   </div>`;
 }
 
