@@ -345,6 +345,21 @@ function statChips(it, withEls = true) {
   return out.join("");
 }
 
+// Comment obtenir l'item : recette (données Ankama) + lien wiki (butins de monstres, coffres, succès)
+function obtain(it) {
+  const parts = [];
+  if (it.craft) {
+    const ing = it.craft.ingredients.map(([n, q]) => `${q} × ${n}`).join("\n");
+    parts.push(`<span class="craft" title="${esc(`Recette (${it.craft.job} niv. ${it.craft.level}) :\n${ing}`)}">⚒ ${esc(it.craft.job)} niv. ${it.craft.level}</span>`);
+  } else {
+    parts.push(`<span title="Aucune recette : butin, coffre, succès, boutique…">Pas de recette</span>`);
+  }
+  if (it.shop) parts.push(`<span class="shop">Boutique</span>`);
+  if (it.wiki) parts.push(`<a href="${esc(it.wiki)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
+    title="Monstres et taux de butin, coffres, succès (wakfu.wiki.gg, en anglais)">Où l'obtenir ↗</a>`);
+  return `<div class="obtain">${parts.join("")}</div>`;
+}
+
 function itemCard(it) {
   const runes = (it.shards || []).map((sh) =>
     `<img src="assets/shards/shard${SHARD_FILE[sh.color]}${sh.rune ? "Full" : "Empty"}.png" alt="" title="${sh.rune ? esc(`${sh.rune} niv. ${sh.level} : +${sh.value} ${sh.label}`) : "Châsse vide"}">`).join("");
@@ -358,6 +373,7 @@ function itemCard(it) {
     ${runes ? `<div class="runes">${runes}<span>${esc(runeTxt)}</span></div>` : ""}
     ${it.sub ? `<div class="sub" title="${esc(it.sub.desc)}">${esc(it.sub.name)}</div>` : ""}
     ${it.special ? `<div class="sub special" title="${esc(it.special.desc)}">${esc(it.special.name)}</div>` : ""}
+    ${obtain(it)}
   </div>`;
 }
 function summarizeRunes(shards) {
@@ -372,7 +388,7 @@ async function openSwap(slot) {
   $("#dr-title").textContent = `Remplacer : ${cur.slot_name}`;
   $("#dr-current").innerHTML = `<div class="cmp-head"><img class="it-icon" src="${iconUrl(cur.gfx)}" alt="">
     <div style="flex:1"><div class="it-name" style="color:${cur.color}">${esc(cur.name)}</div><div class="it-sub">Item actuel · niv. ${cur.level} · ${esc(cur.rarity_name)}</div>
-    <div class="chip-row" style="margin-top:4px">${statChips(cur)}</div></div>
+    <div class="chip-row" style="margin-top:4px">${statChips(cur)}</div>${obtain(cur)}</div>
     <div class="btns"><button class="btn small" id="dr-ex" title="Ne plus proposer cet item aux prochaines optimisations">Exclure</button>
     <button class="btn small" id="dr-fo" title="Garder cet item aux prochaines optimisations">Forcer</button></div></div>`;
   $("#dr-ex").addEventListener("click", () => { S.forced.delete(cur.id); S.excluded.add(cur.id); refreshVis(); toast("Item exclu pour les prochaines optimisations."); });
@@ -386,7 +402,7 @@ async function openSwap(slot) {
     $("#dr-list").innerHTML = r.items.map((a, k) => `<div class="alt" data-k="${k}">
       <img class="it-icon" src="${iconUrl(a.gfx)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
       <div><div class="it-name" style="color:${a.color}">${esc(a.name)}</div><div class="it-sub">niv. ${a.level} · ${esc(a.rarity_name)}</div>
-      <div class="chip-row">${statChips(a, false)}</div></div>
+      <div class="chip-row">${statChips(a, false)}</div>${obtain(a)}</div>
       <div class="delta ${pn(a.delta)}">${a.delta > 0 ? "+" : ""}${a.delta.toFixed(1)}<small>score</small></div></div>`).join("");
     $$("#dr-list .alt").forEach((el) => el.addEventListener("click", () => {
       $$("#dr-list .alt").forEach((x) => x.classList.remove("sel"));
@@ -408,7 +424,7 @@ function showCompare(slot, cur, a) {
   const losses = a.compare.filter((r) => r.diff < 0 && r.stat !== "score").length;
   $("#dr-compare").innerHTML = `
     <div class="cmp-head"><img class="it-icon" src="${iconUrl(a.gfx)}" alt="">
-      <div><div class="it-name" style="color:${a.color}">${esc(a.name)}</div><div class="it-sub">à la place de ${esc(cur.name)}</div></div></div>
+      <div><div class="it-name" style="color:${a.color}">${esc(a.name)}</div><div class="it-sub">à la place de ${esc(cur.name)}</div>${obtain(a)}</div></div>
     <div class="muted" style="font-size:12px">${gains} stat(s) en hausse, ${losses} en baisse. Les châsses et la sublimation de l'emplacement sont conservées.</div>
     ${a.dropped.length ? `<div class="note">⚠ Retire aussi : ${esc(a.dropped.join(", "))} (une seule relique / épique, ou arme à deux mains).</div>` : ""}
     <table class="cmp-table"><tr><td></td><td class="num muted">Actuel</td><td class="num muted">Nouveau</td><td class="num muted">Écart</td></tr>${rows || `<tr><td colspan="4" class="muted">Aucune différence</td></tr>`}</table>

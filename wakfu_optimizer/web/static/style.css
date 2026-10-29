@@ -159,6 +159,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .runes img { width: 22px; height: 22px; }
 .sub { font-size: 12.5px; color: var(--accent); font-weight: 600; }
 .sub.special::before { content: "★ "; }
+.obtain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: auto; padding-top: 4px; font-size: 11.5px; color: var(--muted); }
+.obtain .craft { color: var(--text); cursor: help; }
+.obtain .shop { color: var(--bad); }
+.obtain a { color: var(--accent); text-decoration: none; }
+.obtain a:hover { color: var(--accent-hi); text-decoration: underline; }
 
 /* ----- panneaux latéraux */
 .drawer { position: fixed; inset: 0; z-index: 20; }

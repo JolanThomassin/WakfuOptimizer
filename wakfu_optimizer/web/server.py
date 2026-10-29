@@ -31,6 +31,7 @@ from ..data.models import (
     Slot,
 )
 from ..data.parse import load_game_data
+from ..data.sources import Crafts, load_crafts, wiki_url
 from ..engine.alternatives import alternatives
 from ..engine.characteristics import BRANCH_FR, LINE_FR, PRESETS, char_lines, preset_points
 from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min_mp
@@ -71,6 +72,9 @@ COMPARE = ["hp", "ap", "mp", "wp", "range", "crit_rate", "block", "crit_mastery"
            "rear_mastery", "berserk_mastery", "heal_mastery", "dmg_pct", "lock", "dodge", "initiative", "willpower"]
 
 
+CRAFTS: Crafts = {}  # recettes des items équipables (voir data/sources.py)
+
+
 # =====================================================================  état
 class State:
     def __init__(self) -> None:
@@ -85,6 +89,8 @@ class State:
         try:
             bundle = GameDataFetcher().ensure(force=force)
             self.data = load_game_data(bundle)
+            CRAFTS.clear()
+            CRAFTS.update(load_crafts(bundle, {it.id for it in self.data.items}))
             self.error = ""
         except Exception as exc:  # noqa: BLE001 - affiché à l'utilisateur
             log.exception("Chargement des données")
@@ -113,6 +119,7 @@ def item_brief(data: GameData, it: Item, lang: str, level: int) -> dict[str, Any
         "stats": [{"stat": k, "label": STAT_LABEL.get(k, k), "value": int(st[k])} for k in ITEM_STATS if int(st.get(k, 0))],
         "rand_mastery": [{"value": v, "n": n} for v, n in it.random_mastery],
         "rand_res": [{"value": v, "n": n} for v, n in it.random_resistance],
+        "craft": CRAFTS.get(it.id), "shop": it.is_shop, "wiki": wiki_url(it.names),
     }
 
 

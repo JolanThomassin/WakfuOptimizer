@@ -15,16 +15,19 @@ from urllib.parse import parse_qs, urlparse
 from ..data.fetch import DataBundle
 from ..data.models import GameData
 from ..data.parse import load_game_data
+from ..data.sources import load_crafts
 from ..engine.characteristics import preset_points
 from ..engine.options import Build
-from .server import alternatives_view, build_view, meta, opts_from, result_view, search
+from .server import CRAFTS, alternatives_view, build_view, meta, opts_from, result_view, search
 
 DATA: GameData | None = None
 
 
 def init(data_dir: str, version: str) -> None:
     global DATA
-    DATA = load_game_data(DataBundle(version, Path(data_dir), offline=True))
+    bundle = DataBundle(version, Path(data_dir), offline=True)
+    DATA = load_game_data(bundle)
+    CRAFTS.update(load_crafts(bundle))
 
 
 def request(method: str, path: str, body_json: str, settings_json: str) -> str:

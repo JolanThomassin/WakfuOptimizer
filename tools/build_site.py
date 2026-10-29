@@ -24,13 +24,14 @@ sys.path.insert(0, str(ROOT))
 
 from wakfu_optimizer.data.fetch import DataBundle, GameDataFetcher  # noqa: E402
 from wakfu_optimizer.data.parse import load_game_data  # noqa: E402
+from wakfu_optimizer.data.sources import dump_crafts, load_crafts  # noqa: E402
 
 PKG = ROOT / "wakfu_optimizer"
 WEB = PKG / "web"
 # Fichiers du paquet utiles au navigateur (pas d'interface Qt ni de serveur HTTP lancé)
 PY_FILES = ["__init__.py", "data/*.py", "data/static/*.yaml", "engine/*.py", "web/__init__.py",
             "web/server.py", "web/browser.py"]
-DATA_FILES = ["items.json", "equipmentItemTypes.json"]
+DATA_FILES = ["items.json", "equipmentItemTypes.json", "sources.json"]
 
 
 def slim_item(entry: dict[str, Any]) -> dict[str, Any]:
@@ -68,6 +69,8 @@ def build(out: Path, force: bool) -> None:
     full, slim = load_game_data(bundle), load_game_data(DataBundle(bundle.version, data_dir, offline=True))
     if full.items != slim.items or full.runes != slim.runes or full.sublimations != slim.sublimations:
         raise SystemExit("Les données allégées diffèrent des données complètes : vérifier slim_item().")
+    crafts = load_crafts(bundle, {it.id for it in full.items})
+    (data_dir / "sources.json").write_text(dump_crafts(crafts), encoding="utf-8")
 
     py = package_zip()
     py_name = f"py/wakfu_optimizer-{hashlib.sha256(py).hexdigest()[:10]}.zip"

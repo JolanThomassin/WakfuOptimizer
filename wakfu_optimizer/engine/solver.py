@@ -851,6 +851,11 @@ class Optimizer:
                 tick = self._ticker(base, 0.9 / MAX_ITER, limit, f"Optimisation (passe {it + 1}/{MAX_ITER})…")
                 try:
                     st, sv = self._solve(bm, limit)
+                    remaining = budget - (time.monotonic() - t0)
+                    if best is None and st == cp_model.UNKNOWN and remaining > 1.0:
+                        # machine lente (navigateur) : aucune solution encore, on continue avec le temps restant
+                        self.progress("Recherche d'un premier build (machine lente)…", base)
+                        st, sv = self._solve(bm, remaining)
                 finally:
                     tick.set()
                 if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):

@@ -19,6 +19,8 @@ pip install -e ".[dev]"
 
 Double-cliquez sur `Lancer Wakfu Optimizer.bat` (ou `python -m wakfu_optimizer.web`) : l'interface s'ouvre dans le navigateur.
 Après un calcul, cliquez sur un item du build pour voir les autres items possibles, la comparaison gains / pertes, et valider l'échange.
+Chaque item indique comment l'obtenir : recette (métier, niveau, ingrédients au survol, tirés des données Ankama) et lien
+« Où l'obtenir » vers [wakfu.wiki.gg](https://wakfu.wiki.gg) pour les butins de monstres, coffres et succès (absents des données Ankama).
 
 ## Version en ligne (sans Python) — GitHub Pages
 
