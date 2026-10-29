@@ -792,40 +792,43 @@ function obtain(it) {
   const parts = [];
   if (it.craft) {
     const ing = it.craft.ingredients.map(([n, q]) => `${q} × ${n}`).join("\n");
-    parts.push(`<span class="craft" title="${esc(`Recette (${it.craft.job} niv. ${it.craft.level}) :\n${ing}`)}">⚒ ${esc(it.craft.job)} niv. ${it.craft.level}</span>`);
-  } else {
-    parts.push(`<span title="Aucune recette : butin, coffre, succès, boutique…">Pas de recette</span>`);
+    parts.push(`<span class="craft" title="${esc(`Recette : ${it.craft.job} niv. ${it.craft.level}\n${ing}`)}">⚒ ${it.craft.level}</span>`);
   }
-  if (it.shop) parts.push(`<span class="shop">Boutique</span>`);
+  if (it.shop) parts.push(`<span class="shop" title="Item boutique">€</span>`);
   if (it.wiki) parts.push(`<a href="${esc(it.wiki)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
-    title="Monstres et taux de butin, coffres, succès (wakfu.wiki.gg, en anglais)">Où l'obtenir ↗</a>`);
+    title="Où l'obtenir : monstres et taux de butin, coffres, succès (wakfu.wiki.gg)">↗</a>`);
   return `<div class="obtain">${parts.join("")}</div>`;
 }
 
 function itemCard(it) {
   const runes = (it.shards || []).map((sh) =>
     `<img src="assets/shards/shard${SHARD_FILE[sh.color]}${sh.rune ? "Full" : "Empty"}.png" alt="" title="${sh.rune ? esc(`${sh.rune} niv. ${sh.level} : +${sh.value} ${sh.label}`) : "Châsse vide"}">`).join("");
-  const runeTxt = summarizeRunes(it.shards || []);
   const forced = S.forced.has(it.id);
-  return `<div class="item ${S.changed.has(it.slot) ? "changed" : ""} ${forced ? "forced-item" : ""}" data-slot="${it.slot}" title="Cliquer pour voir les autres items possibles">
-    ${forced ? `<span class="forced-tag" title="Item forcé : gardé à chaque optimisation (retirer : clic sur l'item puis « Forcer », ou Items exclus / forcés)">📌 Forcé</span>` : ""}
-    <div class="it-head"><img class="it-icon" src="${iconUrl(it.gfx)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
-      <div class="it-names"><div class="it-name" style="color:${it.color}">${esc(it.name)}</div>
-      <div class="it-sub">${esc(it.slot_name)} · niv. ${it.level} · ${esc(it.rarity_name)}</div></div>
-      <span class="it-swap">Changer ⇄</span></div>
+  return `<div class="item ${S.changed.has(it.slot) ? "changed" : ""} ${forced ? "forced-item" : ""}" data-slot="${it.slot}" style="--rc:${it.color}"
+      title="Cliquer pour voir les autres items possibles">
+    ${forced ? `<span class="forced-tag" title="Item forcé : gardé à chaque optimisation">Forcé</span>` : ""}
+    <div class="it-head">
+      <span class="it-iconbox"><img class="it-icon" src="${iconUrl(it.gfx)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></span>
+      <div class="it-names"><div class="it-name" title="${esc(it.name)}">${esc(it.name)}</div>
+        <div class="it-sub">${esc(it.slot_name)} · niv. ${it.level} · <span class="rar">${esc(it.rarity_name)}</span></div></div>
+      <span class="it-swap" title="Changer d'item">⇄</span>
+    </div>
     <div class="chip-row">${statChips(it)}</div>
-    ${runes ? `<div class="runes">${runes}<span>${esc(runeTxt)}</span></div>` : ""}
-    ${subLine(it, false)}${subLine(it, true)}
-    ${obtain(it)}
+    <div class="it-foot">
+      ${runes ? `<div class="runes" title="${esc(summarizeRunes(it.shards || []))}">${runes}</div>` : ""}
+      <div class="it-subs">${subLine(it, false)}${subLine(it, true)}</div>
+      ${obtain(it)}
+    </div>
   </div>`;
 }
-// Sublimation d'un item : cliquable pour en changer (comme un item)
+// Sublimation d'un item : pastille cliquable pour en changer (comme un item) ; « + » discret si vide
 function subLine(it, special) {
   const s = special ? it.special : it.sub;
   if (!s && (special ? !it.can_special : !(it.shards || []).length)) return "";
-  const txt = s ? esc(s.name) : `+ ${special ? "sublimation épique / relique" : "sublimation"}`;
-  const tip = s ? `${s.desc}${s.modeled ? "" : "\n(effet non chiffré)"}\n\nCliquer pour changer de sublimation` : "Cliquer pour choisir une sublimation";
-  return `<div class="sub ${special ? "special" : ""} ${s ? "" : "empty"}" data-subslot="${it.slot}" data-special="${special ? 1 : 0}" title="${esc(tip)}">${txt} <span class="sub-swap">⇄</span></div>`;
+  const tip = s ? `${s.desc}${s.modeled ? "" : "\n(effet non chiffré)"}\n\nCliquer pour changer de sublimation`
+    : `Ajouter une sublimation${special ? " épique / relique" : ""}`;
+  const txt = s ? `${special ? "★" : "✦"} ${esc(s.name)}` : `+ ${special ? "épique" : "subli"}`;
+  return `<span class="sub ${special ? "special" : ""} ${s ? "" : "empty"}" data-subslot="${it.slot}" data-special="${special ? 1 : 0}" title="${esc(tip)}">${txt}</span>`;
 }
 function patternHtml(pattern) {
   return pattern.map((c) => `<img class="pat" src="assets/shards/shard${SHARD_FILE[c]}Full.png" alt="">`).join("");
