@@ -309,7 +309,7 @@ async function poll() {
 
 // ===================================================================== résultat
 function sc(stat, label, value, cls = "") {
-  return `<div class="sc">${icon(stat, label)}<span class="lab">${esc(label)}</span><span class="val ${cls}">${value}</span></div>`;
+  return `<div class="sc" data-stat="${stat}" title="Cliquer : d'où vient cette stat">${icon(stat, label)}<span class="lab">${esc(label)}</span><span class="val ${cls}">${value}</span></div>`;
 }
 const pn = (v) => (v > 0 ? "pos" : v < 0 ? "neg" : "");
 
@@ -337,10 +337,10 @@ function renderResult() {
           <div><span class="muted">PV effectifs</span> <b>${fmt(v.ehp)}</b></div></div>
       </div>
       <div class="big4">
-        <div class="sc col">${icon("hp", "PV")}<span class="val" style="color:#ff7d8a">${fmt(v.hp)}</span></div>
-        <div class="sc col">${icon("ap", "PA")}<span class="val" style="color:#5cc8ff">${s.ap} PA</span></div>
-        <div class="sc col">${icon("mp", "PM")}<span class="val" style="color:#a5d94b">${s.mp} PM</span></div>
-        <div class="sc col">${icon("wp", "PW")}<span class="val" style="color:#3fd9c8">${s.wp} PW</span></div>
+        <div class="sc col" data-stat="hp" title="Cliquer : d'où vient cette stat">${icon("hp", "PV")}<span class="val" style="color:#ff7d8a">${fmt(v.hp)}</span></div>
+        <div class="sc col" data-stat="ap" title="Cliquer : d'où vient cette stat">${icon("ap", "PA")}<span class="val" style="color:#5cc8ff">${s.ap} PA</span></div>
+        <div class="sc col" data-stat="mp" title="Cliquer : d'où vient cette stat">${icon("mp", "PM")}<span class="val" style="color:#a5d94b">${s.mp} PM</span></div>
+        <div class="sc col" data-stat="wp" title="Cliquer : d'où vient cette stat">${icon("wp", "PW")}<span class="val" style="color:#3fd9c8">${s.wp} PW</span></div>
       </div>
       <div class="sec-title">Maîtrises</div><div class="stat-grid">${masteries}</div>
       <div class="sec-title">Résistances</div><div class="stat-grid">${res}</div>
@@ -356,6 +356,7 @@ function renderResult() {
     <div class="items-grid">${v.items.map(itemCard).join("")}</div>
   </div>`;
   $$(".item[data-slot]").forEach((c) => c.addEventListener("click", () => openSwap(c.dataset.slot)));
+  $$("#result .sc[data-stat]").forEach((el) => el.addEventListener("click", (e) => { e.stopPropagation(); showStatPop(el); }));
   $$(".item [data-subslot]").forEach((el) => el.addEventListener("click", (e) => {
     e.stopPropagation();
     openSubSwap(el.dataset.subslot, el.dataset.special === "1");
@@ -370,6 +371,38 @@ function renderResult() {
   const rv = $("#revert");
   if (rv) rv.addEventListener("click", () => { S.view = S.original; S.changed = new Set(); renderResult(); });
 }
+
+// ===================================================================== détail d'une stat
+const KIND_LABEL = { base: "Base", item: "Item", random: "Item (au choix)", rune: "Rune", apt: "Aptitude", sub: "Sublimation", pct: "% PV" };
+function showStatPop(el) {
+  const b = S.view.breakdown && S.view.breakdown[el.dataset.stat];
+  const pop = $("#stat-pop");
+  if (!b) { pop.classList.add("hidden"); return; }
+  const sum = b.lines.reduce((t, x) => t + x.value, 0);
+  const max = Math.max(1, ...b.lines.map((x) => Math.abs(x.value)));
+  const kinds = {};
+  for (const x of b.lines) kinds[x.kind] = (kinds[x.kind] || 0) + x.value;
+  pop.innerHTML = `<div class="sp-head">${icon(el.dataset.stat, b.label)}<b>${esc(b.label)}</b><span class="sp-total">${fmt(b.total)}</span>
+      <button class="btn ghost small" data-spclose>✕</button></div>
+    ${b.note ? `<div class="muted sp-note">${esc(b.note)}</div>` : ""}
+    ${sum !== b.total ? `<div class="note">Total brut ${fmt(sum)}, plafonné à ${fmt(b.total)}.</div>` : ""}
+    <div class="sp-kinds">${Object.entries(kinds).map(([k, v]) => `<span class="sp-k ${k}">${KIND_LABEL[k] || k} ${signed(v)}</span>`).join("")}</div>
+    <div class="sp-lines">${b.lines.length ? b.lines.map((x) => `<div class="sp-line">
+      <span class="sp-src"><span class="sp-dot ${x.kind}" title="${KIND_LABEL[x.kind] || x.kind}"></span>${esc(x.src)}</span>
+      <span class="sp-bar ${x.value < 0 ? "neg" : ""}" style="width:${Math.round(60 * Math.abs(x.value) / max)}px"></span>
+      <span class="sp-val ${x.value < 0 ? "neg" : ""}">${signed(x.value)}</span></div>`).join("") : `<p class="muted">Rien dans ce build.</p>`}</div>`;
+  pop.classList.remove("hidden");
+  const r = el.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
+  pop.style.top = `${r.bottom + 6 + h > innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6}px`;
+}
+document.addEventListener("click", (e) => {
+  const pop = $("#stat-pop");
+  if (pop && !pop.classList.contains("hidden") && (e.target.closest("[data-spclose]") || !e.target.closest("#stat-pop"))) pop.classList.add("hidden");
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#stat-pop").classList.add("hidden"); });
+document.addEventListener("scroll", () => $("#stat-pop").classList.add("hidden"), true);
 
 function statChips(it, withEls = true) {
   const out = it.stats.map((x) => chip(x.stat, signed(x.value), x.label, x.value < 0 ? "neg" : ""));

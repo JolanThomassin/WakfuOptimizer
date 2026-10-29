@@ -9,7 +9,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from ..data.models import ELEMENTS, GameData, Item, Slot
-from .characteristics import characteristic_stats
+from .characteristics import BRANCH_FR, LINE_FR, char_lines
 from .options import Build, OptimizeOptions
 from .scoring import RES_CAP_FLAT, damage_d2, defense_value, ehp_factor, log_score, res_need, res_pct, secondary_mastery
 from .shards import condition_holds, effect_targets
@@ -40,6 +40,8 @@ class Totals:
     d2: int = 0
     defense: int = 0
     active_states: dict[int, int] = field(default_factory=dict)   # état -> niveau effectif
+    # d'où vient chaque stat : stat -> [(origine, type, valeur)] ; type : base | item | random | rune | apt | sub
+    sources: dict[str, list[tuple[str, str, int]]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -60,14 +62,21 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     base = data.game["base"]
     cls = data.classes.get(opts.class_key)
     s: dict[str, int] = defaultdict(int)
-    s["ap"] += int(base["ap"])
-    s["mp"] += int(base["mp"])
-    s["wp"] += cls.base_wp if cls else int(base["wp"])
-    s["crit_rate"] += int(base["crit_rate"])
-    s["hp"] += int(base["hp_flat"]) + int(base["hp_per_level"]) * L
+    t = Totals()
+    src: dict[str, list[tuple[str, str, int]]] = defaultdict(list)
+
+    def add(stat: str, v: int, origin: str, kind: str) -> None:
+        if v:
+            s[stat] += v
+            src[stat].append((origin, kind, v))
+
+    add("ap", int(base["ap"]), "Base du personnage", "base")
+    add("mp", int(base["mp"]), "Base du personnage", "base")
+    add("wp", cls.base_wp if cls else int(base["wp"]), "Base du personnage", "base")
+    add("crit_rate", int(base["crit_rate"]), "Base du personnage", "base")
+    add("hp", int(base["hp_flat"]) + int(base["hp_per_level"]) * L, f"Base du personnage (niveau {L})", "base")
     rand_m: dict[str, int] = defaultdict(int)
     rand_r: dict[str, int] = defaultdict(int)
-    t = Totals()
 
     two_handed = False
     second_used = False
@@ -81,26 +90,31 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
             two_handed = True
         if slot is Slot.SECOND_WEAPON:
             second_used = True
+        iname = it.name(opts.lang)
         for k, v in it.stats_at(L).items():
-            s[k] += int(v)
+            add(k, int(v), iname, "item")
         for (v, n), els in zip(it.random_mastery, ch.mastery_elements):
             for e in list(dict.fromkeys(els))[:n]:
                 rand_m[e] += v
+                src[f"{e}_mastery"].append((f"{iname} (élément au choix)", "random", v))
         for (v, n), els in zip(it.random_resistance, ch.resistance_elements):
             for e in list(dict.fromkeys(els))[:n]:
                 rand_r[e] += v
+                src[f"{e}_res"].append((f"{iname} (élément au choix)", "random", v))
         for sh in ch.shards:
             if sh.rune_id is not None and sh.rune_id in runes:
                 r = runes[sh.rune_id]
-                s[r.stat] += r.value(sh.rune_level, slot)
+                add(r.stat, r.value(sh.rune_level, slot), f"{r.name(opts.lang)} niv. {sh.rune_level} ({iname})", "rune")
         for sid in (ch.sublimation_id, ch.special_sublimation_id):
             if sid is not None and sid in subs:
                 state_levels[subs[sid].state_id] += subs[sid].state_level
 
     for sid, lvl in (extra_states or {}).items():
         state_levels[sid] += lvl
-    for k, v in characteristic_stats(build.characteristics, data.game).items():
-        s[k] += v
+    for cl in char_lines(data.game):
+        n = build.characteristics.get(cl.key, 0)
+        for stat, v in cl.per_point.items():
+            add(stat, n * v, f"Aptitude {BRANCH_FR.get(cl.branch, cl.branch)} · {LINE_FR.get(cl.line, cl.line)} ({n} pt)", "apt")
 
     for sid, lvl in state_levels.items():
         st = data.states.get(sid)
@@ -112,7 +126,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
             if condition_holds(e.condition, opts, two_handed, second_used):
                 v = e.value(eff_lvl, L)
                 for target in effect_targets(e):
-                    s[target] += v
+                    add(target, v, f"Sublimation {st.name} niv. {eff_lvl}", "sub")
 
     for e in ELEMENTS:
         t.mastery[e] = s["elem_mastery"] + s[f"{e}_mastery"] + rand_m[e]
@@ -151,4 +165,5 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
         "res_short": float(sum(max(0, res_need(opts) - t.res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
     }
     t.score = log_score(t.features, opts)
+    t.sources = dict(src)
     return t

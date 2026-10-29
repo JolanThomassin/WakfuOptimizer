@@ -126,6 +126,27 @@ def item_brief(data: GameData, it: Item, lang: str, level: int) -> dict[str, Any
     }
 
 
+def breakdown(t: Totals) -> dict[str, dict[str, Any]]:
+    """Détail de chaque stat affichée : ce qui l'augmente ou la baisse (items, runes, aptitudes, sublimations)."""
+    def lines(*stats: str) -> list[dict[str, Any]]:
+        out = [{"src": o, "kind": k, "value": v} for st in stats for o, k, v in t.sources.get(st, [])]
+        return sorted(out, key=lambda x: -x["value"])
+
+    out: dict[str, dict[str, Any]] = {}
+    for st in set(t.sources) | set(t.stats):
+        out[st] = {"label": STAT_LABEL.get(st, st), "total": int(t.stats.get(st, 0)), "lines": lines(st)}
+    for e in ELEMENTS:   # maîtrise / résistance d'un élément = élémentaire + élément + aléatoire
+        out[f"{e}_mastery"] = {"label": f"Maîtrise {ELEMENT_FR[e]}", "total": t.mastery[e],
+                               "lines": lines("elem_mastery", f"{e}_mastery")}
+        out[f"{e}_res"] = {"label": f"Résistance {ELEMENT_FR[e]}", "total": t.res_flat[e],
+                           "lines": lines("elem_res", f"{e}_res"), "note": f"= {t.res_pct[e]} % de réduction"}
+    flat = sum(x["value"] for x in out.get("hp", {}).get("lines", []))
+    pct = int(t.stats.get("hp_pct", 0))
+    if pct:   # PV = PV fixes × (1 + %PV)
+        out["hp"]["lines"].append({"src": f"Bonus de {pct} % PV (voir % PV)", "kind": "pct", "value": t.hp - flat})
+    return out
+
+
 def build_view(data: GameData, opts: OptimizeOptions, build: Build, t: Totals | None = None) -> dict[str, Any]:
     t = t or evaluate(data, opts, build)
     items = data.item_by_id()
@@ -175,7 +196,7 @@ def build_view(data: GameData, opts: OptimizeOptions, build: Build, t: Totals | 
         "level": opts.level, "elements": list(opts.elements),
         "score": round(t.score, 2), "damage": round(damage_multiplier(t.d2), 2), "ehp": round(t.defense / 1e4),
         "hp": t.hp, "mastery": t.mastery, "res_flat": t.res_flat, "res_pct": t.res_pct,
-        "stats": {k: int(v) for k, v in s.items()}, "active": active, "items": cards,
+        "stats": {k: int(v) for k, v in s.items()}, "active": active, "items": cards, "breakdown": breakdown(t),
         "build": build.to_dict(), "text": build_text(data, opts, build, t, t.score),
         "json": build_json(data, opts, build, t, t.score),
     }
