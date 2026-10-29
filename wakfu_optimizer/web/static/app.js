@@ -773,16 +773,36 @@ async function exportPng(v) {
   }, "image/png");
 }
 
+// Stats d'un item : les maîtrises (et résistances) d'élément de même valeur sont regroupées sur une seule
+// pastille avec les icônes des éléments côte à côte, au lieu d'une ligne par élément.
 function statChips(it, withEls = true) {
-  const out = it.stats.map((x) => chip(x.stat, signed(x.value), x.label, x.value < 0 ? "neg" : ""));
-  for (const r of it.rand_mastery || []) {
-    if (withEls && r.els && r.els.length) r.els.forEach((e) => out.push(chip(e, `+${r.value}`, `Maîtrise ${EL_FR[e]} (élément au choix)`)));
-    else out.push(chip("elem_mastery", `+${r.value} <small>×${r.n} élém.</small>`, `Maîtrise sur ${r.n} élément(s) au choix`));
+  const groups = { mastery: new Map(), res: new Map() };   // valeur -> [éléments]
+  const others = [];
+  const add = (kind, v, e) => { const m = groups[kind]; if (!m.has(v)) m.set(v, []); if (!m.get(v).includes(e)) m.get(v).push(e); };
+  for (const x of it.stats) {
+    const m = /^(fire|water|earth|air)_(mastery|res)$/.exec(x.stat);
+    if (m) add(m[2] === "res" ? "res" : "mastery", x.value, m[1]);
+    else others.push(x);
   }
-  for (const r of it.rand_res || []) {
-    if (withEls && r.els && r.els.length) r.els.forEach((e) => out.push(chip(e, `+${r.value} <small>rés.</small>`, `Résistance ${EL_FR[e]} (élément au choix)`)));
-    else out.push(chip("elem_res", `+${r.value} <small>rés. ×${r.n}</small>`, `Résistance sur ${r.n} élément(s) au choix`));
+  const out = others.map((x) => chip(x.stat, signed(x.value), x.label, x.value < 0 ? "neg" : ""));
+  const randLabel = [];
+  for (const [kind, list] of [["mastery", it.rand_mastery], ["res", it.rand_res]]) {
+    for (const r of list || []) {
+      if (withEls && r.els && r.els.length) r.els.forEach((e) => add(kind, r.value, e));
+      else randLabel.push(chip(kind === "res" ? "elem_res" : "elem_mastery", `+${r.value} <small>×${r.n}</small>`,
+        `${kind === "res" ? "Résistance" : "Maîtrise"} sur ${r.n} élément(s) au choix`));
+    }
   }
+  for (const kind of ["mastery", "res"]) {
+    for (const [v, els] of groups[kind]) {
+      const order = ELEMENTS.filter((e) => els.includes(e));
+      const what = kind === "res" ? "Résistance" : "Maîtrise";
+      const tip = `${what} ${order.map((e) => EL_FR[e]).join(", ")} : ${signed(v)}`;
+      const icons = order.map((e) => `<img src="assets/stats/${e}_${kind === "res" ? "res" : "mastery"}.png" alt="">`).join("");
+      out.push(`<span class="chip els ${v < 0 ? "neg" : ""}" title="${esc(tip)}"><span class="el-icons">${icons}</span>${signed(v)}</span>`);
+    }
+  }
+  out.push(...randLabel);
   if (it.special_effect) out.push(`<span class="chip" title="Effet spécial non compté dans le score"><small>&nbsp;+ effet spécial</small></span>`);
   return out.join("");
 }
@@ -810,7 +830,7 @@ function itemCard(it) {
     <div class="it-head">
       <span class="it-iconbox"><img class="it-icon" src="${iconUrl(it.gfx)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></span>
       <div class="it-names"><div class="it-name" title="${esc(it.name)}">${esc(it.name)}</div>
-        <div class="it-sub">${esc(it.slot_name)} · niv. ${it.level} · <span class="rar">${esc(it.rarity_name)}</span></div></div>
+        <div class="it-sub">${forced ? `<span class="forced-pill" title="Item forcé : gardé à chaque optimisation">Forcé</span>` : ""}${esc(it.slot_name)} · niv. ${it.level} · <span class="rar">${esc(it.rarity_name)}</span></div></div>
       <span class="it-swap" title="Changer d'item">⇄</span>
     </div>
     <div class="chip-row">${statChips(it)}</div>
