@@ -108,7 +108,7 @@ RES_CAP_FLAT = 1032                   # résistance fixe donnant 90 % (au-delà 
 
 # Valeur automatique (fraction de la valeur globale) de chaque PA/PM/PO/PW, jusqu'au plafond.
 UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12)}
-RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.005, 4), "mixed": (0.025, 5), "best": (0.025, 5)}
+RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.0, 0), "mixed": (0.025, 5), "best": (0.025, 5)}   # mêlée : la portée ne vaut rien
 # Pénalité (points de score) par point de résistance fixe manquant sous la résistance visée, par élément :
 # assez forte pour que la cible soit atteinte dès que possible, sans rendre le calcul infaisable sinon.
 RES_SHORT_PENALTY = 1.0   # par point de résistance fixe sous le plancher (cible − écart) : à éviter absolument

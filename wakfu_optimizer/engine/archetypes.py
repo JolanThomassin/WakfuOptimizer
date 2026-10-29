@@ -41,32 +41,44 @@ class Archetype:
     hide_range: bool = False          # la portée n'a pas de sens pour ce rôle (interface)
     mins: dict[str, int] = field(default_factory=dict)   # minimums en plus de ceux du niveau (ap, mp, wp)
     utility: dict[str, tuple[float, int]] = field(default_factory=dict)   # PA/PM/PO/PW : (valeur, plafond), voir scoring.UTILITY
+    focus: tuple[tuple[str, str], ...] = ()   # stats privilégiées (stat, libellé), affichées dans l'onglet Explication
 
 
 ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
-    Archetype("dps_melee", "DPS mêlée", "Dégâts au corps-à-corps : Maîtrise mêlée et critique, résistances correctes.",
-              "dps", range="melee", crit_floor=True),
+    Archetype("dps_melee", "DPS mêlée", "Dégâts au corps-à-corps : Maîtrise mêlée et critique, et de bonnes résistances "
+              "(au contact, on encaisse).", "dps", range="melee", res_target=55, res_tol=5, crit_floor=True,
+              focus=(("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
     Archetype("dps_distance", "DPS distance", "Dégâts à distance : Maîtrise distance, critique et un peu de portée.",
-              "dps", range="distance", crit_floor=True),
+              "dps", range="distance", crit_floor=True,
+              focus=(("distance_mastery", "Maîtrise distance"), ("crit_rate", "Critique"), ("ap", "PA"), ("range", "Portée"))),
     Archetype("dps_mixed", "DPS mixte", "Frappe au contact comme à distance (Huppermage, Eliotrope…).",
-              "dps", range="mixed", crit_floor=True),
-    Archetype("dps_rear", "DPS dos", "Coups dans le dos (Sram) : Maîtrise dos prioritaire.",
-              "dps", range="melee", rear=True, rear_share=80, res_target=45, offense=88, crit_floor=True),
-    Archetype("berserk", "Berserk", "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances plus basses.",
-              "dps", range="melee", berserk=True, res_target=40, offense=88, crit_floor=True,
-              count_conditional=False),
+              "dps", range="mixed", crit_floor=True,
+              focus=(("elem_mastery", "Maîtrise élémentaire"), ("crit_rate", "Critique"), ("ap", "PA"))),
+    Archetype("dps_rear", "DPS dos", "Coups dans le dos (Sram) : Maîtrise dos prioritaire, avec de bonnes résistances "
+              "(au contact, on encaisse).", "dps", range="melee", rear=True, rear_share=80, res_target=55, res_tol=5,
+              offense=88, crit_floor=True,
+              focus=(("rear_mastery", "Maîtrise dos"), ("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"),
+                     ("elem_res", "Résistances"))),
+    Archetype("berserk", "Berserk", "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances un peu plus basses.",
+              "dps", range="melee", berserk=True, res_target=50, offense=88, crit_floor=True,
+              count_conditional=False, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
+                                              ("crit_rate", "Critique"), ("hp", "PV"))),
     Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et tacle ; "
               "dégâts ignorés. Aptitudes : Force en PV, Chance en parade et résistances.",
               "tank", range="melee", hide_range=True, crit=False, res_target=70, res_tol=4, res_free=True,
-              offense=0, will=10, utility={"mp": (0.05, 6)}),   # un tank ne compte pas ses dégâts
+              offense=0, utility={"mp": (0.05, 6)},   # un tank ne compte ni ses dégâts ni sa Volonté
+              focus=(("hp", "PV"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
-              "heal", heal=True, res_target=55, res_tol=5, offense=80, crit_floor=True),
+              "heal", heal=True, res_target=55, res_tol=5, offense=80, crit_floor=True,
+              focus=(("heal_mastery", "Maîtrise soin"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
     Archetype("support_buff", "Support buff", "Boosts / placement : PA, PM, PW et survie avant les dégâts. "
               "(Armure donnée non chiffrée.)", "support", crit=False, res_target=60, res_tol=5, offense=60,
-              mins={"ap": 11, "mp": 5, "wp": 8}, utility={"mp": (0.04, 6), "wp": (0.015, 14)}),
+              mins={"ap": 11, "mp": 5, "wp": 8}, utility={"mp": (0.04, 6), "wp": (0.015, 14)},
+              focus=(("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("elem_res", "Résistances"))),
     Archetype("support_debuff", "Support débuff", "Retraits PA / PM : la Volonté compte beaucoup (+1 % de retrait "
               "par point, jusqu'à 100), puis PA, PM et survie.", "support", crit=False, res_target=60, res_tol=5,
-              offense=55, will=45, mins={"ap": 11, "mp": 5}),
+              offense=55, will=45, mins={"ap": 11, "mp": 5},
+              focus=(("willpower", "Volonté"), ("ap", "PA"), ("mp", "PM"), ("elem_res", "Résistances"))),
 )}
 
 # Champs de OptimizeOptions réglés par chaque panneau de l'interface (désactivé = valeur de l'archétype)

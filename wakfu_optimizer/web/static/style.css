@@ -669,3 +669,5 @@ body.side-collapsed .sidebar { opacity: 0; padding: 0; border: none; overflow: h
 .xw b { color: var(--accent-hi); }
 .xw.boost { box-shadow: inset 0 0 0 1px var(--rec); }
 .xw.boost span { color: var(--rec); font-weight: 600; }
+.xfocus { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.xw .ic { width: 22px; height: 22px; }

@@ -1415,8 +1415,9 @@ function renderExplain() {
   <div class="explain">
     <section class="card xhead">
       <div><h2>${esc(x.archetype.name)} ${x.archetype.recommended ? '<span class="src-tag rec">★ habituel pour la classe</span>' : '<span class="src-tag warnt">peu joué avec cette classe</span>'}</h2>
-        <p class="muted">${esc(x.class)} niveau ${x.level} · ${esc(x.elements.join(", "))} — ${esc(x.archetype.desc)}</p>
-        <p class="muted">Archétypes habituels : ${esc(x.archetype.class_recs.join(", "))}</p></div>
+        <p class="muted">${esc(x.class)} niveau ${x.level} · ${esc(x.elements.join(", "))}</p>
+        <div class="xfocus"><span class="muted">Priorité :</span>${(x.archetype.focus || []).map((f, i) =>
+          `${i ? `<span class="muted">›</span>` : ""}<span class="xw boost">${icon(f.stat, f.label)}<span>${esc(f.label)}</span></span>`).join("")}</div></div>
       <div class="xpanels">${panels}</div>
     </section>
     <section class="card"><h2>Poids de chaque stat dans le calcul</h2>

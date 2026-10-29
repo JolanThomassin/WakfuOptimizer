@@ -210,23 +210,32 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
     ]
     # poids de chaque stat dans le score (1 point ≈ 1 % de valeur globale)
     arch_util = set(arch.utility) if arch else set()
-    weights = []   # points de score par unité (1 point ≈ 1 % de valeur globale) ; 0 = ignoré
+    focus = {k for k, _ in arch.focus} if arch else set()
+    weights = []   # points de score par unité (1 point ≈ 1 % de valeur globale) ; en vert : stat privilégiée par l'archétype
     if opts.offense_weight:
-        weights.append({"stat": "dmg_pct", "label": "Dégâts", "pts": opts.offense_weight / 100, "unit": "par % de dégâts"})
+        weights.append({"stat": "dmg_pct", "label": "Dégâts", "pts": opts.offense_weight / 100, "unit": "par % de dégâts en plus",
+                        "boosted": arch is not None and arch.role in ("dps", "heal")})
     if opts.offense_weight < 100:
-        weights.append({"stat": "hp", "label": "PV effectifs", "pts": (100 - opts.offense_weight) / 100, "unit": "par % de PV effectifs"})
+        d = round((100 - opts.offense_weight) / 100, 2)
+        weights.append({"stat": "hp", "label": "PV", "pts": d, "unit": "par % de PV en plus", "boosted": "hp" in focus})
+        weights.append({"stat": "elem_res", "label": "Résistances", "pts": d,
+                        "unit": "par % de dégâts subis en moins" + (" (même au-delà de la cible)" if opts.res_free else
+                                                                    f" (jusqu'à {opts.res_target} %)"),
+                        "boosted": "elem_res" in focus})
     for k, lab in (("ap", "PA"), ("mp", "PM"), ("range", "Portée"), ("wp", "PW")):
         if util[k][0]:
             weights.append({"stat": k, "label": lab, "pts": round(100 * util[k][0], 2), "unit": f"par {lab} (max {util[k][1]})",
-                            "boosted": k in arch_util})
+                            "boosted": k in arch_util or k in focus})
     if opts.willpower_weight:
-        weights.append({"stat": "willpower", "label": "Volonté", "pts": round(opts.willpower_weight / 100, 2), "unit": "par point"})
+        weights.append({"stat": "willpower", "label": "Volonté", "pts": round(opts.willpower_weight / 100, 2),
+                        "unit": "par point (retraits PA / PM)", "boosted": "willpower" in focus})
     if opts.crit and opts.crit_target:
-        weights.append({"stat": "crit_rate", "label": "Critique sous le palier", "pts": -CRIT_SHORT_PENALTY,
-                        "unit": f"par % sous {opts.crit_target} %"})
+        weights.append({"stat": "crit_rate", "label": f"Critique < {opts.crit_target} %", "pts": -CRIT_SHORT_PENALTY,
+                        "unit": f"malus par % de critique sous {opts.crit_target} %"})
     if opts.res_target:
-        weights.append({"stat": "elem_res", "label": "Résistance sous le plancher", "pts": -RES_SHORT_PENALTY,
-                        "unit": "par point manquant"})
+        floor = opts.res_target - opts.res_tol
+        weights.append({"stat": "elem_res", "label": f"Résistance < {floor} %", "pts": -RES_SHORT_PENALTY,
+                        "unit": f"malus par point de résistance manquant pour atteindre {floor} % sur un élément"})
     parts = score_parts(tot.features, opts)
     score = [{"key": k, "label": FEATURE_FR.get(k, k), "points": round(v, 2)} for k, v in parts.items() if round(v, 2)]
     # aptitudes : profil de l'archétype et points placés
@@ -245,7 +254,8 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
     checks = check_build(data, opts, build, tot)
     return {
         "archetype": {"key": opts.archetype, "name": arch.name if arch else opts.archetype, "desc": arch.desc if arch else "",
-                      "recommended": opts.archetype in recs, "class_recs": [ARCHETYPES[k].name for k in recs]},
+                      "recommended": opts.archetype in recs,
+                      "focus": [{"stat": k, "label": lab} for k, lab in (arch.focus if arch else ())]},
         "class": cls.name if cls else opts.class_key, "level": opts.level,
         "crit_target_level": crit_target(opts.level),
         "panels": panels, "settings": settings, "weights": weights, "score": score, "total": round(sum(parts.values()), 2),
