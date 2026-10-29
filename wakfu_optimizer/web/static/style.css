@@ -173,6 +173,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .active-subs { font-size: 12.5px; line-height: 1.7; }
 .active-subs span { display: inline-block; background: var(--card-hi); border-radius: 12px; padding: 0 9px; margin: 0 4px 4px 0; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.actions.three { grid-template-columns: repeat(3, 1fr); }
+.actions.three .btn { padding: 8px 6px; white-space: nowrap; }
 .modified { background: #3b2f1c; border: 1px solid var(--accent); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 
 .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; align-content: start; }

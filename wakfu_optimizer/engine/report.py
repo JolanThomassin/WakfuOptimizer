@@ -36,57 +36,91 @@ def describe_item_stats(data: GameData, item_id: int, lang: str, level: int, lim
     return ", ".join(parts[:limit])
 
 
+SITE_URL = "https://jolanthomassin.github.io/WakfuOptimizer/"
+WIDTH = 64
+
+
+def _n(v: float) -> str:
+    """Nombre au format français : 12 345."""
+    return f"{int(round(v)):,}".replace(",", " ")
+
+
+def _title(text: str) -> str:
+    return f"── {text} " + "─" * max(3, WIDTH - len(text) - 4)
+
+
 def build_text(data: GameData, opts: OptimizeOptions, build: Build, totals: Totals, score: float | None = None) -> str:
+    """Build lisible en texte brut (à coller sur Discord, un forum, ou à enregistrer en .txt)."""
     items = data.item_by_id()
     runes = {r.id: r for r in data.runes}
     subs = {s.id: s for s in data.sublimations}
     lang = opts.lang
     cls = data.classes.get(opts.class_key)
-    lines = [f"Build Wakfu — {cls.name if cls else opts.class_key} niveau {opts.level} "
-             f"({', '.join(ELEMENT_FR[e] for e in opts.elements)}) — données {data.version}"]
-    if score is not None:
-        lines.append(f"Score : {score:.1f}")
-    lines.append("")
+    s = totals.stats
+    els = " / ".join(ELEMENT_FR[e] for e in opts.elements)
+    L: list[str] = ["═" * WIDTH, f"  BUILD WAKFU · {cls.name if cls else opts.class_key} niveau {opts.level} · {els}", "═" * WIDTH]
+    L.append(f"  PV {_n(totals.hp)}   PA {s.get('ap', 0)}   PM {s.get('mp', 0)}   PW {s.get('wp', 0)}   "
+             f"PO {s.get('range', 0)}   Critique {s.get('crit_rate', 0)} %   Parade {s.get('block', 0)} %")
+    head = f"  Dégâts ×{damage_multiplier(totals.d2):.2f}   PV effectifs {_n(totals.defense / 1e4)}".replace(".", ",")
+    L.append(head + (f"   Score {score:.1f}".replace(".", ",") if score is not None else ""))
+
+    L += ["", _title("Maîtrises")]
+    L.append("  " + "   ".join(f"{ELEMENT_FR[e]} {_n(totals.mastery[e])}" for e in ELEMENTS))
+    sec = [("Mêlée", "melee_mastery"), ("Distance", "distance_mastery"), ("Critique", "crit_mastery"), ("Dos", "rear_mastery"),
+           ("Berserk", "berserk_mastery"), ("Soin", "heal_mastery")]
+    L.append("  " + "   ".join(f"{lab} {_n(s.get(k, 0))}" for lab, k in sec if s.get(k, 0)) or "  (aucune maîtrise secondaire)")
+    L.append(f"  Dommages infligés {s.get('dmg_pct', 0)} %")
+    L += ["", _title("Résistances")]
+    L.append("  " + "   ".join(f"{ELEMENT_FR[e]} {totals.res_pct[e]} % ({totals.res_flat[e]})" for e in ELEMENTS))
+    other = [("Tacle", "lock"), ("Esquive", "dodge"), ("Initiative", "initiative"), ("Volonté", "willpower"),
+             ("Rés. critique", "crit_res"), ("Rés. dos", "rear_res")]
+    L.append("  " + "   ".join(f"{lab} {_n(s.get(k, 0))}" for lab, k in other))
+
+    L += ["", _title("Équipement")]
+    pad = 14
     for slot in SLOT_ORDER:
         ch = build.slots.get(slot)
-        if ch is None:
+        if ch is None or ch.item_id not in items:
             continue
         it = items[ch.item_id]
-        lines.append(f"{SLOT_FR[slot]:<13} {it.name(lang)} (niv. {it.level}, {RARITY_FR[it.rarity]})")
-        for els in ch.mastery_elements:
-            lines.append(f"{'':13}  maîtrise sur : {', '.join(ELEMENT_FR[e] for e in els)}")
-        for els in ch.resistance_elements:
-            lines.append(f"{'':13}  résistance sur : {', '.join(ELEMENT_FR[e] for e in els)}")
+        L.append(f"  {SLOT_FR[slot]:<{pad}}{it.name(lang)}  (niv. {it.level}, {RARITY_FR[it.rarity]})")
+        ind = " " * (pad + 2)
+        for el in ch.mastery_elements:
+            L.append(f"{ind}Maîtrise au choix : {', '.join(ELEMENT_FR[e] for e in el)}")
+        for el in ch.resistance_elements:
+            L.append(f"{ind}Résistance au choix : {', '.join(ELEMENT_FR[e] for e in el)}")
         if ch.shards:
-            sh_txt = []
+            parts = []
             for sh in ch.shards:
-                if sh.rune_id is not None and sh.rune_id in runes:
-                    r = runes[sh.rune_id]
-                    sh_txt.append(f"[{COLOR_FR[sh.color]}] {r.name(lang)} niv.{sh.rune_level} (+{r.value(sh.rune_level, slot)})")
-                else:
-                    sh_txt.append(f"[{COLOR_FR[sh.color]}] vide")
-            lines.append(f"{'':13}  châsses : " + " | ".join(sh_txt))
+                r = runes.get(sh.rune_id) if sh.rune_id is not None else None
+                parts.append(f"[{COLOR_FR[sh.color].split(' ')[0]}] " + (f"{r.name(lang)} niv. {sh.rune_level} (+{r.value(sh.rune_level, slot)})" if r else "vide"))
+            L.append(f"{ind}Châsses : " + parts[0])
+            L += [f"{ind}          {p}" for p in parts[1:]]
         if ch.sublimation_id in subs:
-            lines.append(f"{'':13}  sublimation : {subs[ch.sublimation_id].name(lang)}")
+            L.append(f"{ind}Sublimation : {subs[ch.sublimation_id].name(lang)}")
         if ch.special_sublimation_id in subs:
-            lines.append(f"{'':13}  sublimation spéciale : {subs[ch.special_sublimation_id].name(lang)}")
+            L.append(f"{ind}Sublimation épique / relique : {subs[ch.special_sublimation_id].name(lang)}")
+
+    if totals.active_states:
+        L += ["", _title("Sublimations actives")]
+        for sid, lvl in totals.active_states.items():
+            st = data.states.get(sid)
+            if st:
+                L.append(f"  {st.name} niv. {lvl}" + (f"/{st.limit}" if st.limit else ""))
+
     if build.characteristics:
-        lines += ["", "Caractéristiques :"]
-        for key, n in sorted(build.characteristics.items()):
-            branch, line = key.split(".", 1)
-            lines.append(f"  {BRANCH_FR.get(branch, branch)} — {LINE_FR.get(line, line)} : {n}")
-    lines += ["", "Totaux :"]
-    s = totals.stats
-    lines.append(f"  PV {totals.hp} | PA {s.get('ap', 0)} | PM {s.get('mp', 0)} | PW {s.get('wp', 0)} | "
-                 f"Portée {s.get('range', 0)} | Critique {s.get('crit_rate', 0)} %")
-    lines.append("  Maîtrises : " + ", ".join(f"{ELEMENT_FR[e]} {totals.mastery[e]}" for e in ELEMENTS)
-                 + f" | Mêlée {s.get('melee_mastery', 0)} | Distance {s.get('distance_mastery', 0)}"
-                 + f" | Critique {s.get('crit_mastery', 0)} | Dos {s.get('rear_mastery', 0)}"
-                 + f" | Berserk {s.get('berserk_mastery', 0)} | Soin {s.get('heal_mastery', 0)}")
-    lines.append("  Résistances : " + ", ".join(f"{ELEMENT_FR[e]} {totals.res_flat[e]} ({totals.res_pct[e]} %)" for e in ELEMENTS))
-    lines.append(f"  Multiplicateur de dégâts moyen : ×{damage_multiplier(totals.d2):.2f}"
-                 f" | PV effectifs : {totals.defense / 1e4:,.0f}".replace(",", " "))
-    return "\n".join(lines)
+        L += ["", _title("Aptitudes")]
+        by_branch: dict[str, list[str]] = {}
+        for key, n in build.characteristics.items():
+            if n:
+                branch, line = key.split(".", 1)
+                by_branch.setdefault(branch, []).append(f"{LINE_FR.get(line, line)} {n}")
+        for branch in ("intelligence", "strength", "agility", "fortune", "major"):
+            if branch in by_branch:
+                L.append(f"  {BRANCH_FR.get(branch, branch) + ' :':<14}" + " · ".join(by_branch[branch]))
+
+    L += ["", "─" * WIDTH, f"  Généré avec Wakfu Optimizer · {SITE_URL}", f"  Données du jeu {data.version}"]
+    return "\n".join(L)
 
 
 def build_json(data: GameData, opts: OptimizeOptions, build: Build, totals: Totals, score: float | None = None) -> str:
