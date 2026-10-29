@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from ..data.models import ELEMENTS, PROP_EPIC_GEM, PROP_RELIC_GEM, GameData, Item, Slot
 from .options import Build, OptimizeOptions, ShardChoice, SlotChoice
-from .stats import Totals, evaluate
+from .stats import Totals, evaluate, spare_elements
 
 RINGS = (Slot.LEFT_HAND, Slot.RIGHT_HAND)
 
@@ -20,9 +20,9 @@ class Alternative:
     delta: float          # écart de score (≈ % de valeur globale)
 
 
-def _random_elements(it: Item, opts: OptimizeOptions, totals: Totals) -> tuple[list[tuple[str, ...]], list[tuple[str, ...]]]:
+def _random_elements(data: GameData, it: Item, opts: OptimizeOptions, totals: Totals) -> tuple[list[tuple[str, ...]], list[tuple[str, ...]]]:
     played = [e for e in opts.elements if e in ELEMENTS] or list(ELEMENTS)
-    by_m = sorted(played, key=lambda e: totals.mastery.get(e, 0)) + [e for e in ELEMENTS if e not in played]
+    by_m = sorted(played, key=lambda e: totals.mastery.get(e, 0)) + spare_elements(data, opts, played)
     by_r = sorted(ELEMENTS, key=lambda e: totals.res_flat.get(e, 0))
     return ([tuple(by_m[:n]) for _v, n in it.random_mastery], [tuple(by_r[:n]) for _v, n in it.random_resistance])
 
@@ -52,7 +52,7 @@ def swap(data: GameData, opts: OptimizeOptions, build: Build, slot: Slot, it: It
             return None
     for s in dropped:
         b.slots.pop(s, None)
-    mel, rel = _random_elements(it, opts, totals)
+    mel, rel = _random_elements(data, it, opts, totals)
     ch = SlotChoice(slot=slot, item_id=it.id, mastery_elements=mel, resistance_elements=rel)
     if old is not None:
         runes = data.rune_by_id()

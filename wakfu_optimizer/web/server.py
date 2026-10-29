@@ -40,7 +40,7 @@ from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min
 from ..engine.report import SLOT_ORDER, build_json, build_text
 from ..engine.scoring import damage_multiplier
 from ..engine.stats import Totals, evaluate
-from ..engine.sublimations import SubFamily, build_levels, catalog, sub_alternatives
+from ..engine.sublimations import SubFamily, build_levels, catalog, condition_failed, sub_alternatives
 
 log = logging.getLogger(__name__)
 
@@ -283,6 +283,7 @@ def search(d: GameData, q: dict[str, list[str]]) -> list[dict[str, Any]]:
 def family_json(d: GameData, f: SubFamily, lang: str) -> dict[str, Any]:
     return {"state": f.state_id, "name": f.name, "desc": f.desc, "limit": f.limit, "kind": f.kind,
             "modeled": f.modeled, "applicable": f.applicable, "in_build": f.in_build, "gain": f.gain,
+            "same_levels": f.same_levels,
             "levels": [{"id": s.id, "name": s.name(lang), "level": s.state_level,
                         "pattern": [int(x) for x in s.pattern]} for s in f.subs]}
 
@@ -306,6 +307,7 @@ def sub_alternatives_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
         st = d.states.get(o.sub.state_id) if o.sub else None
         out.append({"id": o.sub.id if o.sub else None, "name": o.sub.name(opts.lang) if o.sub else "Aucune sublimation",
                     "desc": st.description if st else "", "modeled": bool(st and st.modeled),
+                    "inactive": bool(st and condition_failed(o.totals, st.name)),
                     "pattern": [int(x) for x in o.sub.pattern] if o.sub else [], "delta": o.delta,
                     "build": o.build.to_dict(), "compare": compare(base, o.totals, opts)})
     return {"slot": slot.value, "slot_name": SLOT_FR[slot], "special": special, "items": out,

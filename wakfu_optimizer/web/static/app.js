@@ -922,7 +922,7 @@ async function openSubSwap(slot, special) {
     if (!r.items.length) { $("#dr-list").innerHTML = `<p class="muted pad">Aucune sublimation possible ici.</p>${note}`; return; }
     $("#dr-list").innerHTML = r.items.map((a, k) => `<div class="alt" data-k="${k}">
       <div class="pat-box">${a.id ? patternHtml(a.pattern) : "∅"}</div>
-      <div><div class="it-name">${esc(a.name)}${a.id && !a.modeled ? ` <small class="muted">(non chiffrée)</small>` : ""}</div>
+      <div><div class="it-name">${esc(a.name)}${a.id && !a.modeled ? ` <small class="muted">(non chiffrée)</small>` : ""}${a.inactive ? ` <small class="neg-txt" title="Sa condition n'est pas remplie avec ce build : elle ne ferait rien">(condition non remplie)</small>` : ""}</div>
       <div class="sub-desc">${esc(a.desc)}</div></div>
       <div class="delta ${pn(a.delta)}">${a.delta > 0 ? "+" : ""}${a.delta.toFixed(1)}<small>score</small></div></div>`).join("") + note;
     $$("#dr-list .alt").forEach((el) => el.addEventListener("click", () => {
@@ -996,6 +996,7 @@ function subCard(f) {
     f.kind !== "normal" ? `<span class="tag ${f.kind}">${KIND_FR[f.kind]}</span>` : "",
     f.in_build ? `<span class="tag on">Dans le build · niv. ${f.in_build}${f.limit ? `/${f.limit}` : ""}</span>` : "",
     !f.modeled ? `<span class="tag" title="L'optimiseur ne sait pas chiffrer cet effet : il ne la placera que si vous l'imposez">Non chiffrée</span>` : "",
+    f.same_levels ? `<span class="tag" title="Dans les données du jeu, tous les niveaux donnent le même effet : le niveau ne sert qu'à atteindre le cumul maximum.">Niveaux identiques</span>` : "",
     f.modeled && !f.applicable ? `<span class="tag" title="Ses conditions ne correspondent pas à vos options (portée, élément, berserk…)">Incompatible</span>` : "",
   ].join("");
   return `<div class="sub-card ${fo ? "fo" : ""} ${ex ? "ex" : ""}">

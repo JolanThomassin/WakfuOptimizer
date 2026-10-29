@@ -523,7 +523,7 @@ states:
     - stat: range
       values: [3, 3, 3, 3, 3]
       mode: flat
-      condition: distance
+      condition: none
     - stat: dmg_pct
       values: [15, 15, 15, 15, 15]
       mode: flat

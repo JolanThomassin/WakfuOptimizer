@@ -27,6 +27,14 @@ DISPLAY_STATS = [
 ]
 
 
+def spare_elements(data: GameData, opts: OptimizeOptions, played: list[str]) -> list[str]:
+    """Éléments « en trop » d'une maîtrise sur N éléments : ceux de la classe d'abord (elle a des sorts dans ces
+    éléments), puis les autres. Ex. Crâ mono Feu, maîtrise sur 3 éléments : Feu + Air + Terre, jamais Eau."""
+    cls = data.classes.get(opts.class_key)
+    mine = [e for e in (cls.elements if cls else ()) if e in ELEMENTS and e not in played]
+    return mine + [e for e in ELEMENTS if e not in played and e not in mine]
+
+
 @dataclass
 class Totals:
     stats: dict[str, int] = field(default_factory=dict)

@@ -435,3 +435,4 @@ img.pat { width: 15px; height: 15px; vertical-align: -3px; }
 @media (max-width: 700px) { .items-grid.list .item { grid-template-columns: 1fr; } .items-grid.list .item > * { grid-column: 1 !important; grid-row: auto !important; } }
 .res-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .res-pair label { margin-bottom: 4px; }
+.neg-txt { color: var(--bad); }

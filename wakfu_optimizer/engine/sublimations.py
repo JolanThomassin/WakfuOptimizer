@@ -24,6 +24,7 @@ class SubFamily:
     modeled: bool                  # effet chiffré par l'optimiseur
     applicable: bool               # ses conditions sont compatibles avec les options
     subs: list[Sublimation] = field(default_factory=list)
+    same_levels: bool = False      # tous les niveaux donnent les mêmes effets (le niveau ne sert qu'au cumul max)
     in_build: int = 0              # niveau cumulé dans le build
     gain: float | None = None      # gain de score si on l'ajoute au build (niveau max)
 
@@ -59,10 +60,13 @@ def catalog(data: GameData, opts: OptimizeOptions, build: Build | None = None) -
         if f is None:
             st = data.states.get(sub.state_id)
             modeled, ok = _applicable(data, opts, sub.state_id)
+            top = (st.limit or 5) if st else 1
+            same = bool(st and st.effects and top > 1
+                        and all(len(set(e.values[:top])) == 1 for e in st.effects))
             f = fams[sub.state_id] = SubFamily(
                 state_id=sub.state_id, name=(st.name if st and st.name else sub.name(opts.lang)),
                 desc=st.description if st else "", limit=st.limit if st else 0, kind=_kind(sub),
-                modeled=modeled, applicable=ok)
+                modeled=modeled, applicable=ok, same_levels=same)
         f.subs.append(sub)
     base: Totals | None = None
     levels: dict[int, int] = {}
@@ -148,6 +152,11 @@ def sub_alternatives(data: GameData, opts: OptimizeOptions, build: Build, slot: 
     return out, other_colors
 
 
+def condition_failed(t: Totals, state_name: str) -> bool:
+    """Sublimation « si la stat X est <= / >= v » posée alors que la condition n'est pas remplie (sans effet)."""
+    return any(w.startswith(f"{state_name} :") and "condition non remplie" in w for w in t.warnings)
+
+
 def fill_empty_subs(data: GameData, opts: OptimizeOptions, build: Build) -> tuple[Build, list[str]]:
     """Emplacements de sublimation restés vides (épique, relique, châsses) : on y met la meilleure sublimation
     chiffrée qui ne fait rien perdre. Le solveur les laisse vides quand aucune ne lui rapporte, mais autant en avoir une."""
@@ -163,7 +172,8 @@ def fill_empty_subs(data: GameData, opts: OptimizeOptions, build: Build) -> tupl
                 continue
             options, _ = sub_alternatives(data, opts, build, slot, special)
             usable = [o for o in options if o.sub is not None and o.delta >= -1e-6
-                      and (st := data.states.get(o.sub.state_id)) is not None and st.modeled]
+                      and (st := data.states.get(o.sub.state_id)) is not None and st.modeled
+                      and not condition_failed(o.totals, st.name)]
             if usable:
                 best = usable[0]   # triées par gain décroissant
                 build = best.build

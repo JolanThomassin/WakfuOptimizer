@@ -67,7 +67,7 @@ CURATED: dict[int, list[tuple[int, str, list[str], str, str]]] = {
     5158: [(1, "num_0", ["mp"], "flat", "two_handed"), (2, "num_0", ["ap"], "flat", "two_handed")],  # Maniement : Deux mains
     5444: [(0, "num_0", ["elem_res"], "flat", "none"), (0, "num_1", ["rear_res"], "flat", "none")],  # Science du placement
     # --- reliques
-    7257: [(1, "num_0", ["range"], "flat", "distance"), (2, "num_0", ["dmg_pct"], "flat", "distance")],  # Sentinelle
+    7257: [(1, "num_0", ["range"], "flat", "none"), (2, "num_0", ["dmg_pct"], "flat", "distance")],  # Sentinelle (PO toujours)
     8380: [(0, "num_0", ["elem_res"], "flat", "no_armor")],                 # Aplomb naturel
     7870: [(1, "num_0", ["dmg_pct"], "flat", "no_armor")],                  # Pétillance
 }

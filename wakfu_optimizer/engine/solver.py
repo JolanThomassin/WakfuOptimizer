@@ -42,7 +42,7 @@ from .characteristics import BRANCH_FR, branch_points, char_lines, fill_unspent
 from .options import NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice, SlotChoice
 from .scoring import flat_for_pct, gradient, res_cap, res_need, res_pct, utility_table
 from .shards import effect_targets, parse_stat_condition, rune_fits, static_condition
-from .stats import Totals, evaluate
+from .stats import Totals, evaluate, spare_elements
 from .sublimations import fill_empty_subs
 
 log = logging.getLogger(__name__)
@@ -780,7 +780,7 @@ class BuildModel:
             for k, (_, n) in enumerate(it.random_mastery):
                 els = [e for e in ELEMENTS if (iid, slot, k, e) in v.y_m and val(v.y_m[(iid, slot, k, e)])]
                 played = [e for e in opts.elements if e in ELEMENTS]
-                rest = [e for e in played if e not in els] + [e for e in ELEMENTS if e not in els and e not in played]
+                rest = [e for e in played if e not in els] + [e for e in spare_elements(self.data, opts, played) if e not in els]
                 els += rest[: max(0, n - len(els))]
                 ch.mastery_elements.append(tuple(els[:n]))
             for k, (_, n) in enumerate(it.random_resistance):
