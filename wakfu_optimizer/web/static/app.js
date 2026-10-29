@@ -302,7 +302,7 @@ function applyOptions(o) {
   setSeg("rear_share", rs >= 70 ? "80" : rs <= 35 ? "25" : "50");
   set("res_target", o.res_target ?? 50);
   set("res_max", o.res_max ?? 80);
-  $("#balance").checked = o.balance_res; $("#cond").checked = o.count_conditional;
+  $("#cond").checked = o.count_conditional;
   $("#neutral").checked = !!o.neutral_combo;
   setTimeLimit(180);   // toujours 3 min à l'ouverture de la page
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
@@ -331,7 +331,7 @@ function options() {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
     berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"), res_max: n("res_max"),
-    balance_res: $("#balance").checked, count_conditional: $("#cond").checked,
+    count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
     min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,
     max_ap: n("max_ap"), max_mp: n("max_mp"), max_range: n("max_range"), max_wp: n("max_wp"), max_crit: n("max_crit"),

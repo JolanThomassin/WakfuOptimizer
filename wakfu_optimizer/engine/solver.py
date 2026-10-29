@@ -739,12 +739,10 @@ class BuildModel:
                 m.AddMaxEquality(sh, [need - self.res[e], 0])
                 shorts.append(sh)
             f["res_short"] = sum(shorts)
-        if opts.balance_res:
-            r = m.NewIntVar(-BIG, cap, "Rmin")
-            m.AddMinEquality(r, capped)
-            f["res"] = r
-        else:
-            f["res4"] = sum(capped)
+        # résistances toujours équilibrées : seule la plus faible compte (c'est elle que l'ennemi vise)
+        r = m.NewIntVar(-BIG, cap, "Rmin")
+        m.AddMinEquality(r, capped)
+        f["res"] = r
         for stat, (_v, cap) in utility_table(opts).items():
             capped_u = m.NewIntVar(-100, max(0, cap), f"cap_{stat}")
             m.AddMinEquality(capped_u, [self.stat(stat), cap])
@@ -763,7 +761,7 @@ class BuildModel:
         """Objectif linéaire : somme des variables pondérées par le gradient du score."""
         terms = []
         for k, var in self.feat.items():
-            g = grad.get("res", 0.0) / 4 if k == "res4" else grad.get(k, 0.0)
+            g = grad.get(k, 0.0)
             c = int(round(g * LIN_SCALE))
             if c:
                 terms.append(c * var)
