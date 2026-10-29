@@ -397,3 +397,21 @@ img.pat { width: 15px; height: 15px; vertical-align: -3px; }
 .pk-list .pk-item { border-radius: 8px; }
 #pk-fo .pk-item { background: rgba(92, 200, 255, .1); box-shadow: inset 3px 0 0 #5cc8ff; }
 #pk-ex .pk-item { background: rgba(255, 112, 112, .08); box-shadow: inset 3px 0 0 var(--bad); }
+.dual-legend { font-size: 12px; margin-top: 4px; }
+.dual-legend label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+.dual-legend input { width: 52px; background: var(--card-hi); border: 1px solid var(--line); border-radius: 6px; padding: 3px 5px; text-align: center; color: var(--text); }
+
+/* ----- items : grille ou liste */
+.items-wrap { min-width: 0; }
+.items-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.view-seg { width: 200px; }
+.view-seg button { font-size: 12.5px; padding: 4px 6px; }
+.items-grid.list { grid-template-columns: 1fr; gap: 6px; }
+.items-grid.list .item { display: grid; grid-template-columns: minmax(220px, 300px) 1fr minmax(160px, 240px); gap: 6px 14px; align-items: center; padding: 8px 12px; }
+.items-grid.list .item .it-head { grid-column: 1; grid-row: 1 / span 3; }
+.items-grid.list .item .chip-row { grid-column: 2; grid-row: 1 / span 3; }
+.items-grid.list .item .runes, .items-grid.list .item .sub, .items-grid.list .item .obtain { grid-column: 3; margin: 0; }
+.items-grid.list .item .it-icon { width: 40px; height: 40px; }
+.items-grid.list .item .it-swap { display: none; }
+.items-grid.list .forced-tag { top: -8px; }
+@media (max-width: 900px) { .items-grid.list .item { grid-template-columns: 1fr; } .items-grid.list .item > * { grid-column: 1 !important; grid-row: auto !important; } }

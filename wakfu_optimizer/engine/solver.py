@@ -40,7 +40,7 @@ from ..data.models import (
 )
 from .characteristics import BRANCH_FR, branch_points, char_lines, fill_unspent
 from .options import NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice, SlotChoice
-from .scoring import flat_for_pct, gradient, res_cap, res_need, utility_table
+from .scoring import flat_for_pct, gradient, res_cap, res_need, res_pct, utility_table
 from .shards import effect_targets, parse_stat_condition, rune_fits, static_condition
 from .stats import Totals, evaluate
 from .sublimations import fill_empty_subs
@@ -902,6 +902,35 @@ class Optimizer:
             raise Cancelled()
         return status, solver
 
+    def _res_unreachable(self, res: SolveResult, cand: dict[Slot, list[Item]], tot: Totals, t0: float,
+                         budget: float) -> SolveResult:
+        """Résistance visée impossible : on cherche la meilleure résistance atteignable (sur l'élément le plus faible)."""
+        opts = self.opts
+        self.progress("Résistance visée non atteinte : recherche du maximum possible…", 0.97)
+        got = min(tot.res_pct.values())
+        best = got
+        try:
+            probe = BuildModel(self.data, opts, cand, skip_constraints={"res"})
+            if WARM_START:
+                self._warm_start(probe, cand, opts, budget)
+            rmin = probe.m.NewIntVar(-BIG, BIG, "Rmin_brut")
+            probe.m.AddMinEquality(rmin, [probe.res[e] for e in ELEMENTS])
+            probe.maximize(rmin)
+            st, sv = self._solve(probe, max(5.0, min(20.0, budget - (time.monotonic() - t0))))
+            if st in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+                best = max(got, res_pct(sv.Value(rmin)))
+        except Cancelled:
+            pass
+        res.status = "aucune solution"
+        res.diagnostics = [
+            f"Résistance visée {opts.res_target} % impossible avec ces réglages : au mieux {best} % sur chaque élément.",
+            "Baissez la résistance minimum, autorisez plus de raretés ou les tranches inférieures, ou assouplissez "
+            "les autres contraintes (PA, PM, items forcés…).",
+        ]
+        res.message = "Aucun build ne respecte la résistance visée — " + res.diagnostics[0]
+        res.elapsed = time.monotonic() - t0
+        return res
+
     def _warm_start(self, bm: BuildModel, cand: dict[Slot, list[Item]], opts: OptimizeOptions, budget: float) -> None:
         """HiGHS trouve mal un premier build quand il doit aussi placer châsses, runes et sublimations,
         mais améliore très vite un build qu'on lui donne. On en construit un : items choisis sans châsses,
@@ -1024,6 +1053,9 @@ class Optimizer:
             if added:
                 tot = evaluate(self.data, opts, b)
                 score = tot.score
+            if opts.res_target > 0 and min(tot.res_pct.values()) < opts.res_target:
+                # résistance minimum non atteinte : on n'affiche pas un build qui ne respecte pas la demande
+                return self._res_unreachable(res, cand, tot, t0, budget)
             b.status = res.status
             b.solver_score = score
             res.builds.append(b)

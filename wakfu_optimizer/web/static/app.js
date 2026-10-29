@@ -188,6 +188,11 @@ function buildForm() {
   seg("range"); seg("shard_mode"); seg("rear_share"); seg("subs-kind");
   $("#shard_mode").addEventListener("change", refreshVis);
   // double curseur : le min ne dépasse pas le max (le curseur qu'on bouge pousse l'autre)
+  // saisie précise : les champs numériques pilotent les curseurs
+  [["#res_min_n", "#res_target"], ["#res_max_n", "#res_max"]].forEach(([num, rng]) => $(num).addEventListener("change", () => {
+    $(rng).value = Math.max(0, Math.min(90, Math.round(+$(num).value || 0)));
+    $(rng).dispatchEvent(new Event("input"));
+  }));
   $("#res_target").addEventListener("input", () => {
     if (+$("#res_target").value > +$("#res_max").value) $("#res_max").value = $("#res_target").value;
     refreshVis();
@@ -276,6 +281,7 @@ function applyClass(key) {
 function refreshVis() {
   $("#class-icon").src = `assets/classes/${$("#cls").value}.png`;
   const rt = +$("#res_target").value, rm = +$("#res_max").value;
+  $("#res_min_n").value = rt; $("#res_max_n").value = rm;
   $("#res-lab").textContent = `${rt ? `min ${rt} %` : "pas de min"} · ${rm < 90 ? `max ${rm} %` : "pas de max"}`;
   $("#res-fill").style.left = `${(rt / 90) * 100}%`;
   $("#res-fill").style.width = `${((rm - rt) / 90) * 100}%`;
@@ -473,6 +479,11 @@ function sc(stat, label, value, cls = "") {
 }
 const pn = (v) => (v > 0 ? "pos" : v < 0 ? "neg" : "");
 
+// affichage des items : grille (cartes) ou liste (une ligne par item), retenu dans le navigateur
+function itemsView() {
+  try { return localStorage.getItem("wakfu-optimizer:view") === "list" ? "list" : "grid"; } catch (e) { return "grid"; }
+}
+
 function renderResult() {
   const v = S.view, s = v.stats;
   const changed = S.changed.size
@@ -515,8 +526,20 @@ function renderResult() {
         <button class="btn" id="export-txt" title="Télécharger le build en texte lisible">📄 Texte (.txt)</button>
         <button class="btn" id="export-png" title="Télécharger une image du build, avec le lien du site">🖼️ Image (.png)</button></div>
     </div>
-    <div class="items-grid">${v.items.map(itemCard).join("")}</div>
+    <div class="items-wrap">
+      <div class="items-bar"><span class="muted">${v.items.length} items</span>
+        <div class="seg view-seg" id="items-view"><button data-v="grid" title="Cartes en grille">▦ Grille</button><button data-v="list" title="Une ligne par item">☰ Liste</button></div></div>
+      <div class="items-grid ${itemsView()}">${v.items.map(itemCard).join("")}</div>
+    </div>
   </div>`;
+  $$("#items-view button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.v === itemsView());
+    b.addEventListener("click", () => {
+      try { localStorage.setItem("wakfu-optimizer:view", b.dataset.v); } catch (e) { /* sans effet */ }
+      $(".items-grid").className = `items-grid ${b.dataset.v}`;
+      $$("#items-view button").forEach((x) => x.classList.toggle("on", x === b));
+    });
+  });
   $$(".item[data-slot]").forEach((c) => c.addEventListener("click", () => openSwap(c.dataset.slot)));
   $$("#result .sc[data-stat]").forEach((el) => el.addEventListener("click", (e) => { e.stopPropagation(); showStatPop(el); }));
   $$(".item [data-subslot]").forEach((el) => el.addEventListener("click", (e) => {

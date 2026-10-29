@@ -68,10 +68,13 @@
         <label class="split"><span>Résistances (chaque élément)</span><b id="res-lab"></b></label>
         <div class="dual" id="res-dual">
           <div class="dual-track"><div class="dual-fill" id="res-fill"></div></div>
-          <input type="range" id="res_target" min="0" max="90" step="5" aria-label="Résistance minimum visée">
-          <input type="range" id="res_max" min="0" max="90" step="5" aria-label="Résistance maximum utile">
+          <input type="range" id="res_target" min="0" max="90" step="1" aria-label="Résistance minimum visée">
+          <input type="range" id="res_max" min="0" max="90" step="1" aria-label="Résistance maximum utile">
         </div>
-        <div class="dual-legend"><span>0 %</span><span>90 %</span></div>
+        <div class="dual-legend">
+          <label>Min <input type="number" id="res_min_n" min="0" max="90" step="1"> %</label>
+          <label>Max <input type="number" id="res_max_n" min="0" max="90" step="1"> %</label>
+        </div>
         <p class="hint" id="res-hint">Min : atteint en priorité. Max : au-delà, la résistance ne compte plus, tout part dans les dégâts.
           Les quatre éléments sont toujours équilibrés (c'est le plus faible qui compte).</p>
       </div>
