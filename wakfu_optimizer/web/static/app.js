@@ -188,11 +188,18 @@ function buildForm() {
   seg("range"); seg("shard_mode"); seg("rear_share"); seg("subs-kind");
   $("#shard_mode").addEventListener("change", refreshVis);
   // double curseur : le min ne dépasse pas le max (le curseur qu'on bouge pousse l'autre)
-  // résistance visée : saisie directe, −/+ (Maj : par 5) et valeurs rapides
-  const setRes = (v) => { $("#res_target").value = Math.max(0, Math.min(90, Math.round(+v || 0))); refreshVis(); };
-  $$("[data-rd]").forEach((bt) => bt.addEventListener("click", (e) => setRes(+$("#res_target").value + (e.shiftKey ? 5 : 1) * +bt.dataset.rd)));
-  $$("[data-res]").forEach((bt) => bt.addEventListener("click", () => setRes(bt.dataset.res)));
-  $("#res_target").addEventListener("change", () => setRes($("#res_target").value));
+  // résistance visée et écart max : saisie directe ou −/+ (Maj : par 5)
+  const clampRes = () => {
+    $("#res_target").value = Math.max(0, Math.min(90, Math.round(+$("#res_target").value || 0)));
+    $("#res_tol").value = Math.max(0, Math.min(+$("#res_target").value, 30, Math.round(+$("#res_tol").value || 0)));
+    refreshVis();
+  };
+  $$("[data-step]").forEach((bt) => bt.addEventListener("click", (e) => {
+    const inp = $("#" + bt.dataset.step);
+    inp.value = +inp.value + (e.shiftKey ? 5 : 1) * +bt.dataset.d;
+    clampRes();
+  }));
+  ["#res_target", "#res_tol"].forEach((id) => $(id).addEventListener("change", clampRes));
   $("#time-btn").addEventListener("click", () => {
     const steps = [60, 180, 360];
     setTimeLimit(steps[(steps.indexOf(+$("#time_limit").value) + 1) % steps.length]);
@@ -271,8 +278,10 @@ function applyClass(key) {
 
 function refreshVis() {
   $("#class-icon").src = `assets/classes/${$("#cls").value}.png`;
-  const rt = +$("#res_target").value;
-  $$("[data-res]").forEach((bt) => bt.classList.toggle("on", +bt.dataset.res === rt));
+  const rt = +$("#res_target").value, tol = +$("#res_tol").value;
+  $("#res-hint").textContent = rt
+    ? `Chaque élément entre ${Math.max(0, rt - tol)} et ${rt} % : aucun malus dans cet écart, le reste part dans les stats.`
+    : "Pas de résistance visée : tout part dans les stats.";
   const neutral = $("#neutral").checked;
   $("#rear-box").classList.toggle("hidden", !isOn("rear") || neutral);
   ["rear", "berserk", "heal"].forEach((id) => { $("#" + id).disabled = neutral; $("#" + id).classList.toggle("off", neutral); });
@@ -295,6 +304,7 @@ function applyOptions(o) {
   const rs = +o.rear_share || 50;
   setSeg("rear_share", rs >= 70 ? "80" : rs <= 35 ? "25" : "50");
   set("res_target", o.res_target ?? 50);
+  set("res_tol", o.res_tol ?? 5);
   $("#cond").checked = o.count_conditional;
   $("#neutral").checked = !!o.neutral_combo;
   setTimeLimit(180);   // toujours 3 min à l'ouverture de la page
@@ -323,7 +333,7 @@ function options() {
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
-    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"), res_max: Math.min(90, n("res_target") + 5),
+    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"), res_tol: n("res_tol"),
     count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
     min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,

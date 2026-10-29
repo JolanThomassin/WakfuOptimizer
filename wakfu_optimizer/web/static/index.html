@@ -65,15 +65,15 @@
           « Presque toujours » : build dos type Sram, la Maîtrise Dos devient prioritaire.</p>
       </div>
       <div class="field">
-        <label>Résistance visée <span class="muted">(environ, sur chaque élément)</span></label>
-        <div class="res-row">
-          <div class="stepper"><div class="ctl"><button type="button" data-rd="-1" aria-label="moins">−</button>
-            <input type="number" id="res_target" min="0" max="90" step="1" value="50"><button type="button" data-rd="1" aria-label="plus">+</button></div></div>
-          <span class="res-pct">%</span>
-          <div class="res-presets"><button type="button" data-res="40">40</button><button type="button" data-res="50">50</button><button type="button" data-res="60">60</button><button type="button" data-res="70">70</button><button type="button" data-res="80">80</button></div>
+        <div class="res-pair stepper">
+          <div><label>Résistance visée</label>
+            <div class="ctl"><button type="button" data-step="res_target" data-d="-1" aria-label="moins">−</button>
+              <input type="number" id="res_target" min="0" max="90" step="1" value="50"><button type="button" data-step="res_target" data-d="1" aria-label="plus">+</button></div></div>
+          <div><label>Écart max (±)</label>
+            <div class="ctl"><button type="button" data-step="res_tol" data-d="-1" aria-label="moins">−</button>
+              <input type="number" id="res_tol" min="0" max="30" step="1" value="5"><button type="button" data-step="res_tol" data-d="1" aria-label="plus">+</button></div></div>
         </div>
-        <p class="hint">Une cible, pas une obligation : des écarts comme 87 / 83 / 79 / 84 % sont normaux. Au-delà de la cible,
-          la résistance ne compte presque plus et tout part dans les dégâts.</p>
+        <p class="hint" id="res-hint"></p>
       </div>
       <label class="check"><input type="checkbox" id="cond"><span>Compter les sublimations conditionnelles (PV &gt; 90 %, sans armure)</span></label>
       <p class="hint">PA, PM, PO et PW sont valorisés automatiquement au-delà des minimums.</p>

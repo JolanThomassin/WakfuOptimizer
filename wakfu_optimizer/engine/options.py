@@ -39,8 +39,9 @@ class OptimizeOptions:
     berserk: bool = False
     heal: bool = False
     offense_weight: int = 85             # 0..100 ; défense = 100 - offense (fixe : la défense passe par res_target)
-    res_target: int = 50                 # % de résistance visé (environ) sur chaque élément : objectif souple
-    res_max: int = 55                    # au-delà, la résistance ne compte plus (l'interface envoie cible + 5)
+    res_target: int = 50                 # % de résistance visé sur chaque élément ; au-delà, elle ne rapporte plus rien
+    res_tol: int = 5                     # écart max sous la cible (%) : dans l'écart, aucun malus de score
+    res_max: int = 90                    # obsolète (remplacé par res_target / res_tol)
     balance_res: bool = True             # obsolète : les résistances sont toujours équilibrées (gardé pour les anciens réglages)
     count_conditional: bool = True       # sublimations « PV > 90 % », « sans armure »
     # Combo Neutralité + Dénouement : maîtrises secondaires <= 0, >= 40 % critique, Maîtrise Critique convertie
@@ -124,7 +125,7 @@ class OptimizeOptions:
                            f"minimum ramené à {getattr(self, hi)}.")
                 setattr(self, lo, getattr(self, hi))
         self.res_target = max(0, min(90, int(self.res_target)))
-        self.res_max = max(self.res_target, min(90, int(self.res_max)))
+        self.res_tol = max(0, min(self.res_target, int(self.res_tol)))
         self.min_res_pct = max(0, min(90, int(self.min_res_pct)))
         self.rear_share = max(0, min(100, int(self.rear_share)))
         self.forced_sub_levels = {str(k): max(1, int(v)) for k, v in self.forced_sub_levels.items()

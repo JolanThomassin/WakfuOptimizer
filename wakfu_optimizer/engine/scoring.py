@@ -111,7 +111,7 @@ UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12)}
 RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.005, 4), "mixed": (0.025, 5)}
 # Pénalité (points de score) par point de résistance fixe manquant sous la résistance visée, par élément :
 # assez forte pour que la cible soit atteinte dès que possible, sans rendre le calcul infaisable sinon.
-RES_SHORT_PENALTY = 0.5   # tire chaque élément vers la cible, sans en faire une obligation absolue
+RES_SHORT_PENALTY = 1.0   # par point de résistance fixe sous le plancher (cible − écart) : à éviter absolument
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:
@@ -163,15 +163,20 @@ def secondary_mastery(melee: int, distance: int, rng: str) -> int:
 
 
 def res_cap(opts: object) -> int:
-    """Résistance fixe au-delà de laquelle la résistance ne compte plus (maximum voulu, 90 % au plus)."""
-    t = int(getattr(opts, "res_max", 90) or 90)
-    return min(RES_CAP_FLAT, flat_for_pct(t)) if t < 90 else RES_CAP_FLAT
+    """Résistance fixe au-delà de laquelle la résistance ne rapporte plus rien : le plancher (cible − écart).
+    Partout dans l'écart, le score est donc le même : aucune stat sacrifiée pour se rapprocher de la cible."""
+    t = int(getattr(opts, "res_target", 0) or 0)
+    if not 0 < t < 90:
+        return RES_CAP_FLAT
+    floor = t - int(getattr(opts, "res_tol", 5) or 0)
+    return min(RES_CAP_FLAT, flat_for_pct(floor)) if floor > 0 else 0
 
 
 def res_need(opts: object) -> int:
-    """Résistance fixe visée par élément (0 si pas de cible)."""
+    """Plancher par élément : cible − écart max. Au-dessus, aucune pénalité ; en dessous, pénalité forte."""
     t = int(getattr(opts, "res_target", 0) or 0)
-    return flat_for_pct(t) if t > 0 else 0
+    floor = t - int(getattr(opts, "res_tol", 5) or 0)
+    return flat_for_pct(floor) if t > 0 and floor > 0 else 0
 
 
 def gradient(f: dict[str, float], opts: object) -> dict[str, float]:

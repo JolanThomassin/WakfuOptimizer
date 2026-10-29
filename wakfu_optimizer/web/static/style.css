@@ -433,11 +433,5 @@ img.pat { width: 15px; height: 15px; vertical-align: -3px; }
   .items-grid.list .item .sub { grid-column: 3; }
 }
 @media (max-width: 700px) { .items-grid.list .item { grid-template-columns: 1fr; } .items-grid.list .item > * { grid-column: 1 !important; grid-row: auto !important; } }
-.res-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.res-row .stepper { width: 110px; }
-.res-pct { color: var(--muted); font-weight: 600; }
-.res-presets { display: flex; gap: 4px; margin-left: auto; }
-.res-presets button { border: 1px solid var(--line); background: var(--card-hi); color: var(--muted); border-radius: 6px; padding: 3px 7px;
-  font-size: 12px; cursor: pointer; }
-.res-presets button:hover { color: var(--accent); border-color: var(--accent); }
-.res-presets button.on { background: var(--accent); color: #1b1305; border-color: var(--accent); font-weight: 700; }
+.res-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.res-pair label { margin-bottom: 4px; }
