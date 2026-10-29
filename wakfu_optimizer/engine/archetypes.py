@@ -40,6 +40,7 @@ class Archetype:
     count_conditional: bool = True
     hide_range: bool = False          # la portée n'a pas de sens pour ce rôle (interface)
     mins: dict[str, int] = field(default_factory=dict)   # minimums en plus de ceux du niveau (ap, mp, wp)
+    utility: dict[str, tuple[float, int]] = field(default_factory=dict)   # PA/PM/PO/PW : (valeur, plafond), voir scoring.UTILITY
 
 
 ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
@@ -57,12 +58,12 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et tacle ; "
               "dégâts ensuite. Aptitudes : Force en PV, Chance en parade et résistances.",
               "tank", range="melee", hide_range=True, crit=False, res_target=70, res_tol=4, res_free=True,
-              offense=40, will=10),
+              offense=40, will=10, utility={"mp": (0.05, 6)}),
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
               "heal", heal=True, res_target=55, res_tol=5, offense=80, crit_floor=True),
     Archetype("support_buff", "Support buff", "Boosts / placement : PA, PM, PW et survie avant les dégâts. "
               "(Armure donnée non chiffrée.)", "support", crit=False, res_target=60, res_tol=5, offense=60,
-              mins={"ap": 11, "mp": 5, "wp": 8}),
+              mins={"ap": 11, "mp": 5, "wp": 8}, utility={"mp": (0.04, 6), "wp": (0.015, 14)}),
     Archetype("support_debuff", "Support débuff", "Retraits PA / PM : la Volonté compte beaucoup (+1 % de retrait "
               "par point, jusqu'à 100), puis PA, PM et survie.", "support", crit=False, res_target=60, res_tol=5,
               offense=55, will=45, mins={"ap": 11, "mp": 5}),
@@ -75,7 +76,7 @@ CONSTRAINT_FIELDS = ("min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min
                      "exclude_relic", "exclude_epic", "exclude_shop", "include_pet_mount")
 SUB_FIELDS = ("shard_mode", "shard_count", "max_jokers", "no_subs")
 # Toujours ceux de l'archétype (pas réglables dans l'interface)
-WEIGHT_FIELDS = ("offense_weight", "res_free", "willpower_weight", "crit_target")
+WEIGHT_FIELDS = ("offense_weight", "res_free", "willpower_weight", "crit_target", "utility")
 PANELS = {"priorities": PRIORITY_FIELDS, "constraints": CONSTRAINT_FIELDS, "subs": SUB_FIELDS}
 
 
@@ -108,6 +109,7 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
         # poids
         "offense_weight": arch.offense, "res_free": arch.res_free, "willpower_weight": arch.will,
         "crit_target": crit_target(level) if arch.crit_floor and arch.crit else 0,
+        "utility": {k: [v, cap] for k, (v, cap) in arch.utility.items()},
         # contraintes
         "min_ap": max(default_min_ap(level), arch.mins.get("ap", 0)),
         "min_mp": max(default_min_mp(level), arch.mins.get("mp", 0)),

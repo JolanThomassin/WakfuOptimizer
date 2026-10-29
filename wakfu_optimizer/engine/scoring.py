@@ -118,8 +118,13 @@ CRIT_SHORT_PENALTY = 1.0
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:
+    """Valeur (fraction de la valeur globale) et plafond de chaque PA/PM/PO/PW ; l'archétype peut les changer
+    (ex. tank : les PM comptent beaucoup pour se placer et porter)."""
     out = dict(UTILITY)
     out["range"] = RANGE_UTILITY.get(str(getattr(opts, "range", "melee")), RANGE_UTILITY["melee"])
+    for k, (v, cap) in (getattr(opts, "utility", None) or {}).items():
+        if k in out:
+            out[k] = (float(v), int(cap))
     return out
 
 

@@ -195,10 +195,6 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
                                        ("berserk", "Berserk"), ("heal", "Soin")) if getattr(opts, flag)]
     util = utility_table(opts)
     settings = [
-        {"label": "Poids attaque / défense", "value": f"{opts.offense_weight} % / {100 - opts.offense_weight} %", "src": "archétype"},
-        {"label": "Palier de critique", "value": f"{opts.crit_target} % (−{CRIT_SHORT_PENALTY:g} point par % manquant)"
-         if opts.crit_target else "aucun", "src": "archétype"},
-        {"label": "Poids de la Volonté", "value": str(opts.willpower_weight) if opts.willpower_weight else "aucun", "src": "archétype"},
         {"label": "Portée", "value": rng.get(opts.range, opts.range), "src": src("priorities")},
         {"label": "Maîtrises secondaires", "value": ", ".join(secondary) or "aucune", "src": src("priorities")},
         {"label": "Résistance visée", "value": (f"{opts.res_target} % ± {opts.res_tol} (−{RES_SHORT_PENALTY:g} point par point "
@@ -208,13 +204,37 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
                                                                            (opts.min_range, "PO"), (opts.min_wp, "PW"),
                                                                            (opts.min_crit, "% crit"), (opts.min_block, "% parade")) if v)
          or "aucun", "src": src("constraints")},
-        {"label": "Valeur de PA / PM / PO / PW", "value": " · ".join(
-            f"{lab} {100 * util[k][0]:g} pt jusqu'à {util[k][1]}" for k, lab in (("ap", "PA"), ("mp", "PM"), ("range", "PO"), ("wp", "PW"))),
-         "src": "archétype"},
         {"label": "Châsses", "value": {"ideal": f"idéales ({opts.shard_count} par item, {opts.max_jokers} joker max)",
                                        "mine": "mes couleurs", "none": "ignorées"}.get(opts.shard_mode, opts.shard_mode)
          + (" ; sans sublimations" if opts.no_subs else ""), "src": src("subs")},
     ]
+    # poids de chaque stat dans le score (1 point ≈ 1 % de valeur globale)
+    st = tot.stats
+    arch_util = set(arch.utility) if arch else set()
+    weights = [
+        {"label": "Dégâts", "weight": f"{opts.offense_weight} % du score", "detail": f"+1 % de dégâts ≈ {opts.offense_weight / 100:.2f} pt",
+         "now": f"×{tot.d2 / 1.6e9:.2f}", "cap": "", "src": "archétype"},
+        {"label": "Survie (PV effectifs)", "weight": f"{100 - opts.offense_weight} % du score",
+         "detail": f"+1 % de PV effectifs ≈ {(100 - opts.offense_weight) / 100:.2f} pt", "now": f"{tot.defense / 1e4:,.0f}".replace(",", " "),
+         "cap": "au-delà de la cible : compte encore" if opts.res_free else "", "src": "archétype"},
+    ]
+    for k, lab in (("ap", "PA"), ("mp", "PM"), ("range", "Portée"), ("wp", "PW")):
+        v, cap = util[k]
+        now = int(st.get(k, 0))
+        weights.append({"label": lab, "weight": f"{100 * v:g} pt par {lab}", "detail": "au-delà des minimums, jusqu'au plafond",
+                        "now": str(now), "cap": f"{cap}" + (" (atteint)" if now >= cap else ""),
+                        "src": "archétype" if k in arch_util else "commun", "boosted": k in arch_util})
+    if opts.willpower_weight:
+        weights.append({"label": "Volonté (retraits PA / PM)", "weight": f"poids {opts.willpower_weight}",
+                        "detail": "+1 % de retrait par point", "now": str(int(st.get("willpower", 0))), "cap": "100", "src": "archétype"})
+    if opts.crit and opts.crit_target:
+        weights.append({"label": "Palier de critique", "weight": f"−{CRIT_SHORT_PENALTY:g} pt par % manquant",
+                        "detail": "au-dessus du palier, seule la formule de dégâts compte",
+                        "now": f"{int(st.get('crit_rate', 0))} %", "cap": f"{opts.crit_target} % visé", "src": "archétype"})
+    if opts.res_target:
+        weights.append({"label": "Résistance sous le plancher", "weight": f"−{RES_SHORT_PENALTY:g} pt par point manquant",
+                        "detail": "par élément", "now": f"{min(tot.res_pct.values())} % (le plus faible)",
+                        "cap": f"{opts.res_target - opts.res_tol} % plancher", "src": "archétype"})
     parts = score_parts(tot.features, opts)
     score = [{"key": k, "label": FEATURE_FR.get(k, k), "points": round(v, 2)} for k, v in parts.items() if round(v, 2)]
     # aptitudes : profil de l'archétype et points placés
@@ -236,7 +256,7 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
                       "recommended": opts.archetype in recs, "class_recs": [ARCHETYPES[k].name for k in recs]},
         "class": cls.name if cls else opts.class_key, "level": opts.level,
         "crit_target_level": crit_target(opts.level),
-        "panels": panels, "settings": settings, "score": score, "total": round(sum(parts.values()), 2),
+        "panels": panels, "settings": settings, "weights": weights, "score": score, "total": round(sum(parts.values()), 2),
         "marginals": _marginals(opts, tot), "aptitudes": branches,
         "manual_apt": opts.char_mode == "manual",
         "checks": [asdict(c) for c in checks],

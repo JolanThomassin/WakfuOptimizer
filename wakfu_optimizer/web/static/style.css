@@ -660,3 +660,7 @@ body.side-collapsed .sidebar { opacity: 0; padding: 0; border: none; overflow: h
 .xline.off { color: var(--bad); }
 .empty-explain { padding: 24px; text-align: center; }
 @media (max-width: 600px) { .xgrid { grid-template-columns: 1fr; } .xbar { grid-template-columns: 1fr 1fr 48px; } }
+.xweights td:first-child { width: 22%; }
+.xweights tr.xth td { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; }
+.xweights tr.boost td:first-child { color: var(--rec); font-weight: 700; }
+.xweights td .muted { font-size: 12px; }

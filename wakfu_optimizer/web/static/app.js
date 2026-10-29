@@ -1382,8 +1382,11 @@ function renderExplain() {
   const bad = x.checks.filter((c) => !c.ok && c.severity === "error");
   badge.textContent = bad.length ? `${bad.length} ⚠` : "✓";
   badge.className = `badge ${bad.length ? "warnb" : "okb"}`;
-  const src = (v) => `<span class="src-tag ${v === "archétype" ? "arch" : "mine"}">${esc(v)}</span>`;
+  const src = (v) => `<span class="src-tag ${v === "vos réglages" ? "mine" : "arch"}">${esc(v)}</span>`;
   const panels = x.panels.map((p) => `<span class="src-tag ${p.on ? "mine" : "arch"}">${esc(p.name)} : ${p.on ? "vos réglages" : "archétype"}</span>`).join("");
+  const weights = (x.weights || []).map((w) => `<tr class="${w.boosted ? "boost" : ""}"><td>${esc(w.label)}</td>
+      <td><b>${esc(w.weight)}</b>${w.detail ? `<div class="muted">${esc(w.detail)}</div>` : ""}</td>
+      <td class="num">${esc(w.now)}</td><td class="num">${esc(w.cap)}</td><td>${src(w.src)}</td></tr>`).join("");
   const settings = x.settings.map((r) => `<tr><td>${esc(r.label)}</td><td>${esc(r.value)}</td><td>${src(r.src)}</td></tr>`).join("");
   const maxM = Math.max(0.01, ...x.marginals.map((m) => Math.abs(m.points)));
   const marg = [...x.marginals].filter((m) => m.points).sort((a, b) => b.points - a.points).map((m) =>
@@ -1405,6 +1408,10 @@ function renderExplain() {
         <p class="muted">Archétypes habituels : ${esc(x.archetype.class_recs.join(", "))}</p></div>
       <div class="xpanels">${panels}</div>
     </section>
+    <section class="card"><h2>Poids de chaque stat dans le calcul</h2>
+      <table class="xtable xweights"><tr class="xth"><td>Stat</td><td>Poids</td><td class="num">Au build</td><td class="num">Plafond</td><td></td></tr>${weights}</table>
+      <p class="hint">1 point de score ≈ 1 % de valeur globale. « archétype » : poids propre à l'archétype (surligné quand il remplace la
+        valeur commune) ; « commun » : même valeur pour tous les archétypes.</p></section>
     <div class="xgrid">
       <section class="card"><h2>Réglages utilisés par le calcul</h2>
         <table class="xtable">${settings}</table>

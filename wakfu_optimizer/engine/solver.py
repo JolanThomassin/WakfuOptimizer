@@ -1021,6 +1021,12 @@ class Optimizer:
             if WARM_START:
                 self._warm_start(bm, cand, opts, budget)
             best: tuple[float, Build, Totals] | None = None
+            # la résistance visée n'est qu'une pénalité pendant les passes : on garde aussi le meilleur build qui la respecte
+            best_ok: tuple[float, Build, Totals] | None = None
+            floor = opts.res_target - opts.res_tol
+
+            def res_ok(t: Totals) -> bool:
+                return opts.res_target <= 0 or min(t.res_pct.values()) >= floor
             seen: set[tuple[Any, ...]] = set()
             # le temps est réparti entre les passes : plus de temps = chaque passe va plus loin
             per_iter = min(PASS_CAP, budget / MAX_ITER)
@@ -1058,6 +1064,8 @@ class Optimizer:
                     stale += 1
                 if best is None or tot.score > best[0]:
                     best = (tot.score, b, tot)
+                if res_ok(tot) and (best_ok is None or tot.score > best_ok[0]):
+                    best_ok = (tot.score, b, tot)
                 # même build qu'avant : convergé seulement si la passe a fini (sinon elle a manqué de temps)
                 # deux passes sans progrès (après au moins trois passes) : on s'arrête, inutile d'attendre
                 if key in seen and st == cp_model.OPTIMAL or stale >= 2 and it >= 2:
@@ -1070,16 +1078,13 @@ class Optimizer:
             assert best is not None
             out_of_time = time.monotonic() - t0 >= budget - 2
             res.status = "optimal" if status_opt else "bon build (durée max atteinte)" if out_of_time else "bon build"
-            score, b, tot = best
-            b, added = fill_empty_subs(self.data, opts, b)
-            if opts.char_mode != "manual" and opts.optimize_characteristics:
-                filled = fill_unspent(b.characteristics, opts.level, self.data.game, opts.range, apt_profile(opts))
-                added += [] if filled == b.characteristics else ["aptitudes"]
-                b.characteristics = filled
-            if added:
-                tot = evaluate(self.data, opts, b)
-                score = tot.score
-            if opts.res_target > 0 and min(tot.res_pct.values()) < opts.res_target - opts.res_tol:
+            if not res_ok(best[2]):
+                if best_ok is None:   # aucune passe au-dessus du plancher : une dernière passe qui l'impose
+                    best_ok = self._floor_pass(bm, point, budget, t0)
+                if best_ok is not None:
+                    best = best_ok
+            score, b, tot = self._finish(best[1])
+            if not res_ok(tot):
                 # résistance minimum non atteinte : on n'affiche pas un build qui ne respecte pas la demande
                 return self._res_unreachable(res, cand, tot, t0, budget)
             b.status = res.status
@@ -1096,6 +1101,34 @@ class Optimizer:
         res.message = f"{res.status} en {res.elapsed:.1f} s ({res.candidates} items candidats)"
         self.progress("Terminé", 1.0)
         return res
+
+    def _finish(self, b: Build) -> tuple[float, Build, Totals]:
+        """Sublimations des châsses restées vides et points d'aptitude sans effet, dans l'ordre du profil."""
+        opts = self.opts
+        b, added = fill_empty_subs(self.data, opts, b)
+        if opts.char_mode != "manual" and opts.optimize_characteristics:
+            filled = fill_unspent(b.characteristics, opts.level, self.data.game, opts.range, apt_profile(opts))
+            added += [] if filled == b.characteristics else ["aptitudes"]
+            b.characteristics = filled
+        tot = evaluate(self.data, opts, b)
+        return tot.score, b, tot
+
+    def _floor_pass(self, bm: BuildModel, point: dict[str, float], budget: float,
+                    t0: float) -> tuple[float, Build, Totals] | None:
+        """Passe avec la résistance visée imposée (plancher strict sur chaque élément)."""
+        need = res_need(self.opts)
+        if not need:
+            return None
+        self.progress("Résistance visée : passe de rattrapage…", 0.95)
+        for e in ELEMENTS:
+            bm.m.Add(bm.res[e] >= need)
+        bm.set_linear_objective(gradient(point, self.opts))
+        st, sv = self._solve(bm, max(5.0, min(20.0, budget - (time.monotonic() - t0))))
+        if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            return None
+        b = bm.extract(sv)
+        tot = evaluate(self.data, self.opts, b)
+        return tot.score, b, tot
 
     # ----------------------------------------------------------- diagnostic
     def _infeasible(self, res: SolveResult, cand: dict[Slot, list[Item]], status: int, t0: float) -> SolveResult:
