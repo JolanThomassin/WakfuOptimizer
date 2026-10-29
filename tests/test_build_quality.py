@@ -62,6 +62,16 @@ def test_options_crâ_dps_distance(data: GameData) -> None:
     assert o.crit_target == crit_target(140) >= 30
     assert (o.min_ap, o.min_mp) == (default_min_ap(140), default_min_mp(140))
     assert o.shard_mode == "ideal" and o.no_subs and len(o.allowed_rarities) == 8   # panneau Sublimations désactivé
+    assert o.res_target - o.res_tol >= 55   # au moins 55 % partout au niveau 140, même à distance
+
+
+def test_resistance_visee_monte_avec_le_niveau(data: GameData) -> None:
+    for arch in ARCHETYPES:
+        floors = [archetype_options(data, "cra", lv, arch).res_target for lv in LEVELS]
+        assert floors == sorted(floors), f"{arch} : {floors}"
+    melee = archetype_options(data, "iop", 140, "dps_melee")
+    dist = archetype_options(data, "cra", 140, "dps_distance")
+    assert melee.res_target > dist.res_target   # au contact, on encaisse plus
 
 
 def test_options_tank_sans_critique(data: GameData) -> None:
@@ -145,10 +155,10 @@ def test_panneaux_desactives_utilisent_l_archetype(data: GameData) -> None:
             "crit": False, "min_crit": 80, "allowed_rarities": [4], "shard_mode": "none", "offense_weight": 10}
     off = opts_from({**sent, "panels": {k: False for k in PANELS}}, data)
     assert off.range == "distance" and off.crit and off.min_crit == 0 and len(off.allowed_rarities) == 8
-    assert off.shard_mode == "ideal" and off.offense_weight == 85 and off.custom_panels == ()
+    assert off.shard_mode == "ideal" and off.offense_weight == 97 and off.custom_panels == ()
     on = opts_from({**sent, "panels": {k: True for k in PANELS}}, data)
     assert on.range == "melee" and not on.crit and on.min_crit == 80 and on.allowed_rarities == (4,)
-    assert on.shard_mode == "none" and on.offense_weight == 85 and set(on.custom_panels) == set(PANELS)
+    assert on.shard_mode == "none" and on.offense_weight == 97 and set(on.custom_panels) == set(PANELS)
     assert off.elements == ("fire",)   # le panneau Personnage reste celui de l'utilisateur
 
 

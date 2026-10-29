@@ -47,7 +47,7 @@ function renderResult() {
       ${changed}
       <div class="sum-head">
         <img src="assets/classes/${v.class.key}.png" alt="">
-        <div><div class="name">${esc(v.class.name)}</div><div class="muted">Niveau ${v.level} · ${v.elements.map((e) => EL_FR[e]).join(", ")}</div>
+        <div><div class="name">${esc(v.class.name)}</div><div class="muted els">Niveau ${v.level} · ${v.elements.map((e) => icon(e, EL_FR[e])).join("")}</div>
           ${archName() ? `<div class="arch-tag" title="${esc(ARCHETYPES[S.opts.archetype].desc)}">${esc(archName())}</div>` : ""}</div>
         <div class="scores"><div title="${esc(ratingTip())}"><span class="muted">Score</span> <b>${rating(v)}/100</b></div>
           <div title="Maîtrise utilisée par vos sorts : élémentaire (élément le plus faible joué) + portée + secondaires comptées"><span class="muted">Maîtrise totale</span> <b>${fmt(v.mastery_used)}</b></div>

@@ -154,6 +154,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .sum-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 .sum-head img { width: 54px; height: 54px; border-radius: 10px; background: var(--card-hi); }
 .sum-head .name { font: 700 19px Georgia, serif; }
+.els { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.els .ic, .sum-head .els .ic { width: 20px; height: 20px; }
+.sum-head .els img { width: 20px; height: 20px; border-radius: 50%; background: none; }
 .sum-head .scores { margin-left: auto; text-align: right; font-size: 13px; }
 .sum-head .scores b { font-size: 15px; }
 .big4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 4px; }
@@ -679,3 +682,23 @@ body.side-collapsed .sidebar { opacity: 0; padding: 0; border: none; overflow: h
 .xline b { min-width: 22px; text-align: right; }
 .xline.off .xll { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(255, 112, 112, .5); }
 .xapt { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+/* Explication : objectifs du niveau */
+.xtarget + .xtarget { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.xtarget h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 14px; }
+.xtarget h3 .ic { width: 22px; height: 22px; }
+.xtarget .hint .ic { display: inline-grid; width: 18px; height: 18px; vertical-align: middle; }
+.xtarget .hint .ic img { max-width: 18px; max-height: 18px; }
+.xtarget .rec { color: var(--rec); }
+.xtarget .neg { color: var(--bad); }
+.xtiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 8px 0 4px; }
+.xtile { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 6px; padding: 7px 9px; border-radius: 8px;
+  background: var(--card-hi); border-left: 3px solid var(--ec); font-size: 13px; }
+.xtile .ic { width: 22px; height: 22px; grid-row: span 2; }
+.xtile b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.xtile small { grid-column: 2 / -1; font-size: 11.5px; }
+.xtile .xtbar { grid-column: 1 / -1; height: 5px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+.xtile .xtbar span { display: block; height: 100%; background: var(--ec); }
+.xtile.bad { box-shadow: inset 0 0 0 1px var(--bad); }
+.xtile.bad b { color: var(--bad); }
+.xtile.used { box-shadow: inset 0 0 0 1px var(--rec); }
+.xtile.unplayed { opacity: .55; }

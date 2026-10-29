@@ -10,11 +10,13 @@ from dataclasses import asdict, replace
 from typing import Any
 
 from ..data.models import ELEMENT_FR, ELEMENTS, GameData
-from .archetypes import ARCHETYPES, PANELS, apt_forced, apt_profile, class_archetypes, crit_target
+from .archetypes import (ARCHETYPES, PANELS, RES_FULL_LEVEL, Archetype, apt_forced, apt_profile, class_archetypes,
+                         crit_target, res_target)
 from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions
 from .quality import check_build
-from .scoring import CRIT_SHORT_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts, utility_table
+from .scoring import (CRIT_SHORT_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
+                      secondary_mastery, utility_table)
 from .stats import Totals, evaluate
 
 FEATURE_FR = {"offense": "Dégâts", "defense": "Survie (PV effectifs)", "ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW",
@@ -53,6 +55,39 @@ def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
         ("Volonté", "+10", gain(will=f["will"] + 10) if opts.willpower_weight else 0.0),
     ]
     return [{"label": lab, "unit": u, "points": p} for lab, u, p in rows]
+
+
+def _targets(opts: OptimizeOptions, arch: Archetype | None, tot: Totals) -> dict[str, Any]:
+    """Objectifs du niveau : résistance visée (par élément), maîtrise de portée ajoutée à chaque élément, critique."""
+    played = set(opts.played_elements())
+    floor = opts.res_target - opts.res_tol if opts.res_target else 0
+    mine = "priorities" in opts.custom_panels
+    want = res_target(arch, opts.level) if arch else opts.res_target
+    res = {"target": opts.res_target, "tol": opts.res_tol, "floor": floor, "mine": mine,
+           "lowered": not mine and opts.res_target < want, "wanted": want,
+           "full": arch.res_target if arch else opts.res_target, "full_level": RES_FULL_LEVEL,
+           "scaled": bool(arch and not arch.res_free), "free": opts.res_free,
+           "elements": [{"key": e, "name": ELEMENT_FR[e], "pct": tot.res_pct[e], "flat": tot.res_flat[e],
+                         "ok": tot.res_pct[e] >= floor} for e in ELEMENTS]}
+    st = tot.stats
+    melee, dist = st.get("melee_mastery", 0), st.get("distance_mastery", 0)
+    rng_val = 0 if opts.neutral_combo else secondary_mastery(melee, dist, opts.range)
+    rng_parts = {"melee": [("melee_mastery", "Maîtrise Mêlée", melee)],
+                 "distance": [("distance_mastery", "Maîtrise Distance", dist)]}.get(
+        opts.range, [("melee_mastery", "Maîtrise Mêlée", melee), ("distance_mastery", "Maîtrise Distance", dist)])
+    extra = [(k, lab, st.get(k, 0)) for flag, k, lab in (("berserk", "berserk_mastery", "Maîtrise Berserk"),
+                                                         ("heal", "heal_mastery", "Maîtrise Soin")) if getattr(opts, flag)]
+    weakest = min(tot.mastery[e] for e in played) if played else 0
+    mastery = {"range": opts.range, "range_value": rng_val, "neutral": opts.neutral_combo,
+               "parts": [{"stat": k, "label": lab, "value": v} for k, lab, v in rng_parts],
+               "extra": [{"stat": k, "label": lab, "value": v} for k, lab, v in extra],
+               "used": tot.mastery_used,
+               "elements": [{"key": e, "name": ELEMENT_FR[e], "elem": tot.mastery[e],
+                             "total": tot.mastery[e] + rng_val + sum(v for _k, _l, v in extra),
+                             "played": e in played, "weakest": e in played and tot.mastery[e] == weakest}
+                            for e in ELEMENTS]}
+    crit = {"target": opts.crit_target, "value": st.get("crit_rate", 0)} if opts.crit and opts.crit_target else None
+    return {"res": res, "mastery": mastery if opts.offense_weight else None, "crit": crit}
 
 
 def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) -> dict[str, Any]:
@@ -142,9 +177,10 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
         "class": cls.name if cls else opts.class_key, "level": opts.level,
         "crit_target_level": crit_target(opts.level),
         "panels": panels, "settings": settings, "weights": weights, "score": score, "total": round(sum(parts.values()), 2),
-        "marginals": _marginals(opts, tot), "aptitudes": branches,
+        "marginals": _marginals(opts, tot), "aptitudes": branches, "targets": _targets(opts, arch, tot),
         "manual_apt": opts.char_mode == "manual",
         "checks": [asdict(c) for c in checks],
         "elements": [ELEMENT_FR[e] for e in opts.elements if e in ELEMENTS],
+        "element_keys": [e for e in opts.elements if e in ELEMENTS],
         "panel_fields": {k: list(v) for k, v in PANELS.items()},
     }

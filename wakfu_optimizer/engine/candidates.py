@@ -34,16 +34,20 @@ def item_features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
     rr_n = max([n for _, n in it.random_resistance], default=0)
     f = [g("ap"), g("mp"), g("range"), g("wp"), g("control")]
     if opts.offense_weight > 0:
-        f += [g("elem_mastery") + g(f"{e}_mastery") for e in played]
+        # maîtrise de portée : elle s'ajoute à chaque sort, quel que soit l'élément (comme la maîtrise élémentaire),
+        # donc comptée dans chaque élément joué. Exact pour la dominance : min(élém.) + portée = min(élém. + portée).
+        # Mixte : moitié mêlée, moitié distance (tout est doublé pour rester en entiers).
+        rng, k = 0, 1
+        if opts.range == "mixed" and not opts.neutral_combo:
+            rng, k = g("melee_mastery") + g("distance_mastery"), 2
+        elif opts.range in ("melee", "distance") and not opts.neutral_combo:
+            rng = g(f"{opts.range}_mastery")
+        f += [k * (g("elem_mastery") + g(f"{e}_mastery")) + rng for e in played]
         f += [rm_v, rm_n, g("dmg_pct")]
         if opts.neutral_combo:   # maîtrises secondaires à 0 ou moins : plus elles sont basses, plus on a de marge
             f.append(-sum(g(k) for k in SECONDARY_MASTERIES))
-        elif opts.range == "mixed":
-            f.append(g("melee_mastery") + g("distance_mastery"))
         elif opts.range == "best":   # la meilleure des deux : chacune est utile
             f += [g("melee_mastery"), g("distance_mastery")]
-        else:
-            f.append(g("melee_mastery" if opts.range == "melee" else "distance_mastery"))
         if opts.crit:
             f += [g("crit_rate"), g("crit_mastery")]
         if opts.rear:

@@ -1,6 +1,58 @@
 "use strict";
 // Onglet Explication (outil de débogage du calcul).
 
+// ===================================================================== objectifs du niveau
+// Résistance visée à ce niveau (par élément), maîtrise de portée ajoutée à chaque élément, palier de critique.
+const pctFr = (n) => `${String(n).replace(".", ",")} %`;
+function renderTargets(x) {
+  const t = x.targets;
+  if (!t) return "";
+  const r = t.res, arch = esc(x.archetype.name);
+  let resWhy;
+  if (r.mine) resWhy = "Votre réglage (panneau Priorités activé).";
+  else if (r.lowered) resWhy = `L'archétype vise ${r.wanted} % à ce niveau, impossible ici : visée abaissée au maximum atteignable.`;
+  else if (r.free) resWhy = `Un ${arch} vise ${r.full} % à tout niveau, et la résistance compte encore au-delà.`;
+  else if (r.scaled && x.level < r.full_level) resWhy = `Les dégâts reçus montent avec le niveau : un ${arch} vise ${r.target} % au niveau ${x.level}, `
+    + `${r.full} % à partir du niveau ${r.full_level}.`;
+  else resWhy = `Un ${arch} vise ${r.target} % à partir du niveau ${r.full_level}.`;
+  const resTiles = r.elements.map((e) => `<div class="xtile ${e.ok ? "ok" : "bad"}" style="--ec:var(--${e.key})" title="${fmt(e.flat)} de résistance fixe">
+      ${icon(`${e.key}_res`, `Résistance ${e.name}`)}<span class="xtn">${esc(e.name)}</span><b>${pctFr(e.pct)}</b>
+      <span class="xtbar"><span style="width:${Math.min(100, (100 * e.pct) / Math.max(1, r.target)).toFixed(0)}%"></span></span>
+      <small class="muted">${e.ok ? "✓" : `✗ ${r.floor - e.pct} % manquant${r.floor - e.pct > 1 ? "s" : ""}`}</small></div>`).join("");
+  const res = r.target ? `<div class="xtarget">
+      <h3>${icon("elem_res", "Résistances")} Résistances : au moins ${pctFr(r.floor)} sur chaque élément <span class="muted">(${pctFr(r.target)} visé, ± ${r.tol})</span></h3>
+      <p class="hint">${resWhy} Sous ${pctFr(r.floor)}, chaque point de résistance manquant coûte au score ; entre ${pctFr(r.floor)} et ${pctFr(r.target)}, aucun malus${r.free ? "."
+        : ` ; au-delà de ${pctFr(r.floor)}, la résistance ne rapporte plus rien : le reste part dans les autres stats${x.weights.some((w) => w.stat === "dmg_pct" && w.pts >= 0.95) ? " (ici, les maîtrises)" : ""}.`}</p>
+      <div class="xtiles">${resTiles}</div></div>`
+    : `<div class="xtarget"><h3>${icon("elem_res", "Résistances")} Résistances : aucune visée</h3></div>`;
+
+  let mast = "";
+  const m = t.mastery;
+  if (m) {
+    const rngTxt = m.neutral ? "Combo Neutralité : les maîtrises de portée ne comptent pas (elles doivent rester à 0 ou moins)."
+      : m.range === "mixed" ? `Moitié mêlée, moitié distance : (${fmt(m.parts[0].value)} + ${fmt(m.parts[1].value)}) / 2 = ${fmt(m.range_value)}.`
+      : m.range === "best" ? `La meilleure des deux compte (passif de classe) : ${fmt(m.range_value)}.` : "";
+    const extra = m.extra.filter((e) => e.value).map((e) => ` + ${icon(e.stat, e.label)} ${fmt(e.value)}`).join("");
+    const parts = m.parts.map((p) => `${icon(p.stat, p.label)} ${esc(p.label)} <b>${fmt(p.value)}</b>`).join(" · ");
+    const tiles = m.elements.map((e) => `<div class="xtile ${e.played ? "" : "unplayed"} ${e.weakest ? "used" : ""}" style="--ec:var(--${e.key})"
+        title="${e.played ? (e.weakest ? "Élément joué le plus faible : c'est lui qui compte pour le score" : "Élément joué") : "Élément non joué"}">
+      ${icon(`${e.key}_mastery`, `Maîtrise ${e.name}`)}<span class="xtn">${esc(e.name)}</span><b>${fmt(e.total)}</b>
+      <small class="muted">${fmt(e.elem)} + ${fmt(m.range_value)}${extra ? " + …" : ""}</small>
+      <small class="${e.weakest ? "rec" : "muted"}">${e.weakest ? "★ utilisée" : e.played ? "jouée" : "non jouée"}</small></div>`).join("");
+    mast = `<div class="xtarget">
+      <h3>${icon(m.range === "melee" ? "melee_mastery" : "distance_mastery", "Maîtrise de portée")} Maîtrise de portée : +${fmt(m.range_value)} dans chaque élément</h3>
+      <p class="hint">${parts}. Elle s'ajoute à tous vos sorts${m.range === "melee" ? " au corps-à-corps" : m.range === "distance" ? " à distance" : ""},
+        quel que soit leur élément : le calcul la compte comme autant de maîtrise dans chacun des éléments. ${rngTxt}</p>
+      <div class="xtiles">${tiles}</div>
+      <p class="hint">Maîtrise utilisée par le calcul : <b>${fmt(m.used)}</b> = élément joué le plus faible + portée${extra}.</p></div>`;
+  }
+  const c = t.crit;
+  const crit = c ? `<div class="xtarget"><h3>${icon("crit_rate", "Critique")} Critique : palier de ${pctFr(c.target)} au niveau ${x.level}
+      <span class="${c.value >= c.target ? "rec" : "neg"}">(vous : ${pctFr(c.value)})</span></h3>
+      <p class="hint">Ce que les joueurs atteignent à ce niveau ; chaque % manquant coûte au score.</p></div>` : "";
+  return `<section class="card xwide"><h2>Objectifs au niveau ${x.level}</h2>${res}${mast}${crit}</section>`;
+}
+
 // ===================================================================== onglet Explication
 // Ce que l'algorithme a privilégié pour ce personnage et cet archétype (outil de débogage), mis à jour à chaque calcul.
 function renderExplain() {
@@ -40,11 +92,12 @@ function renderExplain() {
   <div class="explain">
     <section class="card xhead">
       <div><h2>${esc(x.archetype.name)} ${x.archetype.recommended ? '<span class="src-tag rec">★ habituel pour la classe</span>' : '<span class="src-tag warnt">peu joué avec cette classe</span>'}</h2>
-        <p class="muted">${esc(x.class)} niveau ${x.level} · ${esc(x.elements.join(", "))}</p>
+        <p class="muted els">${esc(x.class)} niveau ${x.level} · ${x.element_keys.map((e) => icon(e, EL_FR[e])).join("")}</p>
         <div class="xfocus"><span class="muted">Priorité :</span>${(x.archetype.focus || []).map((f, i) =>
           `${i ? `<span class="muted">›</span>` : ""}<span class="xw boost">${icon(f.stat, f.label)}<span>${esc(f.label)}</span></span>`).join("")}</div></div>
       <div class="xpanels">${panels}</div>
     </section>
+    ${renderTargets(x)}
     <section class="card"><h2>Poids de chaque stat dans le calcul</h2>
       <div class="xweights">${weights}</div>
       <p class="hint">Points de score par unité (survol : unité) ; 1 point ≈ 1 % de valeur globale. En vert : poids propre à l'archétype.</p></section>

@@ -37,7 +37,7 @@ async function exportPng(v) {
   const srcs = new Set([`assets/classes/${v.class.key}.png`, ...v.items.map((it) => iconUrl(it.gfx))]);
   ["health_points", "action_points", "movement_points", "wakfu_points", "range", "critical_hit", "block", "damage_inflicted",
    "melee_mastery", "distance_mastery", "critical_mastery", "rear_mastery", "berserk_mastery", "healing_mastery"].forEach((n) => srcs.add(`assets/stats/${n}.png`));
-  ELEMENTS.forEach((e) => { srcs.add(`assets/stats/${e}_mastery.png`); srcs.add(`assets/stats/${e}_res.png`); });
+  ELEMENTS.forEach((e) => { srcs.add(`assets/stats/${e}_mastery.png`); srcs.add(`assets/stats/${e}_res.png`); srcs.add(`assets/stats/${e}_coin.png`); });
   Object.values(SHARD_FILE).forEach((c) => { srcs.add(`assets/shards/shard${c}Full.png`); srcs.add(`assets/shards/shard${c}Empty.png`); });
   const imgs = {};
   await Promise.all([...srcs].map(async (src) => { imgs[src] = await loadImg(src); }));
@@ -71,7 +71,8 @@ async function exportPng(v) {
   box(P, P, 96, 96, "#2d2a3e", "#e8a93a", 18);
   img(`assets/classes/${v.class.key}.png`, P + 8, P + 8, 80);
   text(v.class.name, P + 116, P + 34, 34, "#e8a93a", 800);
-  text(`Niveau ${v.level} · ${v.elements.map((e) => EL_FR[e]).join(", ")}`, P + 116, P + 72, 18, "#a29eb8");
+  const lw = text(`Niveau ${v.level} ·`, P + 116, P + 72, 18, "#a29eb8");
+  v.elements.forEach((e, i) => img(`assets/stats/${e}_coin.png`, P + 124 + lw + i * 28, P + 60, 24));
   [["Score", v.score.toFixed(1)], ["Dégâts", `×${v.damage.toFixed(2)}`], ["PV effectifs", nf(v.ehp)]].forEach(([lab, val], i) => {
     const x = W - P - (3 - i) * 160 + 10;
     box(x, P + 8, 150, 80, "#232130");

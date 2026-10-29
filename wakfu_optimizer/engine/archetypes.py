@@ -31,8 +31,8 @@ class Archetype:
     rear_share: int = 50
     berserk: bool = False
     heal: bool = False
-    res_target: int = 50
-    res_tol: int = 6
+    res_target: int = 65              # % de résistance visé à haut niveau (plus bas avant : voir res_target)
+    res_tol: int = 5
     res_free: bool = False            # la résistance compte encore au-delà de la cible (tank)
     offense: int = 85                 # poids de l'attaque (la défense prend le reste)
     will: int = 0                     # poids de la Volonté (retraits PA / PM)
@@ -46,21 +46,23 @@ class Archetype:
 
 ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     Archetype("dps_melee", "DPS mêlée", "Dégâts au corps-à-corps : Maîtrise mêlée et critique, et de bonnes résistances "
-              "(au contact, on encaisse).", "dps", range="melee", res_target=55, res_tol=5, crit_floor=True,
+              "(au contact, on encaisse).", "dps", range="melee", res_target=70, crit_floor=True,
               focus=(("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
-    Archetype("dps_distance", "DPS distance", "Dégâts à distance : Maîtrise distance, critique et un peu de portée.",
-              "dps", range="distance", crit_floor=True,
+    # attaque à 97 : une fois le plancher de résistance atteint (pénalité res_short), tout part dans les maîtrises
+    Archetype("dps_distance", "DPS distance", "Dégâts à distance : assez de résistances pour le niveau, puis tout "
+              "dans les maîtrises (distance, élémentaire, critique) et un peu de portée.", "dps", range="distance",
+              offense=97, crit_floor=True,
               focus=(("distance_mastery", "Maîtrise distance"), ("crit_rate", "Critique"), ("ap", "PA"), ("range", "Portée"))),
     Archetype("dps_mixed", "DPS mixte", "Frappe au contact comme à distance (Huppermage, Eliotrope…).",
               "dps", range="mixed", crit_floor=True,
               focus=(("elem_mastery", "Maîtrise élémentaire"), ("crit_rate", "Critique"), ("ap", "PA"))),
     Archetype("dps_rear", "DPS dos", "Coups dans le dos (Sram) : Maîtrise dos prioritaire, avec de bonnes résistances "
-              "(au contact, on encaisse).", "dps", range="melee", rear=True, rear_share=80, res_target=55, res_tol=5,
+              "(au contact, on encaisse).", "dps", range="melee", rear=True, rear_share=80, res_target=70,
               offense=88, crit_floor=True,
               focus=(("rear_mastery", "Maîtrise dos"), ("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"),
                      ("elem_res", "Résistances"))),
     Archetype("berserk", "Berserk", "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances un peu plus basses.",
-              "dps", range="melee", berserk=True, res_target=50, offense=88, crit_floor=True,
+              "dps", range="melee", berserk=True, res_target=60, offense=88, crit_floor=True,
               count_conditional=False, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
                                               ("crit_rate", "Critique"), ("hp", "PV"))),
     Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et tacle ; "
@@ -69,14 +71,14 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
               offense=0, utility={"mp": (0.05, 6)},   # un tank ne compte ni ses dégâts ni sa Volonté
               focus=(("hp", "PV"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
-              "heal", heal=True, res_target=55, res_tol=5, offense=80, crit_floor=True,
+              "heal", heal=True, offense=80, crit_floor=True,
               focus=(("heal_mastery", "Maîtrise soin"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
     Archetype("support_buff", "Support buff", "Boosts / placement : PA, PM, PW et survie avant les dégâts. "
-              "(Armure donnée non chiffrée.)", "support", crit=False, res_target=60, res_tol=5, offense=60,
+              "(Armure donnée non chiffrée.)", "support", crit=False, res_target=67, offense=60,
               mins={"ap": 11, "mp": 5, "wp": 8}, utility={"mp": (0.04, 6), "wp": (0.015, 14)},
               focus=(("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("elem_res", "Résistances"))),
     Archetype("support_debuff", "Support débuff", "Retraits PA / PM : la Volonté compte beaucoup (+1 % de retrait "
-              "par point, jusqu'à 100), puis PA, PM et survie.", "support", crit=False, res_target=60, res_tol=5,
+              "par point, jusqu'à 100), puis PA, PM et survie.", "support", crit=False, res_target=67,
               offense=55, will=45, mins={"ap": 11, "mp": 5},
               focus=(("willpower", "Volonté"), ("ap", "PA"), ("mp", "PM"), ("elem_res", "Résistances"))),
 )}
@@ -98,6 +100,23 @@ def crit_target(level: int) -> int:
     return min(50, max(10, round(level * 2 / 9)))
 
 
+# Résistance visée selon le niveau : les dégâts reçus montent avec le niveau, la résistance attendue aussi.
+# Cible de l'archétype atteinte au niveau RES_FULL_LEVEL, RES_PER_LEVEL % de moins par niveau en dessous
+# (DPS distance : 60 % ± 5 au niveau 140, soit au moins 55 % partout ; 65 % ± 5 à partir du 160).
+RES_FULL_LEVEL = 160
+RES_PER_LEVEL = 0.25
+RES_MIN_TARGET = 25
+
+
+def res_target(arch: Archetype, level: int) -> int:
+    """% de résistance visé par l'archétype à ce niveau (le plancher est res_tol en dessous). Le tank vise sa
+    cible à tout niveau (s'il ne l'atteint pas, le solveur l'abaisse au maximum possible)."""
+    if arch.res_free or level >= RES_FULL_LEVEL:
+        return arch.res_target
+    lower = round(arch.res_target - (RES_FULL_LEVEL - level) * RES_PER_LEVEL)
+    return min(arch.res_target, max(RES_MIN_TARGET, lower))
+
+
 def class_archetypes(data: GameData, class_key: str) -> list[str]:
     """Archétypes habituels de la classe (game.yaml), le plus joué en premier."""
     spec = data.game.get("classes", {}).get(class_key, {})  # type: ignore[union-attr]
@@ -116,7 +135,7 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
     return {
         # priorités
         "range": rng, "crit": arch.crit, "rear": arch.rear, "rear_share": arch.rear_share, "berserk": arch.berserk,
-        "heal": arch.heal, "res_target": arch.res_target, "res_tol": arch.res_tol,
+        "heal": arch.heal, "res_target": res_target(arch, level), "res_tol": arch.res_tol,
         "count_conditional": arch.count_conditional,
         # poids
         "offense_weight": arch.offense, "res_free": arch.res_free, "willpower_weight": arch.will,
@@ -261,10 +280,10 @@ def preset(data: GameData, archetype: str, class_key: str, level: int) -> dict[s
     return profile_points(archetype_options(data, class_key, level, archetype), data.game)
 
 
-def meta_archetypes() -> list[dict[str, Any]]:
-    """Archétypes pour l'interface (ordre d'affichage)."""
+def meta_archetypes(levels: list[int]) -> list[dict[str, Any]]:
+    """Archétypes pour l'interface (ordre d'affichage). `res_by_level` : résistance visée à chaque niveau proposé."""
     return [{"key": a.key, "name": a.name, "desc": a.desc, "role": a.role, "range": a.range, "crit": a.crit,
              "rear": a.rear, "rear_share": a.rear_share, "berserk": a.berserk, "heal": a.heal,
-             "res": [a.res_target, a.res_tol], "offense": a.offense, "will": a.will, "res_free": a.res_free,
+             "res": [a.res_target, a.res_tol], "res_by_level": {lv: res_target(a, lv) for lv in levels}, "offense": a.offense, "will": a.will, "res_free": a.res_free,
              "crit_floor": a.crit_floor, "hide_range": a.hide_range, "mins": dict(a.mins),
              "count_conditional": a.count_conditional} for a in ARCHETYPES.values()]

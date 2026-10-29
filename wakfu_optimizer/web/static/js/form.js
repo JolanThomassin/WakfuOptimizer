@@ -75,6 +75,7 @@ function buildForm() {
     const l = m.levels.find((x) => x.level === +$("#level").value);
     const a = ARCHETYPES[$("#archetype").value];
     if (a) resetConstraints(a); else if (l) { $("#min_ap").value = l.min_ap; $("#min_mp").value = l.min_mp; }
+    if (a && !isPanelOn("priorities")) { $("#res_target").value = archRes(a); refreshVis(); }
     trimApt();
     renderApt();
   });
@@ -164,11 +165,14 @@ function applyArchetype(key, cls) {
   setSeg("range", a.range || (cls && cls.range) || segVal("range") || "distance");
   toggleBtn($("#crit"), a.crit); toggleBtn($("#rear"), a.rear); toggleBtn($("#berserk"), a.berserk); toggleBtn($("#heal"), a.heal);
   setSeg("rear_share", String(a.rear_share >= 70 ? 80 : a.rear_share <= 35 ? 25 : 50));
-  $("#res_target").value = a.res[0]; $("#res_tol").value = a.res[1];
+  $("#res_target").value = archRes(a); $("#res_tol").value = a.res[1];
   $("#cond").checked = !!a.count_conditional;
   resetConstraints(a);
   refreshVis();
 }
+
+// Résistance visée par l'archétype au niveau choisi (elle monte avec le niveau, voir archetypes.res_target)
+const archRes = (a) => (a.res_by_level && a.res_by_level[+$("#level").value]) ?? a.res[0];
 
 // Contraintes de l'archétype (panneau Contraintes désactivé : c'est ce que le serveur utilisera)
 function resetConstraints(a) {

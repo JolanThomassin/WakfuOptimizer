@@ -213,7 +213,7 @@ def meta(d: GameData, settings: dict[str, Any]) -> dict[str, Any]:
         "classes": [{"key": k, "name": c.name, "elements": list(c.elements), "range": c.range, "role": c.role,
                      "rear": c.rear, "berserk": c.berserk, "archetypes": class_archetypes(d, k)}
                     for k, c in sorted(d.classes.items(), key=lambda kv: kv[1].name)],
-        "archetypes": meta_archetypes(),
+        "archetypes": meta_archetypes(levels),
         "levels": [{"level": lv, "min_ap": default_min_ap(lv), "min_mp": default_min_mp(lv)} for lv in levels],
         "elements": [{"key": e, "name": ELEMENT_FR[e]} for e in ELEMENTS],
         "rarities": [{"id": int(r), "name": RARITY_FR[r], "color": RARITY_COLOR[r]} for r in Rarity],
