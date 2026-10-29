@@ -1,0 +1,89 @@
+[
+ {
+  "definition": {
+   "id": 101,
+   "equipmentPositions": [
+    "FIRST_WEAPON"
+   ],
+   "equipmentDisabledPositions": [
+    "SECOND_WEAPON"
+   ],
+   "isRecyclable": true,
+   "isVisibleInAnimation": true
+  },
+  "title": {
+   "fr": "Hache (Deux mains)"
+  }
+ },
+ {
+  "definition": {
+   "id": 103,
+   "equipmentPositions": [
+    "LEFT_HAND",
+    "RIGHT_HAND"
+   ],
+   "equipmentDisabledPositions": [],
+   "isRecyclable": true,
+   "isVisibleInAnimation": true
+  },
+  "title": {
+   "fr": "Anneau"
+  }
+ },
+ {
+  "definition": {
+   "id": 119,
+   "equipmentPositions": [
+    "LEGS"
+   ],
+   "equipmentDisabledPositions": [],
+   "isRecyclable": true,
+   "isVisibleInAnimation": true
+  },
+  "title": {
+   "fr": "Bottes"
+  }
+ },
+ {
+  "definition": {
+   "id": 120,
+   "equipmentPositions": [
+    "NECK"
+   ],
+   "equipmentDisabledPositions": [],
+   "isRecyclable": true,
+   "isVisibleInAnimation": true
+  },
+  "title": {
+   "fr": "Amulette"
+  }
+ },
+ {
+  "definition": {
+   "id": 134,
+   "equipmentPositions": [
+    "HEAD"
+   ],
+   "equipmentDisabledPositions": [],
+   "isRecyclable": true,
+   "isVisibleInAnimation": true
+  },
+  "title": {
+   "fr": "Casque"
+  }
+ },
+ {
+  "definition": {
+   "id": 582,
+   "equipmentPositions": [
+    "PET"
+   ],
+   "equipmentDisabledPositions": [],
+   "isRecyclable": true,
+   "isVisibleInAnimation": true
+  },
+  "title": {
+   "fr": "Familier"
+  }
+ }
+]

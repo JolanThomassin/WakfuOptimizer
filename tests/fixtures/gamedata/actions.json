@@ -1,0 +1,190 @@
+[
+ {
+  "definition": {
+   "id": 20,
+   "effect": "Boost : Point de vie (PV)"
+  },
+  "description": {
+   "fr": "[#charac HP] [#1] PV",
+   "en": "[#charac HP] [#1] PV"
+  }
+ },
+ {
+  "definition": {
+   "id": 31,
+   "effect": "Boost : PA"
+  },
+  "description": {
+   "fr": "[#charac AP] [#1] PA",
+   "en": "[#charac AP] [#1] PA"
+  }
+ },
+ {
+  "definition": {
+   "id": 39,
+   "effect": "Gain : charac passée en paramètre"
+  },
+  "description": {
+   "fr": "[#1]{[~2]?%:} [#3]",
+   "en": "[#1]{[~2]?%:} [#3]"
+  }
+ },
+ {
+  "definition": {
+   "id": 40,
+   "effect": "Perte : charac passée en paramètre"
+  },
+  "description": {
+   "fr": "-[#1]{[~2]? %:} [#3]",
+   "en": "-[#1]{[~2]? %:} [#3]"
+  }
+ },
+ {
+  "definition": {
+   "id": 41,
+   "effect": "Boost : PM"
+  },
+  "description": {
+   "fr": "[#charac MP] [#1] PM",
+   "en": "[#charac MP] [#1] PM"
+  }
+ },
+ {
+  "definition": {
+   "id": 82,
+   "effect": "Gain : Résistance Feu"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 83,
+   "effect": "Gain : Résistance Eau"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 84,
+   "effect": "Gain : Résistance Terre"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 85,
+   "effect": "Gain : Résistance Air"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 120,
+   "effect": "Gain : Maîtrise Élémentaire"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 149,
+   "effect": "Gain : Maîtrise Critique"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 150,
+   "effect": "Gain : Coup Critique (%)"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 160,
+   "effect": "Gain : Portée"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 173,
+   "effect": "Gain : Tacle"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 175,
+   "effect": "Gain : Esquive"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 304,
+   "effect": "State : Applique un état"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 1068,
+   "effect": "Gain : Maîtrise Élémentaire dans un nombre variable d'éléments"
+  },
+  "description": {
+   "fr": "x",
+   "en": "x"
+  }
+ },
+ {
+  "definition": {
+   "id": 1052,
+   "effect": "Gain : Maîtrise Mêlée"
+  },
+  "description": {
+   "fr": "Gain : Maîtrise Mêlée"
+  }
+ },
+ {
+  "definition": {
+   "id": 400,
+   "effect": "NullEffect"
+  },
+  "description": {
+   "fr": "NullEffect"
+  }
+ }
+]

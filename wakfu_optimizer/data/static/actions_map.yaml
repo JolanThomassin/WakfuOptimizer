@@ -1,0 +1,114 @@
+# Table actionId -> statistique, pour les effets d'équipement (equipEffects).
+#
+# Construite à partir de actions.json et items.json, version CDN 1.93.1.62
+# (66 actionId distincts utilisés par les équipements). Régénérer le rapport
+# après un patch avec :  python -m wakfu_optimizer.data.explore
+# Tout actionId utilisé par un équipement mais absent d'ici est signalé.
+#
+# Valeur d'un effet (vérifié sur les données) :
+#   valeur = params[0] + params[1] * niveau
+# Pour un équipement normal, params[1] vaut 0 : la valeur est params[0].
+# params[1] n'est non nul que pour les familiers/montures (niveau du familier,
+# 50 max) et les armes « Makabra » de niveau 0-1 (qui suivent le niveau du
+# personnage). Les autres params (ex. [6, 0, 1, 0, 0, 0] pour les PV) ne
+# changent pas la valeur.
+#
+# Champs :
+#   stat : clé interne de la statistique
+#   sign : +1 bonus, -1 malus (la valeur brute est toujours positive dans le JSON)
+#   kind : flat (défaut) | random_elements | charac_param | state | ignore
+#   fr   : libellé, pour les rapports
+#   todo : hypothèse non vérifiée
+
+actions:
+  # --- Points et caractéristiques de base -------------------------------
+  20:   {stat: hp,               sign: 1,  fr: "PV"}
+  21:   {stat: hp,               sign: -1, fr: "PV (malus)"}
+  31:   {stat: ap,               sign: 1,  fr: "PA"}
+  56:   {stat: ap,               sign: -1, fr: "PA max (malus)"}
+  41:   {stat: mp,               sign: 1,  fr: "PM"}
+  57:   {stat: mp,               sign: -1, fr: "PM max (malus)"}
+  191:  {stat: wp,               sign: 1,  fr: "PW"}
+  192:  {stat: wp,               sign: -1, fr: "PW max (malus)"}
+  160:  {stat: range,            sign: 1,  fr: "Portée"}
+  161:  {stat: range,            sign: -1, fr: "Portée (malus)"}
+  150:  {stat: crit_rate,        sign: 1,  fr: "% Coup critique"}
+  168:  {stat: crit_rate,        sign: -1, fr: "% Coup critique (malus)"}
+  875:  {stat: block,            sign: 1,  fr: "% Parade"}
+  876:  {stat: block,            sign: -1, fr: "% Parade (malus)"}
+  171:  {stat: initiative,       sign: 1,  fr: "Initiative"}
+  172:  {stat: initiative,       sign: -1, fr: "Initiative (malus)"}
+  173:  {stat: lock,             sign: 1,  fr: "Tacle"}
+  174:  {stat: lock,             sign: -1, fr: "Tacle (malus)"}
+  175:  {stat: dodge,            sign: 1,  fr: "Esquive"}
+  176:  {stat: dodge,            sign: -1, fr: "Esquive (malus)"}
+  177:  {stat: willpower,        sign: 1,  fr: "Volonté"}
+  162:  {stat: prospecting,      sign: 1,  fr: "Prospection"}
+  166:  {stat: wisdom,           sign: 1,  fr: "Sagesse"}
+  183:  {stat: armor_given_pct,  sign: 1,  fr: "% Armure donnée"}
+  185:  {stat: armor_received_pct, sign: 1, fr: "% Armure reçue"}
+
+  # --- Maîtrises -----------------------------------------------------------
+  120:  {stat: elem_mastery,     sign: 1,  fr: "Maîtrise Élémentaire (4 éléments)"}
+  130:  {stat: elem_mastery,     sign: -1, fr: "Maîtrise Élémentaire (malus)"}
+  122:  {stat: fire_mastery,     sign: 1,  fr: "Maîtrise Feu"}
+  132:  {stat: fire_mastery,     sign: -1, fr: "Maîtrise Feu (malus)"}
+  123:  {stat: earth_mastery,    sign: 1,  fr: "Maîtrise Terre"}
+  124:  {stat: water_mastery,    sign: 1,  fr: "Maîtrise Eau"}
+  125:  {stat: air_mastery,      sign: 1,  fr: "Maîtrise Air"}
+  1052: {stat: melee_mastery,    sign: 1,  fr: "Maîtrise Mêlée"}
+  1059: {stat: melee_mastery,    sign: -1, fr: "Maîtrise Mêlée (malus)"}
+  1053: {stat: distance_mastery, sign: 1,  fr: "Maîtrise Distance"}
+  1060: {stat: distance_mastery, sign: -1, fr: "Maîtrise Distance (malus)"}
+  1055: {stat: berserk_mastery,  sign: 1,  fr: "Maîtrise Berserk"}
+  1061: {stat: berserk_mastery,  sign: -1, fr: "Maîtrise Berserk (malus)"}
+  149:  {stat: crit_mastery,     sign: 1,  fr: "Maîtrise Critique"}
+  1056: {stat: crit_mastery,     sign: -1, fr: "Maîtrise Critique (malus)"}
+  180:  {stat: rear_mastery,     sign: 1,  fr: "Maîtrise Dos"}
+  181:  {stat: rear_mastery,     sign: -1, fr: "Maîtrise Dos (malus)"}
+  26:   {stat: heal_mastery,     sign: 1,  fr: "Maîtrise Soin"}
+
+  # --- Résistances ---------------------------------------------------------
+  80:   {stat: elem_res,         sign: 1,  fr: "Résistance Élémentaire (4 éléments)"}
+  90:   {stat: elem_res,         sign: -1, fr: "Résistance Élémentaire (malus)"}
+  100:  {stat: elem_res,         sign: -1, fr: "Résistance Élémentaire (malus, sans cap)"}
+  82:   {stat: fire_res,         sign: 1,  fr: "Résistance Feu"}
+  97:   {stat: fire_res,         sign: -1, fr: "Résistance Feu (malus, sans cap)"}
+  83:   {stat: water_res,        sign: 1,  fr: "Résistance Eau"}
+  98:   {stat: water_res,        sign: -1, fr: "Résistance Eau (malus, sans cap)"}
+  84:   {stat: earth_res,        sign: 1,  fr: "Résistance Terre"}
+  96:   {stat: earth_res,        sign: -1, fr: "Résistance Terre (malus, sans cap)"}
+  85:   {stat: air_res,          sign: 1,  fr: "Résistance Air"}
+  71:   {stat: rear_res,         sign: 1,  fr: "Résistance Dos"}
+  1063: {stat: rear_res,         sign: -1, fr: "Résistance Dos (malus)"}
+  988:  {stat: crit_res,         sign: 1,  fr: "Résistance Critique"}
+  1062: {stat: crit_res,         sign: -1, fr: "Résistance Critique (malus)"}
+
+  # --- Éléments au choix du joueur ---------------------------------------
+  # params = [valeur, par_niveau, nombre_d_éléments, 0]  ex. [272, 0, 3, 0]
+  # La même valeur est donnée sur `nombre_d_éléments` éléments distincts.
+  1068: {stat: random_mastery,    sign: 1, kind: random_elements, count_param: 2,
+         fr: "Maîtrise sur N éléments au choix"}
+  1069: {stat: random_resistance, sign: 1, kind: random_elements, count_param: 2,
+         fr: "Résistance sur N éléments au choix"}
+
+  # --- Caractéristique passée en paramètre (params[4] = id de charac) -------
+  # 211 effets « Gain » (charac 120 : 123 items, charac 121 : 88 items) et
+  # 2 effets « Perte » (charac 121). Exemples : Casque de puissance [10,0,0,0,120,0],
+  # familier Arakne [2,0.16,0,0,121,0]. Le CDN ne donne pas le nom des characs.
+  39:   {stat: charac_param, sign: 1,  kind: charac_param, charac_param: 4,
+         characs: {120: charac_120, 121: charac_121},
+         todo: "À CONFIRMER EN JEU : libellé réel des characs 120 et 121",
+         fr: "Gain : charac en paramètre"}
+  40:   {stat: charac_param, sign: -1, kind: charac_param, charac_param: 4,
+         characs: {120: charac_120, 121: charac_121},
+         todo: "À CONFIRMER EN JEU", fr: "Perte : charac en paramètre"}
+
+  # --- Effets non statistiques ------------------------------------------------
+  # Applique un état (effets spéciaux d'items : params[0] = id d'état,
+  # params[2] = niveau). states.json ne contient que les noms : à modéliser à la main.
+  304:  {stat: state, sign: 1, kind: state, fr: "Applique un état"}
+  400:  {stat: none, kind: ignore, fr: "Effet vide"}
+  999:  {stat: none, kind: ignore, fr: "Technique (niveau des effets enfants)"}
+  1020: {stat: none, kind: ignore, fr: "Technique (niveau des effets enfants)"}
+  2001: {stat: none, kind: ignore, fr: "% Quantité de récolte (métiers)"}

@@ -1,0 +1,1317 @@
+[
+ {
+  "definition": {
+   "item": {
+    "id": 2021,
+    "level": 6,
+    "baseParameters": {
+     "itemTypeId": 120,
+     "itemSetId": 0,
+     "rarity": 1,
+     "bindType": 0,
+     "minimumShardSlotNumber": 1,
+     "maximumShardSlotNumber": 4
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1202021,
+     "femaleGfxId": 1202021
+    },
+    "properties": []
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 1,
+       "actionId": 31,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 2,
+       "actionId": 20,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        6,
+        0,
+        1,
+        0,
+        0,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 3,
+       "actionId": 150,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        2,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 4,
+       "actionId": 120,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        9,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Amulette du Bouftou",
+   "en": "Amulette du Bouftou"
+  },
+  "description": {
+   "fr": "",
+   "en": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 31837,
+    "level": 245,
+    "baseParameters": {
+     "itemTypeId": 134,
+     "itemSetId": 0,
+     "rarity": 4,
+     "bindType": 0,
+     "minimumShardSlotNumber": 1,
+     "maximumShardSlotNumber": 4
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1231837,
+     "femaleGfxId": 1231837
+    },
+    "properties": []
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 5,
+       "actionId": 160,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        1,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 6,
+       "actionId": 20,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        795,
+        0,
+        1,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 7,
+       "actionId": 173,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        110,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 8,
+       "actionId": 175,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        110,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 9,
+       "actionId": 1068,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        272,
+        0,
+        3,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 10,
+       "actionId": 149,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        272,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 11,
+       "actionId": 83,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        55,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 12,
+       "actionId": 85,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        55,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 13,
+       "actionId": 84,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        55,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Coiffe Primitive",
+   "en": "Coiffe Primitive"
+  },
+  "description": {
+   "fr": "",
+   "en": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 31840,
+    "level": 245,
+    "baseParameters": {
+     "itemTypeId": 120,
+     "itemSetId": 0,
+     "rarity": 4,
+     "bindType": 0,
+     "minimumShardSlotNumber": 1,
+     "maximumShardSlotNumber": 4
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1231840,
+     "femaleGfxId": 1231840
+    },
+    "properties": []
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 14,
+       "actionId": 31,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        1,
+        0,
+        1,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 15,
+       "actionId": 20,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        671,
+        0,
+        1,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 16,
+       "actionId": 173,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        95,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 17,
+       "actionId": 175,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        95,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 18,
+       "actionId": 1068,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        244,
+        0,
+        2,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 19,
+       "actionId": 149,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        244,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 20,
+       "actionId": 150,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        6,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 21,
+       "actionId": 82,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        50,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 22,
+       "actionId": 84,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        50,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Voilulette",
+   "en": "Voilulette"
+  },
+  "description": {
+   "fr": "",
+   "en": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 31843,
+    "level": 245,
+    "baseParameters": {
+     "itemTypeId": 119,
+     "itemSetId": 0,
+     "rarity": 4,
+     "bindType": 0,
+     "minimumShardSlotNumber": 1,
+     "maximumShardSlotNumber": 4
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1231843,
+     "femaleGfxId": 1231843
+    },
+    "properties": []
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 23,
+       "actionId": 41,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        1,
+        0,
+        1,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 24,
+       "actionId": 20,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        760,
+        0,
+        1,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 25,
+       "actionId": 173,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        100,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 26,
+       "actionId": 175,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        100,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 27,
+       "actionId": 1068,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        250,
+        0,
+        2,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 28,
+       "actionId": 149,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        250,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 29,
+       "actionId": 82,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        60,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 30,
+       "actionId": 83,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        60,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 31,
+       "actionId": 85,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        60,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Griffes affilées",
+   "en": "Griffes affilées"
+  },
+  "description": {
+   "fr": "",
+   "en": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 14152,
+    "level": 0,
+    "baseParameters": {
+     "itemTypeId": 582,
+     "itemSetId": 0,
+     "rarity": 4,
+     "bindType": 0,
+     "minimumShardSlotNumber": 0,
+     "maximumShardSlotNumber": 0
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1214152,
+     "femaleGfxId": 1214152
+    },
+    "properties": []
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 32,
+       "actionId": 39,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        2,
+        0.16,
+        0,
+        0,
+        121,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Arakne",
+   "en": "Arakne"
+  },
+  "description": {
+   "fr": "",
+   "en": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 28320,
+    "level": 200,
+    "baseParameters": {
+     "itemTypeId": 103,
+     "itemSetId": 0,
+     "rarity": 4,
+     "bindType": 0,
+     "minimumShardSlotNumber": 1,
+     "maximumShardSlotNumber": 4
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1228320,
+     "femaleGfxId": 1228320
+    },
+    "properties": []
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 33,
+       "actionId": 40,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        40,
+        0,
+        0,
+        0,
+        121,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 34,
+       "actionId": 9999,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        1,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Bague Amemnon",
+   "en": "Bague Amemnon"
+  },
+  "description": {
+   "fr": "",
+   "en": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 27097,
+    "level": 0,
+    "baseParameters": {
+     "itemTypeId": 811,
+     "itemSetId": 0,
+     "rarity": 0,
+     "bindType": 0,
+     "minimumShardSlotNumber": 0,
+     "maximumShardSlotNumber": 0
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1,
+     "femaleGfxId": 1
+    },
+    "properties": [],
+    "shardsParameters": {
+     "color": 1,
+     "doubleBonusPosition": [
+      0,
+      13
+     ],
+     "shardLevelingCurve": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      192,
+      576,
+      2304,
+      9216
+     ],
+     "shardLevelRequirement": [
+      0,
+      36,
+      51,
+      66,
+      81,
+      96,
+      126,
+      141,
+      171,
+      186,
+      216
+     ]
+    }
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 1,
+       "actionId": 1052,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        1,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 2,
+       "actionId": 1052,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        0,
+        1.5
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 3,
+       "actionId": 1052,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        -16.5,
+        4.5
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 4,
+       "actionId": 1052,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        0,
+        3
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Maîtrise Mêlée"
+  },
+  "description": {
+   "fr": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 27109,
+    "level": 0,
+    "baseParameters": {
+     "itemTypeId": 811,
+     "itemSetId": 0,
+     "rarity": 0,
+     "bindType": 0,
+     "minimumShardSlotNumber": 0,
+     "maximumShardSlotNumber": 0
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1,
+     "femaleGfxId": 1
+    },
+    "properties": [],
+    "shardsParameters": {
+     "color": 3,
+     "doubleBonusPosition": [
+      15,
+      0
+     ],
+     "shardLevelingCurve": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      192,
+      576,
+      2304,
+      9216
+     ],
+     "shardLevelRequirement": [
+      0,
+      36,
+      51,
+      66,
+      81,
+      96,
+      126,
+      141,
+      171,
+      186,
+      216
+     ]
+    }
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 1,
+       "actionId": 20,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        4,
+        0,
+        1,
+        0,
+        0,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 2,
+       "actionId": 20,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        0,
+        4,
+        1,
+        0,
+        0,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 3,
+       "actionId": 20,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        -44,
+        12,
+        1,
+        0,
+        0,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 4,
+       "actionId": 20,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        0,
+        8,
+        1,
+        0,
+        0,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Vie"
+  },
+  "description": {
+   "fr": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 27105,
+    "level": 0,
+    "baseParameters": {
+     "itemTypeId": 811,
+     "itemSetId": 0,
+     "rarity": 0,
+     "bindType": 0,
+     "minimumShardSlotNumber": 0,
+     "maximumShardSlotNumber": 0
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1,
+     "femaleGfxId": 1
+    },
+    "properties": [],
+    "shardsParameters": {
+     "color": 2,
+     "doubleBonusPosition": [
+      5,
+      10
+     ],
+     "shardLevelingCurve": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      192,
+      576,
+      2304,
+      9216
+     ],
+     "shardLevelRequirement": [
+      0,
+      36,
+      51,
+      66,
+      81,
+      96,
+      126,
+      141,
+      171,
+      186,
+      216
+     ]
+    }
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 1,
+       "actionId": 82,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        2,
+        0
+       ]
+      }
+     }
+    },
+    {
+     "effect": {
+      "definition": {
+       "id": 2,
+       "actionId": 82,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        0,
+        2.5
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Résistance Feu"
+  },
+  "description": {
+   "fr": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 27095,
+    "level": 0,
+    "baseParameters": {
+     "itemTypeId": 811,
+     "itemSetId": 0,
+     "rarity": 0,
+     "bindType": 0,
+     "minimumShardSlotNumber": 0,
+     "maximumShardSlotNumber": 0
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1,
+     "femaleGfxId": 1
+    },
+    "properties": [],
+    "shardsParameters": {
+     "color": 1,
+     "doubleBonusPosition": [
+      0,
+      12
+     ],
+     "shardLevelingCurve": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      192,
+      576,
+      2304,
+      9216
+     ],
+     "shardLevelRequirement": [
+      0,
+      36,
+      51,
+      66,
+      81,
+      96,
+      126,
+      141,
+      171,
+      186,
+      216
+     ]
+    }
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 1,
+       "actionId": 400,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        1,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Maîtrise Monocible"
+  },
+  "description": {
+   "fr": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 27152,
+    "level": 2,
+    "baseParameters": {
+     "itemTypeId": 812,
+     "itemSetId": 0,
+     "rarity": 3,
+     "bindType": 0,
+     "minimumShardSlotNumber": 0,
+     "maximumShardSlotNumber": 0
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1,
+     "femaleGfxId": 1
+    },
+    "properties": [],
+    "sublimationParameters": {
+     "slotColorPattern": [
+      2,
+      3,
+      2
+     ],
+     "isEpic": false,
+     "isRelic": false
+    }
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 1,
+       "actionId": 304,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        6026,
+        0,
+        2,
+        0,
+        -1,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Influence II"
+  },
+  "description": {
+   "fr": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 24130,
+    "level": 1,
+    "baseParameters": {
+     "itemTypeId": 812,
+     "itemSetId": 0,
+     "rarity": 3,
+     "bindType": 0,
+     "minimumShardSlotNumber": 0,
+     "maximumShardSlotNumber": 0
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1,
+     "femaleGfxId": 1
+    },
+    "properties": [],
+    "sublimationParameters": {
+     "slotColorPattern": [],
+     "isEpic": true,
+     "isRelic": false
+    }
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 1,
+       "actionId": 304,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        5073,
+        0,
+        1,
+        0,
+        -1,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Inflexibilité"
+  },
+  "description": {
+   "fr": ""
+  }
+ },
+ {
+  "definition": {
+   "item": {
+    "id": 27282,
+    "level": 1,
+    "baseParameters": {
+     "itemTypeId": 812,
+     "itemSetId": 0,
+     "rarity": 3,
+     "bindType": 0,
+     "minimumShardSlotNumber": 0,
+     "maximumShardSlotNumber": 0
+    },
+    "useParameters": {},
+    "graphicParameters": {
+     "gfxId": 1,
+     "femaleGfxId": 1
+    },
+    "properties": [],
+    "sublimationParameters": {
+     "slotColorPattern": [
+      1,
+      1,
+      3
+     ],
+     "isEpic": false,
+     "isRelic": false
+    }
+   },
+   "useEffects": [],
+   "useCriticalEffects": [],
+   "equipEffects": [
+    {
+     "effect": {
+      "definition": {
+       "id": 1,
+       "actionId": 304,
+       "areaShape": 32767,
+       "areaSize": [],
+       "params": [
+        6090,
+        0,
+        1,
+        0,
+        -1,
+        0
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "title": {
+   "fr": "Cicatrisation test (cumul 5)"
+  },
+  "description": {
+   "fr": ""
+  }
+ }
+]

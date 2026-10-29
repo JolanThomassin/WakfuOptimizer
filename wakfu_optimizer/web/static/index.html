@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wakfu Optimizer</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">W</span> Wakfu Optimizer</div>
+  <div class="top-right">
+    <span id="version" class="muted"></span>
+    <button id="reload" class="btn ghost small" title="Retélécharger les données Ankama">Mettre à jour les données</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <section class="card">
+      <h2>Personnage</h2>
+      <div class="field">
+        <label>Classe</label>
+        <div class="class-row">
+          <img id="class-icon" class="class-icon" alt="">
+          <select id="cls"></select>
+        </div>
+      </div>
+      <div class="field two">
+        <div><label>Niveau</label><select id="level"></select></div>
+        <div><label>Langue des items</label>
+          <select id="lang"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="pt">Português</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Éléments joués</label>
+        <div id="elements" class="chips"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Priorités</h2>
+      <div class="field">
+        <label>Portée</label>
+        <div class="seg" id="range">
+          <button data-v="melee">Mêlée</button><button data-v="distance">Distance</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Maîtrises secondaires</label>
+        <div class="chips">
+          <button class="toggle" id="crit"><img src="assets/stats/critical_mastery.png" alt="">Critique</button>
+          <button class="toggle" id="rear"><img src="assets/stats/rear_mastery.png" alt="">Dos</button>
+          <button class="toggle" id="berserk"><img src="assets/stats/berserk_mastery.png" alt="">Berserk</button>
+          <button class="toggle" id="heal"><img src="assets/stats/healing_mastery.png" alt="">Soin</button>
+        </div>
+      </div>
+      <div class="field" id="rear-box">
+        <label>Part des coups de dos <b id="rear-lab"></b></label>
+        <input type="range" id="rear_share" min="0" max="100" step="5">
+      </div>
+      <div class="field">
+        <label class="split"><span>Défense</span><b id="weight-lab"></b><span>Attaque</span></label>
+        <input type="range" id="weight" min="0" max="100" step="5">
+      </div>
+      <label class="check"><input type="checkbox" id="balance"><span>Équilibrer les résistances (monter la plus faible)</span></label>
+      <label class="check"><input type="checkbox" id="cond"><span>Compter les sublimations conditionnelles (PV &gt; 90 %, sans armure)</span></label>
+      <p class="hint">PA, PM, PO et PW sont valorisés automatiquement au-delà des minimums.</p>
+    </section>
+
+    <section class="card">
+      <h2>Contraintes</h2>
+      <div class="steppers" id="mins"></div>
+      <div class="field">
+        <label>Raretés autorisées</label>
+        <div id="rarities" class="chips"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="lower"><span>Autoriser les items des tranches inférieures</span></label>
+      <label class="check"><input type="checkbox" id="no_relic"><span>Exclure les reliques</span></label>
+      <label class="check"><input type="checkbox" id="no_epic"><span>Exclure les épiques</span></label>
+      <label class="check"><input type="checkbox" id="no_shop"><span>Exclure les items boutique</span></label>
+      <label class="check"><input type="checkbox" id="pets"><span>Inclure familier et monture</span></label>
+      <div class="row">
+        <button id="items-btn" class="btn ghost">Items exclus / forcés…</button>
+        <span id="items-lab" class="muted"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Châsses et sublimations</h2>
+      <div class="seg three" id="shard_mode">
+        <button data-v="ideal">Idéal</button><button data-v="mine">Mes couleurs</button><button data-v="none">Ignorer</button>
+      </div>
+      <div class="steppers" id="shard-steps"></div>
+      <div id="my-colors"></div>
+    </section>
+  </aside>
+
+  <main class="main">
+    <div class="runbar">
+      <button id="go" class="btn primary">Optimiser</button>
+      <button id="stop" class="btn ghost" disabled>Annuler</button>
+      <div class="progress" id="progress"><div class="bar" id="bar"></div><span id="ptext">Prêt</span></div>
+    </div>
+    <div id="msg" class="msg"></div>
+    <nav class="tabs">
+      <button class="tab on" data-tab="build">Build</button>
+      <button class="tab" data-tab="apt">Aptitudes <span id="apt-badge" class="badge">auto</span></button>
+    </nav>
+    <div id="tab-apt" class="tab-page hidden">
+      <div class="apt-layout">
+        <div class="apt-cols"><div class="apt-col" id="apt-col1"></div><div class="apt-col" id="apt-col2"></div></div>
+        <div class="apt-side">
+          <section class="card">
+            <h2>Pour l'optimisation</h2>
+            <div class="seg" id="char_mode"><button data-v="auto">L'optimiseur choisit</button><button data-v="manual">Mes aptitudes</button></div>
+            <p class="hint" id="apt-mode-hint"></p>
+            <div class="row"><button class="btn small" id="apt-from-build" disabled>Reprendre celles du build</button>
+              <button class="btn small danger" id="apt-reset">Réinitialiser</button></div>
+          </section>
+          <section class="card">
+            <h2>Aptitudes rapides</h2>
+            <p class="hint" style="margin:-6px 0 10px">Répartit tous les points en un clic, comme le font la plupart des joueurs.</p>
+            <div id="apt-presets" class="preset-list"></div>
+          </section>
+          <section class="card">
+            <h2>Détail du preset</h2>
+            <div id="apt-detail" class="muted" style="font-size:13px">Sélectionnez un preset.</div>
+            <button class="btn primary" id="apt-apply" style="width:100%;margin-top:12px" disabled>Appliquer</button>
+          </section>
+        </div>
+      </div>
+    </div>
+    <div id="result" class="result tab-page">
+      <div class="empty">
+        <img src="assets/stats/quadrumental_breeze.png" alt="">
+        <p>Choisissez votre personnage et vos priorités, puis cliquez sur <b>Optimiser</b>.</p>
+        <p class="muted">Ensuite, cliquez sur un item du build pour voir les autres items qui conviennent et les comparer.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Panneau de remplacement d'un item -->
+<div id="drawer" class="drawer hidden">
+  <div class="drawer-bg" data-close></div>
+  <div class="drawer-panel">
+    <div class="drawer-head">
+      <h2 id="dr-title">Remplacer</h2>
+      <button class="btn ghost small" data-close>Fermer ✕</button>
+    </div>
+    <div id="dr-current" class="dr-current"></div>
+    <div class="dr-body">
+      <div class="dr-list" id="dr-list"></div>
+      <div class="dr-compare" id="dr-compare"><p class="muted pad">Choisissez un item à gauche pour voir ce que vous gagnez et perdez.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Items exclus / forcés -->
+<div id="picker" class="drawer hidden">
+  <div class="drawer-bg" data-close></div>
+  <div class="drawer-panel narrow">
+    <div class="drawer-head">
+      <h2>Items exclus et forcés</h2>
+      <button class="btn ghost small" data-close>Fermer ✕</button>
+    </div>
+    <input id="pk-search" class="search" placeholder="Rechercher un item par nom (2 lettres min.)…">
+    <div id="pk-results" class="pk-list"></div>
+    <div class="pk-cols">
+      <div><h3>Exclus <span class="muted">(je ne l'ai pas)</span></h3><div id="pk-ex" class="pk-list small"></div></div>
+      <div><h3>Forcés <span class="muted">(je le garde)</span></h3><div id="pk-fo" class="pk-list small"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="static/app.js"></script>
+</body>
+</html>

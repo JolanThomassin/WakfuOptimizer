@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wakfu-web",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "wakfu_optimizer.web", "--port", "8765", "--no-browser"],
+      "port": 8765
+    },
+    {
+      "name": "wakfu-pages",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "http.server", "8766", "--directory", "_site", "--bind", "127.0.0.1"],
+      "port": 8766
+    }
+  ]
+}

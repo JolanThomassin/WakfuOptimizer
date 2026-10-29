@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+data/cache/
+reports/
+.shortcut_done
+logs/
+presets/_dernier.json
+_site/
