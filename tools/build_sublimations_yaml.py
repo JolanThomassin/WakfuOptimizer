@@ -72,6 +72,15 @@ CURATED: dict[int, list[tuple[int, str, list[str], str, str]]] = {
     7870: [(1, "num_0", ["dmg_pct"], "flat", "no_armor")],                  # Pétillance
 }
 
+# Effets à valeur fixe, conditionnés à une stat (épiques « au lancement du combat ») : ajoutés tels quels.
+STAT_CONDITIONAL: dict[int, list[tuple[str, int, str]]] = {
+    5073: [("dmg_pct", 15, "stat_le:ap:10"), ("willpower", 10, "stat_le:ap:10")],          # Inflexible
+    5074: [("dmg_pct", 20, "stat_le:crit_rate:10"), ("crit_res", 50, "stat_le:crit_rate:10")],  # Constant
+    5075: [("crit_rate", 10, "stat_ge:block:40")],                                         # Mesure
+    5370: [("willpower", 10, "stat_ge:wp:8"), ("block", 15, "stat_ge:wp:8")],              # Pacte Wakfu
+    6707: [("hp_pct", 30, "stat_ge:block:50")],                                            # Pilier
+}
+
 # Valeurs à forcer quand le texte WakForge n'a pas de nombre exploitable
 CONST_FIXES: dict[tuple[int, int, str], list[int]] = {}
 
@@ -117,6 +126,8 @@ def main(wakforge: Path) -> None:
                 values = [int(nums[f"level_{i}"]) for i in range(1, 7) if f"level_{i}" in nums]
             for stat in stats:
                 effects.append({"stat": stat, "values": [sign * v for v in values], "mode": mode, "condition": cond})
+        for stat, v, cond in STAT_CONDITIONAL.get(sid, []):
+            effects.append({"stat": stat, "values": [v] * 5, "mode": "flat", "condition": cond})
         if effects:
             entry["effects"] = effects
         out[sid] = entry

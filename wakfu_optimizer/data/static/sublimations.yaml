@@ -6,6 +6,8 @@
 #   stat, values (par niveau d'état 1..N), mode (flat | pct_level = % du niveau),
 #   condition (none, melee, distance, berserk, hp_high, no_armor, two_handed,
 #   light_weapons, element:<élément>, no_secondary = maîtrises secondaires <= 0, option « combo Neutralité »).
+#   stat_le:<stat>:<v> / stat_ge:<stat>:<v> = la stat totale doit être <= / >= v (épiques « au lancement du
+#   combat ») : le solveur impose la condition quand il place la sublimation.
 # Après un patch : ajouter ici les nouveaux états (sinon : affichés, mais non optimisés).
 states:
   751: {name: Enflammé, desc: '0/1/2 Tacle ; En début de tour, autour du lanceur : ; Aux : Dommage : 1/2/3/4/5 ; Si la cible meurt : ; Dommage : 1/2/3/4/5'}
@@ -52,9 +54,41 @@ states:
   3416: {name: '', desc: 1/2/3/4/5 PA}
   4570: {name: Dofus Prismatique, desc: 'Accorde +2 PA un tour sur deux ; Tour Impair : + 0 PA'}
   4960: {name: '', desc: 1 PM}
-  5073: {name: Inflexible, desc: 'Au lancement du combat, si le porteur de l''état a 10 PA ou moins : ; 15% Dommages infligés ; 10 Volonté (si le personnage est niveau 100 ou plus)', limit: 1}
-  5074: {name: Constant, desc: 'Au lancement du combat, si le porteur de l''état a 10% Coup critique ou moins : ; 20% Dommages infligés ; 50 Résistance critique', limit: 1}
-  5075: {name: Mesure, desc: 'Au lancement du combat, si le porteur de l''état a 40% Parade ou plus : ; 10% Coup critique ; 10% Dommages infligés en Coup critique', limit: 1}
+  5073:
+    name: Inflexible
+    desc: 'Au lancement du combat, si le porteur de l''état a 10 PA ou moins : ; 15% Dommages infligés ; 10 Volonté (si le personnage est niveau 100 ou plus)'
+    limit: 1
+    effects:
+    - stat: dmg_pct
+      values: [15, 15, 15, 15, 15]
+      mode: flat
+      condition: stat_le:ap:10
+    - stat: willpower
+      values: [10, 10, 10, 10, 10]
+      mode: flat
+      condition: stat_le:ap:10
+  5074:
+    name: Constant
+    desc: 'Au lancement du combat, si le porteur de l''état a 10% Coup critique ou moins : ; 20% Dommages infligés ; 50 Résistance critique'
+    limit: 1
+    effects:
+    - stat: dmg_pct
+      values: [20, 20, 20, 20, 20]
+      mode: flat
+      condition: stat_le:crit_rate:10
+    - stat: crit_res
+      values: [50, 50, 50, 50, 50]
+      mode: flat
+      condition: stat_le:crit_rate:10
+  5075:
+    name: Mesure
+    desc: 'Au lancement du combat, si le porteur de l''état a 40% Parade ou plus : ; 10% Coup critique ; 10% Dommages infligés en Coup critique'
+    limit: 1
+    effects:
+    - stat: crit_rate
+      values: [10, 10, 10, 10, 10]
+      mode: flat
+      condition: stat_ge:block:40
   5076: {name: Précis, desc: 'Au lancement du combat, si le porteur de l''état a 1 Portée ou moins : ; 20% Soins réalisés ; 15% Armure donnée et reçue', limit: 1}
   5077: {name: Dénouement, desc: Convertit 100% de Maîtrise Critique en Maîtrise Élémentaire au lancement du combat si le porteur de l'état possède au moins 40% Coup critique., limit: 1}
   5078: {name: Fracass'carcasse, desc: Le premier sort qui occasionne des dégâts du tour retire 30% Armure à la cible., limit: 1}
@@ -87,7 +121,19 @@ states:
   5252: {name: Sang de la déchirure, desc: 'Dans un tour de table impair : ; Le porteur gagne 25% Dommages infligés, et subit 15% des Dommages qu''il inflige.', limit: 1}
   5253: {name: Wé, desc: 'Tour pair : En utilisant un sort à PW, le porteur de l''état regagne 2 PA (max 1/tour) ; Tour impair : En utilisant un sort à PW, le porteur de l''état perd 2 PA (max 1/tour)',
     limit: 1}
-  5370: {name: Pacte Wakfu, desc: 'Au lancement du combat, si le porteur de l''état a 8 PW ou plus ; 10 Volonté ; 15% Parade', limit: 1}
+  5370:
+    name: Pacte Wakfu
+    desc: 'Au lancement du combat, si le porteur de l''état a 8 PW ou plus ; 10 Volonté ; 15% Parade'
+    limit: 1
+    effects:
+    - stat: willpower
+      values: [10, 10, 10, 10, 10]
+      mode: flat
+      condition: stat_ge:wp:8
+    - stat: block
+      values: [15, 15, 15, 15, 15]
+      mode: flat
+      condition: stat_ge:wp:8
   5443: {name: Santé de fer, desc: 'Au lancement du combat, pour le porteur de l''état : ; -30% PV (malus sur le modificateur de PV) ; 30% Soins et Armures de reçus', limit: 1}
   5444:
     name: Science du placement
@@ -324,7 +370,15 @@ states:
   6637: {name: Retrait de PW, desc: Le porteur de l'état ne peut plus subir de retrait de PW pendant 1 tour}
   6705: {name: Furie, desc: 'Au lancement du combat, si le porteur de l''état a moins de 100% de son niveau en Esquive : ; 15% Dommages infligés en Berserk ; 100% du niveau en Tacle', limit: 1}
   6706: {name: Furie II, desc: 'Au lancement du combat, si le porteur de l''état a 4 Portée ou plus : ; 15% Dommages infligés en Berserk et Distance simultanément ; 1 Portée', limit: 1}
-  6707: {name: Pilier, desc: 'Au lancement du combat, si le porteur de l''état a 50% Parade ou plus : ; Bonus sur le modificateur de PV : +30% ; -50% Armure reçue', limit: 1}
+  6707:
+    name: Pilier
+    desc: 'Au lancement du combat, si le porteur de l''état a 50% Parade ou plus : ; Bonus sur le modificateur de PV : +30% ; -50% Armure reçue'
+    limit: 1
+    effects:
+    - stat: hp_pct
+      values: [30, 30, 30, 30, 30]
+      mode: flat
+      condition: stat_ge:block:50
   6708: {name: Contrôle de l'espace, desc: 'Au lancement du combat, si le porteur de l''état a exactement 1 Portée : ; 15% Dommages infligés et Soins réalisés sur les cibles à 2, 4 ou 4 cases de distance
       du lanceur', limit: 1}
   6709: {name: Longévité, desc: 'En subissant des dommages de face et en mêlée, une fois par tour de table : ; 10% des PV manquants en Armure ; 40% Armure donnée (1 tour)', limit: 1}

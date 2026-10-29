@@ -13,8 +13,8 @@ from .characteristics import BRANCH_FR, LINE_FR, char_lines
 from .options import DENOUEMENT_CRIT, NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions
 
 DENOUEMENT_STATE = NEUTRAL_COMBO_STATES[1]
-from .scoring import RES_CAP_FLAT, damage_d2, defense_value, ehp_factor, log_score, res_need, res_pct, secondary_mastery
-from .shards import condition_holds, effect_targets
+from .scoring import damage_d2, res_cap, defense_value, ehp_factor, log_score, res_need, res_pct, secondary_mastery
+from .shards import condition_holds, effect_targets, parse_stat_condition
 
 DISPLAY_STATS = [
     ("hp", "PV"), ("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("range", "Portée"),
@@ -118,6 +118,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
         for stat, v in cl.per_point.items():
             add(stat, n * v, f"Aptitude {BRANCH_FR.get(cl.branch, cl.branch)} · {LINE_FR.get(cl.line, cl.line)} ({n} pt)", "apt")
 
+    later = []   # effets « si la stat X est <= / >= v » : vérifiés une fois les autres effets appliqués
     for sid, lvl in state_levels.items():
         st = data.states.get(sid)
         if st is None:
@@ -125,10 +126,18 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
         eff_lvl = min(lvl, st.limit) if st.limit else lvl
         t.active_states[sid] = eff_lvl
         for e in st.effects:
-            if condition_holds(e.condition, opts, two_handed, second_used):
-                v = e.value(eff_lvl, L)
+            if parse_stat_condition(e.condition):
+                later.append((st, e, eff_lvl))
+            elif condition_holds(e.condition, opts, two_handed, second_used):
                 for target in effect_targets(e):
-                    add(target, v, f"Sublimation {st.name} niv. {eff_lvl}", "sub")
+                    add(target, e.value(eff_lvl, L), f"Sublimation {st.name} niv. {eff_lvl}", "sub")
+    snapshot = dict(s)
+    for st, e, eff_lvl in later:
+        if condition_holds(e.condition, opts, two_handed, second_used, snapshot):
+            for target in effect_targets(e):
+                add(target, e.value(eff_lvl, L), f"Sublimation {st.name} niv. {eff_lvl}", "sub")
+        elif e is st.effects[0]:
+            t.warnings.append(f"{st.name} : condition non remplie ({e.condition}), sans effet.")
 
     if opts.neutral_combo:
         if any(s[k] > 0 for k in SECONDARY_MASTERIES):
@@ -164,7 +173,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     g = min(gs) if opts.balance_res else sum(gs) // 4
     t.defense = defense_value(hp_base, s["hp_pct"], g)
     t.hp_base = hp_base
-    capped = [min(t.res_flat[e], RES_CAP_FLAT) for e in ELEMENTS]
+    capped = [min(t.res_flat[e], res_cap(opts)) for e in ELEMENTS]
     rear = opts.rear and not opts.heal
     t.features = {
         "mtot": float(mtot), "crit": float(crit), "crit_mastery": float(s["crit_mastery"] if opts.crit else 0),

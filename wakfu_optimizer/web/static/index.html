@@ -64,16 +64,17 @@
           « Presque toujours » : build dos type Sram, la Maîtrise Dos devient prioritaire.</p>
       </div>
       <div class="field">
-        <label class="split"><span>Résistance visée</span><b id="res-lab"></b></label>
-        <input type="range" id="res_target" min="0" max="80" step="5">
-        <p class="hint" id="res-hint">L'optimiseur atteint d'abord ce % de résistance sur chaque élément, puis met tout dans les dégâts.</p>
+        <label class="split"><span>Résistances (chaque élément)</span><b id="res-lab"></b></label>
+        <div class="dual" id="res-dual">
+          <div class="dual-track"><div class="dual-fill" id="res-fill"></div></div>
+          <input type="range" id="res_target" min="0" max="90" step="5" aria-label="Résistance minimum visée">
+          <input type="range" id="res_max" min="0" max="90" step="5" aria-label="Résistance maximum utile">
+        </div>
+        <div class="dual-legend"><span>0 %</span><span>90 %</span></div>
+        <p class="hint" id="res-hint">Min : atteint en priorité. Max : au-delà, la résistance ne compte plus, tout part dans les dégâts.</p>
       </div>
       <label class="check"><input type="checkbox" id="balance"><span>Équilibrer les résistances (monter la plus faible)</span></label>
       <label class="check"><input type="checkbox" id="cond"><span>Compter les sublimations conditionnelles (PV &gt; 90 %, sans armure)</span></label>
-      <label class="check"><input type="checkbox" id="neutral"><span><b>Combo Neutralité + Dénouement</b></span></label>
-      <p class="hint" id="neutral-hint">Maîtrises secondaires (mêlée, distance, dos, berserk, soin) à 0 ou moins une fois items, runes et
-        aptitudes comptés, et au moins 40 % de critique : Dénouement convertit la Maîtrise Critique en Maîtrise Élémentaire et
-        Neutralité donne jusqu'à +24 % de dommages. Ambition et Prétention deviennent aussi utilisables.</p>
       <p class="hint">PA, PM, PO et PW sont valorisés automatiquement au-delà des minimums.</p>
     </section>
 
@@ -110,11 +111,13 @@
   <main class="main">
     <div class="runbar">
       <button id="go" class="btn primary">Optimiser</button>
-      <select id="time_limit" title="Plus le calcul est long, meilleur est le build (il s'arrête plus tôt s'il a trouvé l'optimum)">
-        <option value="60">Rapide · 1 min</option><option value="180" selected>Normal · 3 min</option><option value="360">Approfondi · 6 min</option>
-      </select>
       <button id="stop" class="btn ghost" disabled>Annuler</button>
-      <div class="progress" id="progress"><div class="bar" id="bar"></div><span id="ptext">Prêt</span></div>
+      <div class="progress" id="progress">
+        <div class="bar" id="bar"><div class="stripes"></div><div class="shine"></div></div>
+        <div class="p-info"><span id="ptext">Prêt</span><span id="ptime"></span></div>
+      </div>
+      <button id="time-btn" class="btn ghost small time-btn" type="button" title="Durée maximum du calcul : il s'arrête dès que le build ne s'améliore plus (clic pour changer)">⏱ 3 min</button>
+      <input type="hidden" id="time_limit" value="180">
     </div>
     <div id="msg" class="msg"></div>
     <nav class="tabs">
@@ -133,6 +136,13 @@
             <label class="check" id="apt-res-box"><input type="checkbox" id="apt_elem_res" checked><span>Toujours 10 points en Résistance élémentaire (Intelligence), comme la plupart des joueurs</span></label>
             <div class="row"><button class="btn small" id="apt-from-build" disabled>Reprendre celles du build</button>
               <button class="btn small danger" id="apt-reset">Réinitialiser</button></div>
+          </section>
+          <section class="card">
+            <h2>Combos</h2>
+            <label class="check"><input type="checkbox" id="neutral"><span><b>Neutralité + Dénouement</b></span></label>
+            <p class="hint" id="neutral-hint">Maîtrises secondaires (mêlée, distance, dos, berserk, soin) à 0 ou moins une fois items, runes et
+              aptitudes comptés, et au moins 40 % de critique : Dénouement convertit la Maîtrise Critique en Maîtrise Élémentaire et
+              Neutralité donne jusqu'à +24 % de dommages. Ambition et Prétention deviennent aussi utilisables.</p>
           </section>
           <section class="card">
             <h2>Aptitudes rapides</h2>

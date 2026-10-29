@@ -49,15 +49,29 @@ def static_condition(cond: str, opts: OptimizeOptions) -> bool | None:
         return opts.count_conditional
     if cond.startswith("element:"):
         return len(opts.elements) == 1 and opts.elements[0] == cond.split(":", 1)[1]
-    if cond in ("two_handed", "light_weapons"):
+    if cond in ("two_handed", "light_weapons") or cond.startswith(("stat_le:", "stat_ge:")):
         return None
     return False  # condition inconnue : ignorée
 
 
-def condition_holds(cond: str, opts: OptimizeOptions, two_handed: bool, second_hand_used: bool) -> bool:
+def parse_stat_condition(cond: str) -> tuple[str, str, int] | None:
+    """« stat_le:ap:10 » -> ("le", "ap", 10)."""
+    if not cond.startswith(("stat_le:", "stat_ge:")):
+        return None
+    kind, stat, v = cond.split(":")
+    return kind[5:], stat, int(v)
+
+
+def condition_holds(cond: str, opts: OptimizeOptions, two_handed: bool, second_hand_used: bool,
+                    stats: dict[str, int] | None = None) -> bool:
     s = static_condition(cond, opts)
     if s is not None:
         return s
+    sc = parse_stat_condition(cond)
+    if sc is not None:
+        kind, stat, v = sc
+        cur = (stats or {}).get(stat, 0)
+        return cur <= v if kind == "le" else cur >= v
     if cond == "two_handed":
         return two_handed
     if cond == "light_weapons":

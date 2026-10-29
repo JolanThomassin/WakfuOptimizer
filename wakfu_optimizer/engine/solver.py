@@ -40,9 +40,10 @@ from ..data.models import (
 )
 from .characteristics import BRANCH_FR, branch_points, char_lines
 from .options import NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice, SlotChoice
-from .scoring import RES_CAP_FLAT, flat_for_pct, gradient, res_need, utility_table
-from .shards import effect_targets, rune_fits, static_condition
+from .scoring import flat_for_pct, gradient, res_cap, res_need, utility_table
+from .shards import effect_targets, parse_stat_condition, rune_fits, static_condition
 from .stats import Totals, evaluate
+from .sublimations import fill_empty_subs
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +53,9 @@ RGBW = (Color.RED, Color.GREEN, Color.BLUE, Color.WHITE)
 BIG = 10**7
 MAX_ITER = 8
 WARM_START = cp_model.__name__.endswith("milp")   # HiGHS : point de départ construit (voir Optimizer._warm_start)
+# durée max d'une passe (s) : la durée choisie est un plafond, on vise la vitesse.
+# HiGHS (navigateur) a besoin de passes plus longues pour garder la même qualité.
+PASS_CAP = 10.0 if WARM_START else 6.0
 MAX_TIME = 600.0         # durée maximale d'un calcul (s) ; l'interface propose 1, 3 ou 6 minutes
 LIN_SCALE = 10**5        # coefficients entiers de l'objectif linéaire
 
@@ -310,6 +314,7 @@ class BuildModel:
         self.L = opts.level
         self.stat_var: dict[str, Any] = {}
         self.socketed: dict[Slot, Any] = {}
+        self.stat_conds: list[tuple[Any, str]] = []   # (sublimation placée, condition sur une stat totale)
         self._build()
 
     # ------------------------------------------------------------------ items
@@ -536,6 +541,8 @@ class BuildModel:
 
     def _apply_dynamic(self, var: Any, conds: list[str]) -> None:
         for c in conds:
+            if parse_stat_condition(c):   # appliquée dans _derived, quand toutes les stats sont connues
+                self.stat_conds.append((var, c))
             if c == "two_handed":
                 self.m.Add(var <= self.two_handed)
             elif c == "light_weapons":
@@ -680,6 +687,14 @@ class BuildModel:
             if val and stat not in self.skip:
                 m.Add(self.stat(stat) >= val)
                 self.active_mins[stat] = val
+        # sublimations « si la stat X est <= / >= v » : si on la place, la condition doit être remplie
+        for var, cond in self.stat_conds:
+            kind, stat, v = parse_stat_condition(cond)  # type: ignore[misc]
+            lo, hi = self.acc.bounds(stat)
+            if kind == "le" and hi > v:
+                m.Add(self.stat(stat) <= v + (hi - v) * (1 - var))
+            elif kind == "ge" and lo < v:
+                m.Add(self.stat(stat) >= v - (v - lo) * (1 - var))
         if opts.neutral_combo and "neutral" not in self.skip:
             for k in SECONDARY_MASTERIES:
                 m.Add(self.stat(k) <= 0)
@@ -711,9 +726,10 @@ class BuildModel:
         f["hp"] = self.stat("hp")
         f["hp_pct"] = self.stat("hp_pct")
         capped = []
+        cap = res_cap(opts)   # au-delà du maximum voulu, la résistance ne rapporte plus rien
         for e in ELEMENTS:
-            c = m.NewIntVar(-BIG, RES_CAP_FLAT, f"Rc_{e}")
-            m.AddMinEquality(c, [self.res[e], RES_CAP_FLAT])
+            c = m.NewIntVar(-BIG, cap, f"Rc_{e}")
+            m.AddMinEquality(c, [self.res[e], cap])
             capped.append(c)
         need = res_need(opts)
         if need:
@@ -724,7 +740,7 @@ class BuildModel:
                 shorts.append(sh)
             f["res_short"] = sum(shorts)
         if opts.balance_res:
-            r = m.NewIntVar(-BIG, RES_CAP_FLAT, "Rmin")
+            r = m.NewIntVar(-BIG, cap, "Rmin")
             m.AddMinEquality(r, capped)
             f["res"] = r
         else:
@@ -954,7 +970,7 @@ class Optimizer:
             best: tuple[float, Build, Totals] | None = None
             seen: set[tuple[Any, ...]] = set()
             # le temps est réparti entre les passes : plus de temps = chaque passe va plus loin
-            per_iter = budget / MAX_ITER
+            per_iter = min(PASS_CAP, budget / MAX_ITER)
             status_opt = True
             stale = 0
             for it in range(MAX_ITER):
@@ -983,14 +999,15 @@ class Optimizer:
                 tot = evaluate(self.data, opts, b)
                 key = (tuple(sorted(b.item_ids())), tuple(sorted(b.characteristics.items())))
                 log.info("passe %d : score %.2f (%s)", it + 1, tot.score, "optimal" if st == cp_model.OPTIMAL else "réalisable")
-                if best is None or tot.score > best[0] + 0.05:
+                if best is None or tot.score > best[0] + 0.25:
                     stale = 0
-                elif st == cp_model.OPTIMAL:   # passe coupée par le temps : pas de conclusion à en tirer
+                else:
                     stale += 1
                 if best is None or tot.score > best[0]:
                     best = (tot.score, b, tot)
                 # même build qu'avant : convergé seulement si la passe a fini (sinon elle a manqué de temps)
-                if key in seen and st == cp_model.OPTIMAL or stale >= 3:
+                # deux passes sans progrès (après au moins trois passes) : on s'arrête, inutile d'attendre
+                if key in seen and st == cp_model.OPTIMAL or stale >= 2 and it >= 2:
                     break
                 seen.add(key)
                 bm.hint(sv)
@@ -998,8 +1015,13 @@ class Optimizer:
                 f = tot.features
                 point = f if it == 0 else {k: 0.5 * point[k] + 0.5 * f[k] for k in point}
             assert best is not None
-            res.status = "optimal" if status_opt else "bon build (temps limite atteint)"
+            out_of_time = time.monotonic() - t0 >= budget - 2
+            res.status = "optimal" if status_opt else "bon build (durée max atteinte)" if out_of_time else "bon build"
             score, b, tot = best
+            b, added = fill_empty_subs(self.data, opts, b)
+            if added:
+                tot = evaluate(self.data, opts, b)
+                score = tot.score
             b.status = res.status
             b.solver_score = score
             res.builds.append(b)

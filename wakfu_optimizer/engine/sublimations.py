@@ -146,3 +146,27 @@ def sub_alternatives(data: GameData, opts: OptimizeOptions, build: Build, slot: 
     other_colors = len({s for s, _ in misfit} - {s for s, _ in seen})   # par famille, pas par niveau
     out.sort(key=lambda o: -o.delta)
     return out, other_colors
+
+
+def fill_empty_subs(data: GameData, opts: OptimizeOptions, build: Build) -> tuple[Build, list[str]]:
+    """Emplacements de sublimation restés vides (épique, relique, châsses) : on y met la meilleure sublimation
+    chiffrée qui ne fait rien perdre. Le solveur les laisse vides quand aucune ne lui rapporte, mais autant en avoir une."""
+    if opts.no_subs:
+        return build, []
+    added: list[str] = []
+    for slot in list(build.slots):
+        for special in (True, False):
+            ch = build.slots[slot]
+            if (ch.special_sublimation_id if special else ch.sublimation_id) is not None:
+                continue
+            if not special and not ch.shards:
+                continue
+            options, _ = sub_alternatives(data, opts, build, slot, special)
+            usable = [o for o in options if o.sub is not None and o.delta >= -1e-6
+                      and (st := data.states.get(o.sub.state_id)) is not None and st.modeled]
+            if usable:
+                best = usable[0]   # triées par gain décroissant
+                build = best.build
+                assert best.sub is not None
+                added.append(best.sub.name(opts.lang))
+    return build, added

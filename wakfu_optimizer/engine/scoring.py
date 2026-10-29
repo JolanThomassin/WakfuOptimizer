@@ -162,6 +162,12 @@ def secondary_mastery(melee: int, distance: int, rng: str) -> int:
     return melee if rng == "melee" else distance
 
 
+def res_cap(opts: object) -> int:
+    """Résistance fixe au-delà de laquelle la résistance ne compte plus (maximum voulu, 90 % au plus)."""
+    t = int(getattr(opts, "res_max", 90) or 90)
+    return min(RES_CAP_FLAT, flat_for_pct(t)) if t < 90 else RES_CAP_FLAT
+
+
 def res_need(opts: object) -> int:
     """Résistance fixe visée par élément (0 si pas de cible)."""
     t = int(getattr(opts, "res_target", 0) or 0)

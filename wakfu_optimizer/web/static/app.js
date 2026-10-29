@@ -133,7 +133,19 @@ function buildForm() {
 
   seg("range"); seg("shard_mode"); seg("rear_share"); seg("subs-kind");
   $("#shard_mode").addEventListener("change", refreshVis);
-  $("#res_target").addEventListener("input", refreshVis);
+  // double curseur : le min ne dépasse pas le max (le curseur qu'on bouge pousse l'autre)
+  $("#res_target").addEventListener("input", () => {
+    if (+$("#res_target").value > +$("#res_max").value) $("#res_max").value = $("#res_target").value;
+    refreshVis();
+  });
+  $("#res_max").addEventListener("input", () => {
+    if (+$("#res_max").value < +$("#res_target").value) $("#res_target").value = $("#res_max").value;
+    refreshVis();
+  });
+  $("#time-btn").addEventListener("click", () => {
+    const steps = [60, 180, 360];
+    setTimeLimit(steps[(steps.indexOf(+$("#time_limit").value) + 1) % steps.length]);
+  });
   $("#neutral").addEventListener("change", () => {
     if ($("#neutral").checked) {   // le combo impose du critique et rend dos / berserk / soin inutiles
       toggleBtn($("#crit"), true); ["rear", "berserk", "heal"].forEach((id) => toggleBtn($("#" + id), false));
@@ -204,16 +216,18 @@ function applyClass(key) {
   toggleBtn($("#heal"), c.role === "heal");
   setSeg("rear_share", c.rear ? "80" : "50");
   $("#res_target").value = c.role === "tank" ? 65 : c.role === "heal" ? 55 : 50;
+  $("#res_max").value = c.role === "tank" ? 90 : c.role === "heal" ? 85 : 80;
 }
 
 function refreshVis() {
   $("#class-icon").src = `assets/classes/${$("#cls").value}.png`;
-  const rt = +$("#res_target").value;
-  $("#res-lab").textContent = rt ? `${rt} % sur chaque élément` : "aucune";
+  const rt = +$("#res_target").value, rm = +$("#res_max").value;
+  $("#res-lab").textContent = `${rt ? `min ${rt} %` : "pas de min"} · ${rm < 90 ? `max ${rm} %` : "pas de max"}`;
+  $("#res-fill").style.left = `${(rt / 90) * 100}%`;
+  $("#res-fill").style.width = `${((rm - rt) / 90) * 100}%`;
   const neutral = $("#neutral").checked;
   $("#rear-box").classList.toggle("hidden", !isOn("rear") || neutral);
   ["rear", "berserk", "heal"].forEach((id) => { $("#" + id).disabled = neutral; $("#" + id).classList.toggle("off", neutral); });
-  $("#neutral-hint").classList.toggle("hidden", !neutral);
   const mode = segVal("shard_mode");
   $("#shard-steps").classList.toggle("hidden", mode !== "ideal");
   $("#my-colors").classList.toggle("hidden", mode !== "mine");
@@ -233,9 +247,10 @@ function applyOptions(o) {
   const rs = +o.rear_share || 50;
   setSeg("rear_share", rs >= 70 ? "80" : rs <= 35 ? "25" : "50");
   set("res_target", o.res_target ?? 50);
+  set("res_max", o.res_max ?? 80);
   $("#balance").checked = o.balance_res; $("#cond").checked = o.count_conditional;
   $("#neutral").checked = !!o.neutral_combo;
-  if ([60, 180, 360].includes(+o.time_limit)) set("time_limit", o.time_limit);
+  setTimeLimit([60, 180, 360].includes(+o.time_limit) ? +o.time_limit : 180);
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
    "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
   S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
@@ -261,7 +276,7 @@ function options() {
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
-    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"),
+    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: 85, res_target: n("res_target"), res_max: n("res_max"),
     balance_res: $("#balance").checked, count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
     min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,
@@ -288,38 +303,105 @@ async function start() {
   S.opts = o;
   $("#go").disabled = true; $("#stop").disabled = false;
   $("#msg").innerHTML = "";
-  setProgress(0, "Démarrage…", true);
+  progressStart("Démarrage…");
   try {
     const { job } = await api("/api/optimize", { opts: o });
     S.job = job;
     poll();
   } catch (e) {
-    endRun(); $("#msg").innerHTML = `<span class="err">Erreur : ${esc(e.message)}</span>`;
+    endRun(); progressEnd(false, "Erreur"); $("#msg").innerHTML = `<span class="err">Erreur : ${esc(e.message)}</span>`;
   }
 }
+function setTimeLimit(sec) {
+  $("#time_limit").value = sec;
+  $("#time-btn").textContent = `⏱ ${sec / 60} min`;
+}
+
+// ===================================================================== barre de progression
+// Ce qu'affiche la barre avance tout seul, en douceur, vers l'étape suivante (jamais d'arrêt visible),
+// démarre vite et accélère franchement à la fin : le calcul paraît plus rapide qu'il n'est.
+const P = { shown: 0, target: 0, since: 0, t0: 0, running: false, raf: 0, last: 0, finishFrom: 0, finishAt: 0 };
+const PHASES = [
+  [/candidats/, "Tri des items"], [/modèle/, "Préparation"], [/premier build/, "Premier build"],
+  [/passe (\d+)/, (m) => `Affinage du build · étape ${m[1]}`], [/Terminé/, "Finitions"],
+];
+function phaseLabel(msg) {
+  for (const [re, lab] of PHASES) {
+    const m = re.exec(msg || "");
+    if (m) return typeof lab === "function" ? lab(m) : lab;
+  }
+  return msg || "";
+}
+function fmtSec(ms) { return `${(ms / 1000).toFixed(1).replace(".", ",")} s`; }
+function progressFrame(now) {
+  const dt = Math.min(0.1, (now - P.last) / 1000);
+  P.last = now;
+  let goal;
+  if (P.finishAt) {   // fin : sprint jusqu'à 100 % (ease-out)
+    const k = Math.min(1, (now - P.finishAt) / 450);
+    goal = P.finishFrom + (1 - P.finishFrom) * (1 - (1 - k) ** 3);
+    P.shown = goal;
+  } else {
+    // avance lente vers « étape actuelle + 14 % » : la barre bouge toujours, sans dépasser 96 %
+    const ceil = Math.min(0.96, P.target + 0.14);
+    goal = P.target + (ceil - P.target) * (1 - Math.exp(-(now - P.since) / 9000));
+    P.shown += (Math.max(P.shown, goal) - P.shown) * Math.min(1, dt * 4);
+  }
+  $("#bar").style.width = `${(P.shown * 100).toFixed(2)}%`;
+  $("#progress").style.setProperty("--speed", `${Math.max(0.35, 1.2 - P.shown)}s`);
+  if (P.running) $("#ptime").textContent = fmtSec(now - P.t0);
+  if (!P.running && !(P.finishAt && now - P.finishAt < 460)) { clearInterval(P.raf); P.raf = 0; }
+}
+// minuterie à 30 images/s : contrairement aux images d'animation du navigateur, elle tourne aussi onglet caché
+function progressTick() {
+  clearInterval(P.raf);
+  P.raf = setInterval(() => progressFrame(performance.now()), 33);
+}
+function progressStart(text) {
+  Object.assign(P, { shown: 0, target: 0.04, since: performance.now(), t0: performance.now(), running: true,
+                     last: performance.now(), finishAt: 0 });
+  $("#progress").className = "progress running";
+  $("#ptext").textContent = text;
+  progressTick();
+}
+function progressUpdate(frac, msg) {
+  if (frac > P.target + 0.001) { P.target = frac; P.since = performance.now(); }
+  $("#ptext").textContent = phaseLabel(msg);
+}
+function progressEnd(ok, text, elapsedSec) {
+  P.running = false;
+  P.finishFrom = P.shown;
+  P.finishAt = performance.now();
+  progressTick();
+  $("#progress").className = `progress ${ok ? "done" : "failed"}`;
+  $("#ptext").textContent = text;
+  $("#ptime").textContent = elapsedSec != null ? `${String(elapsedSec).replace(".", ",")} s` : "";
+}
+// états simples (chargement des données, prêt, erreur)
 function setProgress(frac, text, running) {
+  clearInterval(P.raf);
+  P.running = false; P.finishAt = 0; P.shown = frac;
   $("#bar").style.width = `${Math.round(frac * 100)}%`;
   $("#ptext").textContent = text;
-  $("#progress").classList.toggle("running", !!running);
+  $("#ptime").textContent = "";
+  $("#progress").className = `progress ${running ? "running loading" : ""}`;
 }
 function endRun() { $("#go").disabled = false; $("#stop").disabled = true; S.job = null; }
 async function poll() {
   if (!S.job) return;
   let j;
   try { j = await api(`/api/job?id=${S.job}`); } catch (e) { setTimeout(poll, 800); return; }
-  const pct = Math.round(j.progress * 100);
-  setProgress(j.progress, `${pct} % — ${j.msg}  (${Math.round(j.elapsed)} s, max ${S.opts.time_limit} s)`, !j.done);
-  if (!j.done) { setTimeout(poll, 400); return; }
+  if (!j.done) { progressUpdate(j.progress, j.msg); setTimeout(poll, 300); return; }
   endRun();
   const r = j.result || {};
   const warn = (r.warnings || []).map((w) => `<div class="warn">⚠ ${esc(w)}</div>`).join("");
   if (!r.view) {
     const diag = (r.diagnostics || []).map((d) => `<div>• ${esc(d)}</div>`).join("");
-    setProgress(1, r.status === "annulé" ? "Annulé" : "Aucun build", false);
+    progressEnd(false, r.status === "annulé" ? "Annulé" : "Aucun build trouvé", r.elapsed);
     $("#msg").innerHTML = `<div class="err">${esc(r.message || r.status)}</div>${diag}${warn}`;
     return;
   }
-  setProgress(1, `Terminé — ${r.status} en ${r.elapsed} s`, false);
+  progressEnd(true, `✓ Build trouvé${r.status === "optimal" ? " (optimal)" : r.status.includes("durée max") ? " (durée max atteinte)" : ""}`, r.elapsed);
   $("#msg").innerHTML = warn;
   S.original = r.view; S.view = r.view; S.changed = new Set();
   subsCache = null;
