@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wakfu Optimizer</title>
+<link rel="icon" type="image/svg+xml" href="static/favicon.svg">
 <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
 <header class="top">
   <div class="brand"><button id="side-btn" class="side-btn" type="button" title="Afficher / masquer les réglages">☰ <span>Réglages</span></button>
-    <span class="logo">W</span> Wakfu Optimizer</div>
+    <img class="logo-img" src="static/favicon.svg" alt=""> Wakfu Optimizer</div>
   <div class="top-right">
     <span id="version" class="muted"></span>
     <button id="sfx-btn" class="btn ghost small" title="Sons activés (clic pour couper)">🔊</button>
@@ -93,10 +94,6 @@
       <label class="check"><input type="checkbox" id="no_epic"><span>Exclure les épiques</span></label>
       <label class="check"><input type="checkbox" id="no_shop"><span>Exclure les items boutique</span></label>
       <label class="check"><input type="checkbox" id="pets"><span>Inclure familier et monture</span></label>
-      <div class="row">
-        <button id="items-btn" class="btn ghost">Items exclus / forcés…</button>
-        <span id="items-lab" class="muted"></span>
-      </div>
     </section>
 
     <section class="card">
@@ -126,6 +123,7 @@
       <button class="tab on" data-tab="build">Build</button>
       <button class="tab" data-tab="apt">Aptitudes <span id="apt-badge" class="badge">auto</span></button>
       <button class="tab" data-tab="subs">Sublimations <span id="subs-badge" class="badge hidden"></span></button>
+      <button class="tab" data-tab="items">Items <span id="items-badge" class="badge hidden"></span></button>
     </nav>
     <div id="tab-apt" class="tab-page hidden">
       <div class="apt-layout">
@@ -157,6 +155,26 @@
             <button class="btn primary" id="apt-apply" style="width:100%;margin-top:12px" disabled>Appliquer</button>
           </section>
         </div>
+      </div>
+    </div>
+    <div id="tab-items" class="tab-page hidden">
+      <div class="itab">
+        <section class="card itab-main">
+          <div class="itab-filters">
+            <input id="it-q" class="search" placeholder="Rechercher un item par nom…">
+            <div id="it-slots" class="it-slots"></div>
+            <div class="itab-row"><div id="it-rars" class="chips"></div>
+              <label class="check"><input type="checkbox" id="it-bracket" checked><span>Tranche de niveau actuelle</span></label></div>
+          </div>
+          <div id="it-count" class="muted it-count"></div>
+          <div id="it-results" class="it-results"></div>
+        </section>
+        <aside class="itab-side">
+          <section class="card"><h2>Forcés <span class="muted" id="it-fo-n"></span></h2>
+            <p class="hint">Toujours gardés dans le build (ceux que vous voulez absolument).</p><div id="it-fo" class="it-picked"></div></section>
+          <section class="card"><h2>Exclus <span class="muted" id="it-ex-n"></span></h2>
+            <p class="hint">Jamais proposés (ceux que vous n'avez pas ou ne voulez pas).</p><div id="it-ex" class="it-picked"></div></section>
+        </aside>
       </div>
     </div>
     <div id="tab-subs" class="tab-page hidden">

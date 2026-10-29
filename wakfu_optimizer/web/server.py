@@ -260,23 +260,34 @@ def aptitudes(d: GameData) -> list[dict[str, Any]]:
 
 
 def search(d: GameData, q: dict[str, list[str]]) -> list[dict[str, Any]]:
+    """Items par nom et / ou par filtres (emplacement, rareté, tranche de niveau) ; ids = liste précise."""
     text = q.get("q", [""])[0].strip().lower()
     ids = [int(x) for x in q.get("ids", [""])[0].split(",") if x.isdigit()]
     level = int(q.get("level", ["245"])[0])
     lang = q.get("lang", ["fr"])[0]
+    slot = q.get("slot", [""])[0]
+    rars = {int(x) for x in q.get("rarity", [""])[0].split(",") if x.isdigit()}
+    bracket = q.get("bracket", ["0"])[0] == "1"
+    limit = min(300, int(q.get("limit", ["80"])[0] or 80))
     by_id = d.item_by_id()
     if ids:
-        return [item_brief(d, by_id[i], lang, level) for i in ids if i in by_id]
-    if len(text) < 2:
+        return [dict(item_brief(d, by_id[i], lang, level), slot_name=SLOT_FR[by_id[i].slots[0]] if by_id[i].slots else "")
+                for i in ids if i in by_id]
+    if len(text) < 2 and not slot:
         return []
+    lo = next((a for a, b in d.brackets if a <= level <= b), 1) if bracket else 0
+    found = [it for it in d.items
+             if not it.is_hidden and (it.level <= level or it.scales_with_character)
+             and (not bracket or it.level >= lo or it.scales_with_character)
+             and (not slot or any(s.value == slot for s in it.slots))
+             and (not rars or int(it.rarity) in rars)
+             and (len(text) < 2 or text in it.name(lang).lower())]
+    found.sort(key=lambda it: (-it.level, -int(it.rarity), it.name(lang)))
     out = []
-    for it in d.items:
-        if it.level <= level + 0 and text in it.name(lang).lower():
-            b = item_brief(d, it, lang, level)
-            b["slot_name"] = SLOT_FR[it.slots[0]] if it.slots else ""
-            out.append(b)
-            if len(out) >= 80:
-                break
+    for it in found[:limit]:
+        b = item_brief(d, it, lang, level)
+        b["slot_name"] = SLOT_FR[it.slots[0]] if it.slots else ""
+        out.append(b)
     return out
 
 
