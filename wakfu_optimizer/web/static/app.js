@@ -312,6 +312,13 @@ function classRange() {
   return c ? c.range : "";
 }
 
+// Poids du calcul : toujours ceux de l'archétype sélectionné (jamais d'anciens réglages enregistrés)
+function archWeights() {
+  const a = ARCHETYPES[$("#archetype").value];
+  if (!a || !a.offense) return { offense_weight: 85, res_free: false, willpower_weight: 0 };
+  return { offense_weight: a.offense, res_free: !!a.resFree, willpower_weight: a.will || 0 };
+}
+
 function defaultArchetype(c) {
   if (c.role === "tank") return "tank";
   if (c.role === "heal") return "heal";
@@ -409,7 +416,7 @@ function options() {
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: classRange() === "best" ? "best" : segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
-    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: S.offense || 85, res_free: !!S.resFree, willpower_weight: S.will || 0, archetype: $("#archetype").value,
+    berserk: isOn("berserk"), heal: isOn("heal"), ...archWeights(), archetype: $("#archetype").value,
     res_target: n("res_target"), res_tol: n("res_tol"),
     count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
@@ -559,6 +566,11 @@ function itemsView() {
   try { return localStorage.getItem("wakfu-optimizer:view") === "list" ? "list" : "grid"; } catch (e) { return "grid"; }
 }
 
+function archName() {
+  const a = S.opts && ARCHETYPES[S.opts.archetype];
+  return a && S.opts.archetype !== "custom" ? a.name : "";
+}
+
 function renderResult() {
   const v = S.view, s = v.stats;
   const changed = S.changed.size
@@ -577,7 +589,8 @@ function renderResult() {
       ${changed}
       <div class="sum-head">
         <img src="assets/classes/${v.class.key}.png" alt="">
-        <div><div class="name">${esc(v.class.name)}</div><div class="muted">Niveau ${v.level} · ${v.elements.map((e) => EL_FR[e]).join(", ")}</div></div>
+        <div><div class="name">${esc(v.class.name)}</div><div class="muted">Niveau ${v.level} · ${v.elements.map((e) => EL_FR[e]).join(", ")}</div>
+          ${archName() ? `<div class="arch-tag" title="${esc(ARCHETYPES[S.opts.archetype].desc)}">${esc(archName())}</div>` : ""}</div>
         <div class="scores"><div><span class="muted">Score</span> <b>${v.score.toFixed(1)}</b></div>
           <div><span class="muted">Dégâts</span> <b>×${v.damage.toFixed(2)}</b></div>
           <div><span class="muted">PV effectifs</span> <b>${fmt(v.ehp)}</b></div>

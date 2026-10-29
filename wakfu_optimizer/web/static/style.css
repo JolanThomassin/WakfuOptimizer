@@ -593,3 +593,4 @@ body.side-collapsed .sidebar { opacity: 0; padding: 0; border: none; overflow: h
 .items-grid.list .chip .ic, .it-row .chip .ic { width: 20px; height: 20px; }
 .items-grid.list .chip .ic img, .it-row .chip .ic img { max-width: 18px; max-height: 18px; }
 .item .obtain, .item .obtain .craft { white-space: nowrap; }
+.arch-tag { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 700; color: #1b1305; background: var(--accent); border-radius: 999px; padding: 1px 9px; cursor: help; }
