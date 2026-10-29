@@ -40,7 +40,7 @@ from ..data.models import (
 )
 from .characteristics import BRANCH_FR, branch_points, char_lines, fill_unspent
 from .options import NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice, SlotChoice
-from .scoring import flat_for_pct, gradient, res_cap, res_need, res_pct, utility_table
+from .scoring import WILL_CAP, WILL_FLOOR, flat_for_pct, gradient, res_cap, res_need, res_pct, utility_table
 from .shards import effect_targets, parse_stat_condition, rune_fits, static_condition
 from .stats import Totals, evaluate, spare_elements
 from .sublimations import fill_empty_subs
@@ -120,6 +120,8 @@ def _features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
         f += [g("hp"), g("hp_pct")] + [g("elem_res") + g(f"{e}_res") for e in ELEMENTS] + [rr_v, rr_n]
     if opts.min_crit > 0 and not opts.crit:
         f.append(g("crit_rate"))
+    if opts.willpower_weight:
+        f.append(g("willpower"))
     if opts.min_block > 0:
         f.append(g("block"))
     return f
@@ -752,6 +754,12 @@ class BuildModel:
         # moyenne des quatre résistances (plafonnées) : pas besoin d'un équilibre parfait,
         # chaque élément est tiré vers la résistance visée par la pénalité res_short
         f["res4"] = sum(capped)
+        if opts.willpower_weight:   # Volonté utile pour les retraits, plafonnée (voir scoring.removal_factor)
+            wcap = m.NewIntVar(-BIG, WILL_CAP, "will_cap")
+            m.AddMinEquality(wcap, [self.stat("willpower"), WILL_CAP])
+            wv = m.NewIntVar(WILL_FLOOR, WILL_CAP, "will")
+            m.AddMaxEquality(wv, [wcap, WILL_FLOOR])
+            f["will"] = wv
         for stat, (_v, cap) in utility_table(opts).items():
             capped_u = m.NewIntVar(-100, max(0, cap), f"cap_{stat}")
             m.AddMinEquality(capped_u, [self.stat(stat), cap])
@@ -1146,7 +1154,7 @@ def _initial_point(opts: OptimizeOptions) -> dict[str, float]:
     L = opts.level
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
-            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "res_short": 0.0}
+            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "res_short": 0.0, "will": 0.0}
 
 
 def optimize(data: GameData, opts: OptimizeOptions, progress: ProgressFn | None = None) -> SolveResult:

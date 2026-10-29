@@ -137,7 +137,16 @@ def ln_defense(hp: float, hp_pct: float, res: float) -> float:
 
 
 FEATURES = ("mtot", "crit", "crit_mastery", "rear_mastery", "dmg_pct", "hp", "hp_pct", "res", "ap", "mp", "range", "wp",
-            "res_short")
+            "res_short", "will")
+
+# Volonté (Wakfu Calc) : retrait = base du sort × 0,5 × FF, FF = 1 + (Volonté lanceur − Volonté cible) / 100,
+# borné entre 0 et 2. Contre une cible à 0 Volonté : +1 % de retrait par point, jusqu'à 100.
+WILL_CAP = 100
+WILL_FLOOR = -90      # en dessous, FF ~ 0 : on évite ln(0)
+
+
+def removal_factor(will: float) -> float:
+    return 1 + max(WILL_FLOOR, min(WILL_CAP, will)) / 100
 
 
 def log_score(f: dict[str, float], opts: object) -> float:
@@ -152,6 +161,9 @@ def log_score(f: dict[str, float], opts: object) -> float:
     for k, (v, cap) in utility_table(opts).items():
         s += 100 * v * max(0.0, min(float(f.get(k, 0)), cap))
     s -= RES_SHORT_PENALTY * f.get("res_short", 0.0)
+    w_will = int(getattr(opts, "willpower_weight", 0) or 0)
+    if w_will:   # retraits PA / PM : même échelle que les dégâts (1 point ≈ 1 % de valeur × poids / 100)
+        s += w_will * math.log(removal_factor(f.get("will", 0.0)))
     return s
 
 

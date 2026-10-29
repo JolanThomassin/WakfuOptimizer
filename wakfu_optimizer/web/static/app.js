@@ -293,7 +293,7 @@ const ARCHETYPES = {
   berserk: { name: "Berserk", range: "melee", crit: true, rear: false, berserk: true, heal: false,
     res: [40, 6], offense: 88, desc: "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances plus basses." },
   tank: { name: "Tank", range: "melee", hideRange: true, crit: false, rear: false, berserk: false, heal: false,
-    res: [70, 4], resFree: true, offense: 45,
+    res: [70, 4], resFree: true, offense: 45, will: 10,
     desc: "Survie d'abord : résistances (même au-delà de la cible) et PV, dégâts ensuite. La portée ne compte pas." },
   heal: { name: "Soigneur", range: null, crit: true, rear: false, berserk: false, heal: true,
     res: [55, 5], offense: 80, desc: "Soins : Maîtrise soin et critique, bonne survie." },
@@ -301,10 +301,10 @@ const ARCHETYPES = {
     res: [60, 5], offense: 60, mins: { ap: 11, mp: 5, wp: 8 },
     desc: "Boosts / placement : PA, PM, PW et survie avant les dégâts. (Armure donnée non chiffrée.)" },
   support_debuff: { name: "Support débuff", range: null, crit: false, rear: false, berserk: false, heal: false,
-    res: [60, 5], offense: 60, mins: { ap: 11, mp: 5 },
-    desc: "Retraits PA / PM : PA, PM et survie avant les dégâts. (La Volonté n'est pas encore chiffrée.)" },
+    res: [60, 5], offense: 55, will: 45, mins: { ap: 11, mp: 5 },
+    desc: "Retraits PA / PM : la Volonté compte beaucoup (+1 % de retrait par point, jusqu'à 100), puis PA, PM et survie." },
 };
-S.offense = 85; S.resFree = false;
+S.offense = 85; S.resFree = false; S.will = 0;
 
 // portée imposée par la classe (Roublard : la meilleure des deux maîtrises compte)
 function classRange() {
@@ -330,7 +330,7 @@ function applyArchetype(key, cls) {
   toggleBtn($("#crit"), a.crit); toggleBtn($("#rear"), a.rear); toggleBtn($("#berserk"), a.berserk); toggleBtn($("#heal"), a.heal);
   setSeg("rear_share", a.rearShare || "50");
   $("#res_target").value = a.res[0]; $("#res_tol").value = a.res[1];
-  S.offense = a.offense; S.resFree = !!a.resFree;
+  S.offense = a.offense; S.resFree = !!a.resFree; S.will = a.will || 0;
   const lv = S.meta.levels.find((x) => x.level === +$("#level").value);
   $("#min_ap").value = Math.max(lv ? lv.min_ap : 0, (a.mins && a.mins.ap) || 0);
   $("#min_mp").value = Math.max(lv ? lv.min_mp : 0, (a.mins && a.mins.mp) || 0);
@@ -380,7 +380,7 @@ function applyOptions(o) {
   set("res_target", o.res_target ?? 50);
   set("res_tol", o.res_tol ?? 5);
   $("#cond").checked = o.count_conditional;
-  S.offense = +o.offense_weight || 85; S.resFree = !!o.res_free;
+  S.offense = +o.offense_weight || 85; S.resFree = !!o.res_free; S.will = +o.willpower_weight || 0;
   $("#neutral").checked = !!o.neutral_combo;
   setTimeLimit(180);   // toujours 3 min à l'ouverture de la page
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
@@ -409,7 +409,7 @@ function options() {
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: classRange() === "best" ? "best" : segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
-    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: S.offense || 85, res_free: !!S.resFree, archetype: $("#archetype").value,
+    berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: S.offense || 85, res_free: !!S.resFree, willpower_weight: S.will || 0, archetype: $("#archetype").value,
     res_target: n("res_target"), res_tol: n("res_tol"),
     count_conditional: $("#cond").checked,
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
@@ -580,7 +580,8 @@ function renderResult() {
         <div><div class="name">${esc(v.class.name)}</div><div class="muted">Niveau ${v.level} · ${v.elements.map((e) => EL_FR[e]).join(", ")}</div></div>
         <div class="scores"><div><span class="muted">Score</span> <b>${v.score.toFixed(1)}</b></div>
           <div><span class="muted">Dégâts</span> <b>×${v.damage.toFixed(2)}</b></div>
-          <div><span class="muted">PV effectifs</span> <b>${fmt(v.ehp)}</b></div></div>
+          <div><span class="muted">PV effectifs</span> <b>${fmt(v.ehp)}</b></div>
+          ${v.removal ? `<div title="Retraits PA / PM grâce à la Volonté (cible à 0 Volonté) : base du sort × 0,5 × ce facteur"><span class="muted">Retraits</span> <b>×${v.removal.toFixed(2)}</b></div>` : ""}</div>
       </div>
       <div class="big4">
         <div class="sc col" data-stat="hp" title="Cliquer : d'où vient cette stat">${icon("hp", "PV")}<span class="val" style="color:#ff7d8a">${fmt(v.hp)}</span></div>
@@ -899,15 +900,20 @@ function obtain(it) {
 }
 
 // Passif inné de la classe : toujours actif, en tête des items
-// Bandeau fin sur toute la largeur, seulement s'il donne des stats (description complète au survol)
+// Case « passif de classe » en tête des items, seulement s'il donne des stats (description au survol)
 function passiveCard(v) {
   const p = v.passive;
   if (!p || !p.stats.length) return "";
-  const chips = p.stats.map((x) => chip(x.stat, `${signed(x.value)} <small>${esc(x.label)}</small>`, x.label, x.value < 0 ? "neg" : "")).join("");
-  return `<div class="passive-bar" title="${esc(`${p.name} (passif de classe) : ${p.desc}`)}">
-    <img src="assets/classes/${v.class.key}.png" alt="">
-    <span class="pb-name">${esc(p.name)}</span><span class="pb-tag">Passif de classe</span>
-    <span class="pb-stats">${chips}</span>
+  const tiles = p.stats.map((x) => `<div class="pv-tile ${x.value < 0 ? "neg" : ""}">${icon(x.stat, x.label)}
+      <b>${signed(x.value)}</b><span>${esc(x.label)}</span></div>`).join("");
+  return `<div class="item passive-item" style="--rc:#e8a93a" title="${esc(`${p.name} : ${p.desc}`)}">
+    <span class="passive-ribbon">Passif</span>
+    <div class="it-head">
+      <span class="it-iconbox"><img class="it-icon" src="assets/classes/${v.class.key}.png" alt=""></span>
+      <div class="it-names"><div class="it-name">${esc(p.name)}</div><div class="it-sub">Passif de classe · ${esc(v.class.name)}</div></div>
+    </div>
+    <div class="pv-tiles">${tiles}</div>
+    <div class="it-foot passive-foot"><span>Toujours actif</span><span class="muted">survol : détail</span></div>
   </div>`;
 }
 

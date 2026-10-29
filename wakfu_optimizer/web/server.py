@@ -38,7 +38,7 @@ from ..engine.alternatives import alternatives
 from ..engine.characteristics import BRANCH_FR, LINE_FR, PRESETS, char_lines, preset_points
 from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min_mp
 from ..engine.report import SLOT_ORDER, build_json, build_text
-from ..engine.scoring import damage_multiplier
+from ..engine.scoring import damage_multiplier, removal_factor
 from ..engine.stats import Totals, evaluate
 from ..engine.sublimations import SubFamily, build_levels, catalog, condition_failed, sub_alternatives
 
@@ -197,6 +197,7 @@ def build_view(data: GameData, opts: OptimizeOptions, build: Build, t: Totals | 
                    "stats": [{"stat": k, "label": STAT_LABEL.get(k, k), "value": v} for k, v in cp.passive_stats(opts.level).items()]}
     return {
         "passive": passive,
+        "removal": round(removal_factor(t.stats.get("willpower", 0)), 2) if opts.willpower_weight else None,
         "class": {"key": opts.class_key, "name": cp.name if cp else opts.class_key},
         "level": opts.level, "elements": list(opts.elements),
         "score": round(t.score, 2), "damage": round(damage_multiplier(t.d2), 2), "ehp": round(t.defense / 1e4),
