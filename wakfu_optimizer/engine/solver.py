@@ -110,6 +110,8 @@ def _features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
         f += [g("hp"), g("hp_pct")] + [g("elem_res") + g(f"{e}_res") for e in ELEMENTS] + [rr_v, rr_n]
     if opts.min_crit > 0 and not opts.crit:
         f.append(g("crit_rate"))
+    if opts.min_block > 0:
+        f.append(g("block"))
     return f
 
 
@@ -421,6 +423,8 @@ class BuildModel:
             var = self.m.NewIntVar(0, hi, f"c_{cl.key}")
             if self.opts.char_mode == "manual":
                 self.m.Add(var == max(0, min(hi, int(self.opts.manual_chars.get(cl.key, 0)))))
+            elif self.opts.apt_elem_res and cl.key == "intelligence.elem_res":
+                self.m.Add(var == hi)
             self.v.chars[cl.key] = var
             per_branch[cl.branch].append(var)
             for stat, val in cl.per_point.items():
@@ -659,14 +663,14 @@ class BuildModel:
             self.res[e] = var
         # --- contraintes minimales
         mins = {"ap": opts.min_ap, "mp": opts.min_mp, "range": opts.min_range, "wp": opts.min_wp,
-                "crit_rate": opts.min_crit, "control": opts.min_control}
+                "crit_rate": opts.min_crit, "control": opts.min_control, "block": opts.min_block}
         self.active_mins = {}
         for stat, val in mins.items():
             if val and stat not in self.skip:
                 m.Add(self.stat(stat) >= val)
                 self.active_mins[stat] = val
         maxs = {"ap": opts.max_ap, "mp": opts.max_mp, "range": opts.max_range, "wp": opts.max_wp,
-                "crit_rate": opts.max_crit}
+                "crit_rate": opts.max_crit, "block": opts.max_block}
         for stat, val in maxs.items():
             if val and stat not in self.skip:
                 m.Add(self.stat(stat) <= val)
@@ -1011,7 +1015,7 @@ class Optimizer:
         for s, names in by_slot.items():
             if len(names) > (2 if s in (Slot.LEFT_HAND, Slot.RIGHT_HAND) else 1):
                 diag.append(f"Trop d'items forcés pour {s.value} : {', '.join(names)}")
-        labels = {"ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW", "crit_rate": "% Critique",
+        labels = {"ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW", "crit_rate": "% Critique", "block": "% Parade",
                   "control": "Contrôle", "res": "% Résistance"}
         probe = BuildModel(self.data, self.opts, cand, shard_mode="none")
         for stat, val in probe.active_mins.items():
@@ -1031,7 +1035,7 @@ class Optimizer:
             diag.append("Vérifiez aussi les sublimations imposées (onglet Sublimations) : leurs couleurs ou "
                         "leurs conditions peuvent bloquer.")
         maxs = {"PA": self.opts.max_ap, "PM": self.opts.max_mp, "Portée": self.opts.max_range, "PW": self.opts.max_wp,
-                "% Critique": self.opts.max_crit}
+                "% Critique": self.opts.max_crit, "% Parade": self.opts.max_block}
         for lab, val in maxs.items():
             if val:
                 diag.append(f"Maximum imposé : {lab} ≤ {val}")

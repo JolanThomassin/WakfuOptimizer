@@ -52,6 +52,7 @@ class OptimizeOptions:
     min_wp: int = 0
     min_crit: int = 0
     min_control: int = 0
+    min_block: int = 0
     min_res_pct: int = 0                 # résistance minimale (%) sur chaque élément (contrainte stricte)
     # maximums (0 = pas de maximum)
     max_ap: int = 0
@@ -59,6 +60,7 @@ class OptimizeOptions:
     max_range: int = 0
     max_wp: int = 0
     max_crit: int = 0
+    max_block: int = 0
     allowed_rarities: tuple[int, ...] = tuple(int(r) for r in Rarity)
     lower_brackets: bool = False
     exclude_relic: bool = False
@@ -67,6 +69,7 @@ class OptimizeOptions:
     include_pet_mount: bool = True
     optimize_characteristics: bool = True
     char_mode: str = "auto"               # auto (le solveur choisit) | manual (aptitudes saisies)
+    apt_elem_res: bool = True             # auto : Résistance élémentaire (Intelligence) toujours au max, comme la plupart des joueurs
     manual_chars: dict[str, int] = field(default_factory=dict)   # "branche.ligne" -> points
     excluded_ids: tuple[int, ...] = ()
     forced_ids: tuple[int, ...] = ()

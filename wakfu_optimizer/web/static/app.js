@@ -58,7 +58,8 @@ const S = {
   view: null, original: null, opts: null, changed: new Set(),
   subForced: new Set(), subExcluded: new Set(),
 };
-const MINMAX = [["ap", "PA", 20], ["mp", "PM", 10], ["range", "PO", 10], ["wp", "PW", 20], ["crit", "% Crit", 100, "crit_rate"]];
+const MINMAX = [["ap", "PA", 20], ["mp", "PM", 10], ["range", "PO", 10], ["wp", "PW", 20], ["crit", "% Crit", 100, "crit_rate"],
+  ["block", "% Parade", 100]];
 
 // ===================================================================== widgets
 function stepper(id, label, stat, min, max, suffix = "") {
@@ -208,7 +209,7 @@ function applyOptions(o) {
   setSeg("rear_share", rs >= 70 ? "80" : rs <= 35 ? "25" : "50");
   set("res_target", o.res_target ?? 50);
   $("#balance").checked = o.balance_res; $("#cond").checked = o.count_conditional;
-  ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "max_ap", "max_mp", "max_range", "max_wp", "max_crit",
+  ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
    "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
   S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
   $$("#rarities .toggle").forEach((b) => toggleBtn(b, (o.allowed_rarities || []).includes(+b.dataset.r)));
@@ -217,6 +218,7 @@ function applyOptions(o) {
   S.excluded = new Set(o.excluded_ids || []); S.forced = new Set(o.forced_ids || []);
   setSeg("shard_mode", o.shard_mode || "ideal");
   S.apt = Object.assign({}, o.manual_chars || {});
+  $("#apt_elem_res").checked = o.apt_elem_res ?? true;
   setSeg("char_mode", o.char_mode || "auto");
   S.colors = o.my_colors || {};
   updateSubsBadge();
@@ -235,6 +237,7 @@ function options() {
     min_ap: n("min_ap"), min_mp: n("min_mp"), min_range: n("min_range"), min_wp: n("min_wp"),
     min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,
     max_ap: n("max_ap"), max_mp: n("max_mp"), max_range: n("max_range"), max_wp: n("max_wp"), max_crit: n("max_crit"),
+    min_block: n("min_block"), max_block: n("max_block"), apt_elem_res: $("#apt_elem_res").checked,
     forced_subs: [...S.subForced], excluded_subs: [...S.subExcluded],
     allowed_rarities: $$("#rarities .toggle.on").map((b) => +b.dataset.r),
     lower_brackets: $("#lower").checked, exclude_relic: $("#no_relic").checked, exclude_epic: $("#no_epic").checked,
@@ -293,6 +296,7 @@ async function poll() {
   showTab("build");
   renderResult();
   $("#apt-from-build").disabled = false;
+  renderApt();   // en mode auto, l'onglet Aptitudes montre ceux choisis par l'optimiseur
 }
 
 // ===================================================================== résultat
@@ -629,7 +633,10 @@ function branchPoints(b, level) {
   return Math.max(0, Math.floor((level + b.offset) / 4));
 }
 const lvl = () => +$("#level").value || 245;
-const used = (b) => b.lines.reduce((t, l) => t + (S.apt[l.key] || 0), 0);
+const manualApt = () => segVal("char_mode") === "manual";
+// Points affichés : les miens en manuel ; en auto, ceux que l'optimiseur a choisis pour le build affiché.
+const aptPts = () => (manualApt() ? S.apt : (S.view && S.view.build.characteristics) || {});
+const used = (b) => b.lines.reduce((t, l) => t + (aptPts()[l.key] || 0), 0);
 
 function buildAptForm() {
   const col = { intelligence: 1, strength: 1, agility: 1, fortune: 2, major: 2 };
@@ -646,13 +653,15 @@ function buildAptForm() {
     for (const l of b.lines) {
       const row = $(`.apt-line[data-key="${l.key}"]`, el);
       const set = (v) => {
+        if (!manualApt()) S.apt = { ...aptPts() };   // on part des aptitudes du build, puis passage en manuel
+        setSeg("char_mode", "manual");
         const free = branchPoints(b, lvl()) - used(b) + (S.apt[l.key] || 0);
         v = Math.max(0, Math.min(v, free, l.max ?? Infinity));
         if (v) S.apt[l.key] = v; else delete S.apt[l.key];
         aptChanged();
       };
       $$("button", row).forEach((bt) => bt.addEventListener("click", (e) => {
-        set((S.apt[l.key] || 0) + (e.shiftKey ? 10 : 1) * +bt.dataset.d);
+        set((aptPts()[l.key] || 0) + (e.shiftKey ? 10 : 1) * +bt.dataset.d);
       }));
       $("input", row).addEventListener("change", (e) => set(+e.target.value || 0));
     }
@@ -702,7 +711,7 @@ function renderApt() {
     av.className = "avail" + (left < 0 ? " over" : left > 0 ? " left" : "");
     for (const l of b.lines) {
       const row = $(`.apt-line[data-key="${l.key}"]`);
-      const n = S.apt[l.key] || 0;
+      const n = aptPts()[l.key] || 0;
       $("input", row).value = n;
       row.classList.toggle("zero", !n);
       const [minus, plus] = $$("button", row);
@@ -717,7 +726,9 @@ function renderApt() {
   const free = S.meta.aptitudes.reduce((t, b) => t + Math.max(0, branchPoints(b, lvl()) - used(b)), 0);
   $("#apt-mode-hint").textContent = manual
     ? `L'optimisation utilisera exactement ces aptitudes.${free ? ` Il reste ${free} point(s) non attribué(s).` : ""}`
-    : "L'optimiseur répartit lui-même les points. Modifiez une aptitude ou appliquez un preset pour imposer les vôtres.";
+    : S.view ? "Aptitudes choisies par l'optimiseur pour ce build. Modifiez-en une (ou appliquez un preset) pour imposer les vôtres."
+      : "L'optimiseur répartit lui-même les points : ils s'afficheront ici après le calcul.";
+  $("#apt-res-box").classList.toggle("hidden", manual);
 }
 
 function aptChanged() {
