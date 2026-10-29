@@ -82,7 +82,11 @@ def build(out: Path, force: bool) -> None:
     tag = '<script src="static/app.js"></script>'
     if tag not in html:
         raise SystemExit("index.html : balise app.js introuvable")
-    stamp = py_name[-14:-4]
+    # change dès qu'un fichier du site change : le navigateur ne garde pas un ancien app.js en cache
+    h = hashlib.sha256(py)
+    for f in sorted((out / "static").iterdir()):
+        h.update(f.read_bytes())
+    stamp = h.hexdigest()[:10]
     html = html.replace('href="static/style.css"', f'href="static/style.css?v={stamp}"')
     html = html.replace(tag, f'<script src="static/bridge.js?v={stamp}"></script>\n'
                              f'<script src="static/app.js?v={stamp}"></script>')

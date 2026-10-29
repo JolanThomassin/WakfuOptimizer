@@ -32,9 +32,10 @@ function icon(stat, title = "") {
 function chip(stat, text, title, cls = "") {
   return `<span class="chip ${cls}" title="${esc(title)}">${icon(stat, title)}${text}</span>`;
 }
-// Version GitHub Pages : le moteur Python tourne dans le navigateur (static/bridge.js)
+// Version GitHub Pages : le moteur Python tourne dans le navigateur (static/bridge.js).
+// static.ankama.com refuse les images affichées sur un autre site : miroir communautaire (wakassets).
 const BROWSER = window.WAKFU_BROWSER;
-const iconUrl = (gfx) => BROWSER ? `https://static.ankama.com/wakfu/portal/game/item/115/${gfx}.png` : `icon/${gfx}.png`;
+const iconUrl = (gfx) => BROWSER ? `https://vertylo.github.io/wakassets/items/${gfx}.png` : `icon/${gfx}.png`;
 async function api(path, body) {
   if (BROWSER) return BROWSER.api(path, body);
   const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
