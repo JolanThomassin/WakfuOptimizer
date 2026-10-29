@@ -98,6 +98,24 @@ class OptimizeOptions:
                 setattr(o, k, v)
         return o
 
+    def normalize(self) -> list[str]:
+        """Corrige les réglages incohérents (min > max, % hors 0..100) et renvoie ce qui a été changé."""
+        out: list[str] = []
+        for stat, label, cap in (("ap", "PA", None), ("mp", "PM", None), ("range", "PO", None), ("wp", "PW", None),
+                                 ("crit", "% Critique", 100), ("block", "% Parade", 100)):
+            lo, hi = f"min_{stat}", f"max_{stat}"
+            for k in (lo, hi):
+                v = max(0, int(getattr(self, k)))
+                setattr(self, k, min(v, cap) if cap else v)
+            if getattr(self, hi) and getattr(self, lo) > getattr(self, hi):
+                out.append(f"{label} : minimum {getattr(self, lo)} > maximum {getattr(self, hi)}, "
+                           f"minimum ramené à {getattr(self, hi)}.")
+                setattr(self, lo, getattr(self, hi))
+        self.res_target = max(0, min(90, int(self.res_target)))
+        self.min_res_pct = max(0, min(90, int(self.min_res_pct)))
+        self.rear_share = max(0, min(100, int(self.rear_share)))
+        return out
+
     def colors_for(self, slot: Slot) -> list[Color]:
         return [Color(c) for c in self.my_colors.get(slot.value, [])]
 

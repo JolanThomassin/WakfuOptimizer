@@ -160,3 +160,12 @@ def test_pa_au_dela_du_minimum(real) -> None:  # type: ignore[no-untyped-def]
     r = optimize(d, opts(offense_weight=100, shard_mode="none", min_ap=0, ap_value=10, optimize_characteristics=False))
     names = {d.item_by_id()[c.item_id].name() for c in r.builds[0].slots.values()}
     assert "Arme PA" in names
+
+
+def test_min_superieur_au_max_corrige() -> None:
+    o = OptimizeOptions(min_crit=100, max_crit=50, min_block=150, max_ap=0, min_ap=12)
+    msgs = o.normalize()
+    assert (o.min_crit, o.max_crit) == (50, 50)
+    assert o.min_block == 100          # % plafonné à 100
+    assert o.min_ap == 12              # max 0 = pas de limite
+    assert len(msgs) == 1 and "Critique" in msgs[0]

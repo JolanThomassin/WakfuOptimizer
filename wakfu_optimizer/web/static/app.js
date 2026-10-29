@@ -109,6 +109,14 @@ function buildForm() {
     mm.insertAdjacentHTML("beforeend", `<label><img src="assets/stats/${STAT_ICON[st || k]}.png" alt="">${label}</label>`);
     mm.appendChild($(".ctl", stepper(`min_${k}`, "", null, 0, hi)));
     mm.appendChild($(".ctl", stepper(`max_${k}`, "", null, 0, hi)));
+    // min ≤ max : la valeur qu'on vient de changer fait bouger l'autre (max 0 = pas de limite)
+    const mn = $(`#min_${k}`), mx = $(`#max_${k}`);
+    mn.addEventListener("change", () => {
+      if (+mx.value && +mn.value > +mx.value) { mx.value = mn.value; toast(`${label} max relevé à ${mn.value} (il était sous le min).`); }
+    });
+    mx.addEventListener("change", () => {
+      if (+mx.value && +mx.value < +mn.value) { mn.value = mx.value; toast(`${label} min baissé à ${mx.value} (il dépassait le max).`); }
+    });
   }
   const ss = $("#shard-steps");
   ss.appendChild(stepper("shard_count", "Châsses par item", null, 1, 4));

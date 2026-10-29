@@ -913,6 +913,7 @@ class Optimizer:
         opts = self.opts
         res = SolveResult()
         budget = max(10.0, min(opts.time_limit, MAX_TIME))
+        res.warnings.extend(opts.normalize())   # min > max, % hors bornes : corrigés et signalés
         self.progress("Sélection des items candidats…", 0.01)
         cand, warnings = select_candidates(self.data, opts)
         res.warnings.extend(warnings)
