@@ -6,7 +6,7 @@ et à l'onglet Explication de l'interface (outil de débogage : ce que l'algorit
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from ..data.models import ELEMENT_FR, ELEMENTS, SLOT_FR, GameData, Slot
@@ -15,7 +15,7 @@ from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions, default_min_ap, default_min_mp
 from .scoring import (CRIT_SHORT_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
                       utility_table)
-from .stats import Totals
+from .stats import Totals, evaluate
 
 # Emplacements qu'un build complet remplit toujours (familier, monture et emblème dépendent du niveau / des filtres ;
 # la seconde main peut rester vide exprès : sublimation Expert des armes légères)
@@ -244,12 +244,21 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
     forced = apt_forced(opts)
     ch = build.characteristics
     branches = []
+    all_lines = char_lines(data.game)
+
+    def line_gain(key: str) -> float:
+        """Points de score d'un point de plus dans cette ligne, au build final."""
+        b2 = replace(build, characteristics={**ch, key: ch.get(key, 0) + 1})
+        return round(evaluate(data, opts, b2).score - tot.score, 2)
+
     for branch in data.game["characteristics"]:  # type: ignore[union-attr]
         order = [f"{branch}.{x}" for x in prof.get(branch, [])]
-        lines = [{"key": k, "label": LINE_FR.get(k.split(".")[1], k), "points": ch.get(k, 0), "in_profile": True,
-                  "forced": k in forced} for k in order]
-        lines += [{"key": k, "label": LINE_FR.get(k.split(".")[1], k), "points": n, "in_profile": False}
-                  for k, n in ch.items() if n and k.startswith(branch + ".") and k not in order]
+        others = [cl.key for cl in all_lines if cl.branch == branch and cl.key not in order]
+        maxes = {cl.key: cl.max_points for cl in all_lines}
+        lines = [{"key": k, "line": k.split(".")[1], "label": LINE_FR.get(k.split(".")[1], k), "points": ch.get(k, 0),
+                  "in_profile": k in order, "forced": k in forced, "gain": line_gain(k),
+                  "full": maxes.get(k) is not None and ch.get(k, 0) >= maxes[k]}  # type: ignore[operator]
+                 for k in order + others]
         branches.append({"branch": branch, "name": BRANCH_FR.get(branch, branch),
                          "total": branch_points(branch, opts.level, data.game), "lines": lines})
     checks = check_build(data, opts, build, tot)
