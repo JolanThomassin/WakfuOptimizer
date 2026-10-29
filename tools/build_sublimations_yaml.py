@@ -22,7 +22,8 @@ import yaml
 #   mode : flat (valeur brute) | pct_level (% du niveau du personnage) | const:<v> (valeur fixe)
 #   le signe est lu dans le texte (« -{num_0} » => négatif)
 #   conditions : none, melee, distance, berserk, hp_high, no_armor, two_handed,
-#                light_weapons, element:fire|water|earth|air
+#                light_weapons, element:fire|water|earth|air,
+#                no_secondary (maîtrises secondaires <= 0 : option « combo Neutralité + Dénouement »)
 CURATED: dict[int, list[tuple[int, str, list[str], str, str]]] = {
     5982: [(1, "num_0", ["all_mastery"], "pct_level", "none"), (2, "num_0", ["elem_res"], "flat", "none")],  # Ravage
     5984: [(0, "num_0", ["hp_pct"], "flat", "none")],                       # Cicatrisation
@@ -59,6 +60,9 @@ CURATED: dict[int, list[tuple[int, str, list[str], str, str]]] = {
     6024: [(1, "num_0", ["block"], "flat", "berserk")],                     # Parade Berserk
     7859: [(1, "num_0", ["dmg_pct"], "flat", "no_armor")],                  # Force légère
     6821: [(1, "num_0", ["elem_mastery"], "pct_level", "light_weapons")],   # Expert des armes légères
+    6931: [(1, "num_0", ["dmg_pct"], "flat", "no_secondary")],              # Neutralité
+    6933: [(1, "num_0", ["block"], "flat", "no_secondary")],                # Prétention
+    7115: [(1, "num_0", ["crit_rate"], "flat", "no_secondary")],            # Ambition
     # --- épiques
     5158: [(1, "num_0", ["mp"], "flat", "two_handed"), (2, "num_0", ["ap"], "flat", "two_handed")],  # Maniement : Deux mains
     5444: [(0, "num_0", ["elem_res"], "flat", "none"), (0, "num_1", ["rear_res"], "flat", "none")],  # Science du placement

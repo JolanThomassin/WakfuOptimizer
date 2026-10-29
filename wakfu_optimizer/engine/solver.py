@@ -39,7 +39,7 @@ from ..data.models import (
     Sublimation,
 )
 from .characteristics import BRANCH_FR, branch_points, char_lines
-from .options import Build, OptimizeOptions, ShardChoice, SlotChoice
+from .options import NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice, SlotChoice
 from .scoring import RES_CAP_FLAT, flat_for_pct, gradient, res_need, utility_table
 from .shards import effect_targets, rune_fits, static_condition
 from .stats import Totals, evaluate
@@ -52,8 +52,7 @@ RGBW = (Color.RED, Color.GREEN, Color.BLUE, Color.WHITE)
 BIG = 10**7
 MAX_ITER = 8
 WARM_START = cp_model.__name__.endswith("milp")   # HiGHS : point de départ construit (voir Optimizer._warm_start)
-PASS_TIME = 7.0         # durée max d'une passe (s)
-MAX_TIME = 120.0         # durée maximale d'un calcul (s)
+MAX_TIME = 600.0         # durée maximale d'un calcul (s) ; l'interface propose 1, 3 ou 6 minutes
 LIN_SCALE = 10**5        # coefficients entiers de l'objectif linéaire
 
 
@@ -97,7 +96,12 @@ def _features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
     if opts.offense_weight > 0:
         f += [g("elem_mastery") + g(f"{e}_mastery") for e in played]
         f += [rm_v, rm_n, g("dmg_pct")]
-        f += [g("melee_mastery") + g("distance_mastery")] if opts.range == "mixed" else             [g("melee_mastery" if opts.range == "melee" else "distance_mastery")]
+        if opts.neutral_combo:   # maîtrises secondaires à 0 ou moins : plus elles sont basses, plus on a de marge
+            f.append(-sum(g(k) for k in SECONDARY_MASTERIES))
+        elif opts.range == "mixed":
+            f.append(g("melee_mastery") + g("distance_mastery"))
+        else:
+            f.append(g("melee_mastery" if opts.range == "melee" else "distance_mastery"))
         if opts.crit:
             f += [g("crit_rate"), g("crit_mastery")]
         if opts.rear:
@@ -632,8 +636,13 @@ class BuildModel:
         for e in ELEMENTS:
             lo = acc.lb["elem_mastery"] + acc.lb[f"{e}_mastery"]
             hi = acc.ub["elem_mastery"] + acc.ub[f"{e}_mastery"] + acc.ub[f"rand_mastery_{e}"]
+            expr = acc.expr("elem_mastery") + acc.expr(f"{e}_mastery") + acc.expr(f"rand_mastery_{e}")
+            if opts.neutral_combo:   # Dénouement : la Maîtrise Critique devient de la Maîtrise Élémentaire
+                clo, chi = acc.bounds("crit_mastery")
+                lo, hi = lo + clo, hi + chi
+                expr = expr + self.stat("crit_mastery")
             var = m.NewIntVar(lo - 10, hi + 10, f"M_{e}")
-            m.Add(var == acc.expr("elem_mastery") + acc.expr(f"{e}_mastery") + acc.expr(f"rand_mastery_{e}"))
+            m.Add(var == expr)
             self.stat_var[f"mastery_{e}"] = var
             if e in played:
                 mast.append(var)
@@ -669,6 +678,10 @@ class BuildModel:
             if val and stat not in self.skip:
                 m.Add(self.stat(stat) >= val)
                 self.active_mins[stat] = val
+        if opts.neutral_combo and "neutral" not in self.skip:
+            for k in SECONDARY_MASTERIES:
+                m.Add(self.stat(k) <= 0)
+            self.active_mins["neutral"] = 0
         maxs = {"ap": opts.max_ap, "mp": opts.max_mp, "range": opts.max_range, "wp": opts.max_wp,
                 "crit_rate": opts.max_crit, "block": opts.max_block}
         for stat, val in maxs.items():
@@ -689,7 +702,7 @@ class BuildModel:
             t = m.NewIntVar(-BIG, 100, "T")
             m.AddMinEquality(t, [self.stat("crit_rate"), 100])
             f["crit"] = t
-            f["crit_mastery"] = self.stat("crit_mastery")
+            f["crit_mastery"] = 0 if opts.neutral_combo else self.stat("crit_mastery")
         if opts.rear and not opts.heal:
             f["rear_mastery"] = self.stat("rear_mastery")
         f["dmg_pct"] = self.stat("dmg_pct")
@@ -914,6 +927,11 @@ class Optimizer:
         res = SolveResult()
         budget = max(10.0, min(opts.time_limit, MAX_TIME))
         res.warnings.extend(opts.normalize())   # min > max, % hors bornes : corrigés et signalés
+        if opts.neutral_combo:
+            opts.forced_subs = tuple(dict.fromkeys(opts.forced_subs + NEUTRAL_COMBO_STATES))
+            opts.excluded_subs = tuple(s for s in opts.excluded_subs if s not in NEUTRAL_COMBO_STATES)
+            if opts.exclude_epic:
+                res.warnings.append("Combo Neutralité : Dénouement est une sublimation épique, décochez « Exclure les épiques ».")
         self.progress("Sélection des items candidats…", 0.01)
         cand, warnings = select_candidates(self.data, opts)
         res.warnings.extend(warnings)
@@ -933,8 +951,8 @@ class Optimizer:
                 self._warm_start(bm, cand, opts, budget)
             best: tuple[float, Build, Totals] | None = None
             seen: set[tuple[Any, ...]] = set()
-            # HiGHS repart du build précédent : des passes moins nombreuses mais plus longues rendent mieux
-            per_iter = budget / MAX_ITER if WARM_START else min(PASS_TIME, budget / MAX_ITER)
+            # le temps est réparti entre les passes : plus de temps = chaque passe va plus loin
+            per_iter = budget / MAX_ITER
             status_opt = True
             stale = 0
             for it in range(MAX_ITER):
@@ -1023,12 +1041,19 @@ class Optimizer:
             if self.cancel.is_set():
                 break
             relaxed = BuildModel(self.data, self.opts, cand, shard_mode=self.opts.shard_mode, skip_constraints={stat})
-            relaxed.maximize(relaxed.res["fire"] if stat == "res" else relaxed.stat(stat))
+            if stat == "neutral":
+                relaxed.maximize(-sum(relaxed.stat(k) for k in SECONDARY_MASTERIES))
+            else:
+                relaxed.maximize(relaxed.res["fire"] if stat == "res" else relaxed.stat(stat))
             try:
                 st, sv = self._solve(relaxed, 4.0)
             except Cancelled:
                 break
             if st in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+                if stat == "neutral":
+                    diag.append("Contrainte bloquante : combo Neutralité (maîtrises secondaires à 0 ou moins) "
+                                "impossible avec les autres contraintes.")
+                    continue
                 best = sv.Value(relaxed.stat(stat)) if stat != "res" else None
                 extra = f" (maximum atteignable avec les autres contraintes : {best})" if best is not None else ""
                 diag.append(f"Contrainte bloquante : {labels.get(stat, stat)} ≥ {val}{extra}")

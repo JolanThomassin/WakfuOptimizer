@@ -43,6 +43,8 @@ def static_condition(cond: str, opts: OptimizeOptions) -> bool | None:
         return opts.range in ("distance", "mixed")
     if cond == "berserk":
         return opts.berserk
+    if cond == "no_secondary":
+        return bool(getattr(opts, "neutral_combo", False))
     if cond in ("hp_high", "no_armor"):
         return opts.count_conditional
     if cond.startswith("element:"):

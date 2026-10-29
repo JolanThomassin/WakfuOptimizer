@@ -332,3 +332,5 @@ img.pat { width: 15px; height: 15px; vertical-align: -3px; }
 .sp-dot.sub { background: #c58cff; }
 .sp-dot.base { background: #ece9f4; }
 .sp-dot.pct { background: #ff7d8a; }
+#time_limit { background: var(--card-hi); border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; color: var(--text); }
+.toggle.off { opacity: .35; cursor: not-allowed; }

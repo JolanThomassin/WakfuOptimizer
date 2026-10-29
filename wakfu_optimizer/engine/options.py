@@ -9,6 +9,12 @@ from typing import Any
 from ..data.models import Color, Rarity, Slot
 
 
+DENOUEMENT_CRIT = 40     # % critique requis par Dénouement
+NEUTRAL_COMBO_STATES = (6931, 5077)   # Neutralité, Dénouement (id d'état)
+# Maîtrises « secondaires » qui doivent rester <= 0 (la Maîtrise Critique est convertie par Dénouement)
+SECONDARY_MASTERIES = ("melee_mastery", "distance_mastery", "rear_mastery", "berserk_mastery", "heal_mastery")
+
+
 def default_min_ap(level: int) -> int:
     return 11 if level >= 171 else 10 if level >= 96 else 8 if level >= 36 else 6
 
@@ -36,6 +42,9 @@ class OptimizeOptions:
     res_target: int = 50                 # % de résistance visé sur chaque élément (objectif souple, pénalisé si manqué)
     balance_res: bool = True
     count_conditional: bool = True       # sublimations « PV > 90 % », « sans armure »
+    # Combo Neutralité + Dénouement : maîtrises secondaires <= 0, >= 40 % critique, Maîtrise Critique convertie
+    # en Maîtrise Élémentaire (Dénouement) ; Neutralité, Ambition, Prétention s'activent.
+    neutral_combo: bool = False
     # Valeur (en points de score) de chaque PA/PM/PO/PW, au-delà des minimums, jusqu'aux plafonds.
     ap_value: int = 6
     mp_value: int = 4
@@ -82,7 +91,7 @@ class OptimizeOptions:
     my_colors: dict[str, list[int]] = field(default_factory=dict)   # Slot.value -> codes couleur
     # --- Calcul
     alternatives: int = 3
-    time_limit: float = 90.0
+    time_limit: float = 180.0
     workers: int = 8
 
     def to_json(self) -> str:
@@ -114,6 +123,14 @@ class OptimizeOptions:
         self.res_target = max(0, min(90, int(self.res_target)))
         self.min_res_pct = max(0, min(90, int(self.min_res_pct)))
         self.rear_share = max(0, min(100, int(self.rear_share)))
+        if self.neutral_combo:
+            self.crit = True
+            self.rear = self.berserk = self.heal = False   # ces maîtrises sont à 0 ou moins
+            if self.min_crit < DENOUEMENT_CRIT:
+                self.min_crit = DENOUEMENT_CRIT
+            if self.max_crit and self.max_crit < DENOUEMENT_CRIT:
+                out.append(f"Combo Neutralité : il faut au moins {DENOUEMENT_CRIT} % critique, maximum retiré.")
+                self.max_crit = 0
         return out
 
     def colors_for(self, slot: Slot) -> list[Color]:

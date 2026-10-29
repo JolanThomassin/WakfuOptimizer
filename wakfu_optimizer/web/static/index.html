@@ -70,6 +70,10 @@
       </div>
       <label class="check"><input type="checkbox" id="balance"><span>Équilibrer les résistances (monter la plus faible)</span></label>
       <label class="check"><input type="checkbox" id="cond"><span>Compter les sublimations conditionnelles (PV &gt; 90 %, sans armure)</span></label>
+      <label class="check"><input type="checkbox" id="neutral"><span><b>Combo Neutralité + Dénouement</b></span></label>
+      <p class="hint" id="neutral-hint">Maîtrises secondaires (mêlée, distance, dos, berserk, soin) à 0 ou moins une fois items, runes et
+        aptitudes comptés, et au moins 40 % de critique : Dénouement convertit la Maîtrise Critique en Maîtrise Élémentaire et
+        Neutralité donne jusqu'à +24 % de dommages. Ambition et Prétention deviennent aussi utilisables.</p>
       <p class="hint">PA, PM, PO et PW sont valorisés automatiquement au-delà des minimums.</p>
     </section>
 
@@ -105,6 +109,9 @@
   <main class="main">
     <div class="runbar">
       <button id="go" class="btn primary">Optimiser</button>
+      <select id="time_limit" title="Plus le calcul est long, meilleur est le build (il s'arrête plus tôt s'il a trouvé l'optimum)">
+        <option value="60">Rapide · 1 min</option><option value="180" selected>Normal · 3 min</option><option value="360">Approfondi · 6 min</option>
+      </select>
       <button id="stop" class="btn ghost" disabled>Annuler</button>
       <div class="progress" id="progress"><div class="bar" id="bar"></div><span id="ptext">Prêt</span></div>
     </div>

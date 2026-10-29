@@ -5,7 +5,7 @@
 # 'effects' = effets pris en compte par le solveur (choisis à la main) :
 #   stat, values (par niveau d'état 1..N), mode (flat | pct_level = % du niveau),
 #   condition (none, melee, distance, berserk, hp_high, no_armor, two_handed,
-#   light_weapons, element:<élément>).
+#   light_weapons, element:<élément>, no_secondary = maîtrises secondaires <= 0, option « combo Neutralité »).
 # Après un patch : ajouter ici les nouveaux états (sinon : affichés, mais non optimisés).
 states:
   751: {name: Enflammé, desc: '0/1/2 Tacle ; En début de tour, autour du lanceur : ; Aux : Dommage : 1/2/3/4/5 ; Si la cible meurt : ; Dommage : 1/2/3/4/5'}
@@ -374,9 +374,25 @@ states:
   6928: {name: Critique technique, desc: Le premier coup critique du tour inflige 6% dommages supplémentaires ; Les suivants infligent -3% dommages de moins, limit: 2}
   6929: {name: Parade offensive, desc: 'En faisant une parade sur une attaque directe ennemie : ; 2% Dommages infligés (1 tour) ; -10% Parade', limit: 2}
   6930: {name: Critique tactique, desc: 3/6/9% Dommages critiques infligés si la cible a > 50% PV ; -3/6/9% Dommages critiques infligés si la cible a <= 50%PV, limit: 4}
-  6931: {name: Neutralité, desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 8/16/24% Dommages infligés', limit: 4}
+  6931:
+    name: Neutralité
+    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 8/16/24% Dommages infligés'
+    limit: 4
+    effects:
+    - stat: dmg_pct
+      values: [8, 16, 24, 24]
+      mode: flat
+      condition: no_secondary
   6932: {name: Abandon, desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 0/1/2 PW max et 0/1/2 Portée ; -5/10/15/20/25% Armure donnée et reçue', limit: 6}
-  6933: {name: Prétention, desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25% Parade', limit: 6}
+  6933:
+    name: Prétention
+    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25% Parade'
+    limit: 6
+    effects:
+    - stat: block
+      values: [5, 10, 15, 20, 25]
+      mode: flat
+      condition: no_secondary
   7069: {name: Pacte d'Anathar I, desc: '+5% Dommages infligés lorsque le porteur respecte certaines conditions (varient chaque tour). ; Tour impair : Le porteur est à distance ; Tour pair : Le porteur
       est en mêlée'}
   7070: {name: Pacte d'Anathar II, desc: '+5% Dommages infligés lorsque le porteur respecte certaines conditions (varient chaque tour). ; Tour impair : Le sort est en zone ; Tour pair : Le sort est monocible'}
@@ -431,7 +447,15 @@ states:
   7081: {name: Verrouillage, desc: 4/8/12/16/20% Dommages infligés aux cibles sans ligne de vue à 3 cases et plus du porteur de l'état, limit: 6}
   7088: {name: Poids plume, desc: 'Au lancement du combat, par PM supérieur à 4 : ; {''|''} 1/2/3% Dommages infligés*2{''|''}% Dommages infligés (maximum 24)', limit: 4}
   7106: {name: Dofushu, desc: Dofushu ; Les sorts lancés doivent coûter au moins 1 PA ; Dofushu}
-  7115: {name: Ambition, desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25% Coup critique', limit: 6}
+  7115:
+    name: Ambition
+    desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25% Coup critique'
+    limit: 6
+    effects:
+    - stat: crit_rate
+      values: [5, 10, 15, 20, 25]
+      mode: flat
+      condition: no_secondary
   7252: {name: Excès II, desc: '-10% Dommages infligés ; Tous les 5 sorts lancés, le porteur de l''état gagne 50% Dommages infligés pour le prochain sort. ; Les sorts lancés doivent coûter au moins 1 PA
       ; Une fois l''état niveau 5, le prochain sort bénéficie du bonus de Dommages', limit: 1}
   7254: {name: Lunatique, desc: 'Tour impair, en début de tour : ; 25% Dommages infligés ; -25% Soins réalisés et Armure donnée ; Tour pair, en début de tour : ; 25% Soins réalisés et Armure donnée', limit: 1}

@@ -10,7 +10,9 @@ from dataclasses import dataclass, field
 
 from ..data.models import ELEMENTS, GameData, Item, Slot
 from .characteristics import BRANCH_FR, LINE_FR, char_lines
-from .options import Build, OptimizeOptions
+from .options import DENOUEMENT_CRIT, NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions
+
+DENOUEMENT_STATE = NEUTRAL_COMBO_STATES[1]
 from .scoring import RES_CAP_FLAT, damage_d2, defense_value, ehp_factor, log_score, res_need, res_pct, secondary_mastery
 from .shards import condition_holds, effect_targets
 
@@ -128,6 +130,14 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
                 for target in effect_targets(e):
                     add(target, v, f"Sublimation {st.name} niv. {eff_lvl}", "sub")
 
+    if opts.neutral_combo:
+        if any(s[k] > 0 for k in SECONDARY_MASTERIES):
+            t.warnings.append("Combo Neutralité inactif : une maîtrise secondaire est au-dessus de 0.")
+        cm = s["crit_mastery"]
+        if DENOUEMENT_STATE in t.active_states and s["crit_rate"] >= DENOUEMENT_CRIT and cm:
+            # Dénouement : la Maîtrise Critique est convertie en Maîtrise Élémentaire au lancement du combat
+            add("elem_mastery", cm, "Dénouement (Maîtrise Critique convertie)", "sub")
+            add("crit_mastery", -cm, "Dénouement (convertie en Maîtrise Élémentaire)", "sub")
     for e in ELEMENTS:
         t.mastery[e] = s["elem_mastery"] + s[f"{e}_mastery"] + rand_m[e]
         t.res_flat[e] = s["elem_res"] + s[f"{e}_res"] + rand_r[e]

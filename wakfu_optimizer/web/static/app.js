@@ -21,7 +21,7 @@ const EL_FR = { fire: "Feu", water: "Eau", earth: "Terre", air: "Air" };
 const SHARD_FILE = { 0: "White", 1: "Red", 2: "Green", 3: "Blue" };
 const SHARD_ORDER = [null, 1, 2, 3, 0];
 const SHARD_SLOTS = ["HEAD", "NECK", "CHEST", "LEFT_HAND", "RIGHT_HAND", "LEGS", "BACK", "SHOULDERS", "BELT", "FIRST_WEAPON", "SECOND_WEAPON"];
-const MAX_TIME = 90;
+
 
 function elOf(stat) { return ELEMENTS.find((e) => stat === e || stat === `${e}_mastery` || stat === `${e}_res`); }
 function icon(stat, title = "") {
@@ -134,6 +134,15 @@ function buildForm() {
   seg("range"); seg("shard_mode"); seg("rear_share"); seg("subs-kind");
   $("#shard_mode").addEventListener("change", refreshVis);
   $("#res_target").addEventListener("input", refreshVis);
+  $("#neutral").addEventListener("change", () => {
+    if ($("#neutral").checked) {   // le combo impose du critique et rend dos / berserk / soin inutiles
+      toggleBtn($("#crit"), true); ["rear", "berserk", "heal"].forEach((id) => toggleBtn($("#" + id), false));
+      if (+$("#min_crit").value < 40) $("#min_crit").value = 40;
+      if (+$("#max_crit").value && +$("#max_crit").value < 40) $("#max_crit").value = 0;
+      if ($("#no_epic").checked) { $("#no_epic").checked = false; toast("Épiques autorisées : Dénouement est une sublimation épique."); }
+    }
+    refreshVis();
+  });
   cls.addEventListener("change", () => { applyClass(cls.value); refreshVis(); });
   $("#level").addEventListener("change", () => {
     const l = m.levels.find((x) => x.level === +$("#level").value);
@@ -196,7 +205,10 @@ function refreshVis() {
   $("#class-icon").src = `assets/classes/${$("#cls").value}.png`;
   const rt = +$("#res_target").value;
   $("#res-lab").textContent = rt ? `${rt} % sur chaque élément` : "aucune";
-  $("#rear-box").classList.toggle("hidden", !isOn("rear"));
+  const neutral = $("#neutral").checked;
+  $("#rear-box").classList.toggle("hidden", !isOn("rear") || neutral);
+  ["rear", "berserk", "heal"].forEach((id) => { $("#" + id).disabled = neutral; $("#" + id).classList.toggle("off", neutral); });
+  $("#neutral-hint").classList.toggle("hidden", !neutral);
   const mode = segVal("shard_mode");
   $("#shard-steps").classList.toggle("hidden", mode !== "ideal");
   $("#my-colors").classList.toggle("hidden", mode !== "mine");
@@ -217,6 +229,8 @@ function applyOptions(o) {
   setSeg("rear_share", rs >= 70 ? "80" : rs <= 35 ? "25" : "50");
   set("res_target", o.res_target ?? 50);
   $("#balance").checked = o.balance_res; $("#cond").checked = o.count_conditional;
+  $("#neutral").checked = !!o.neutral_combo;
+  if ([60, 180, 360].includes(+o.time_limit)) set("time_limit", o.time_limit);
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
    "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
   S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
@@ -254,7 +268,7 @@ function options() {
     excluded_ids: [...S.excluded], forced_ids: [...S.forced],
     shard_mode: segVal("shard_mode"), shard_count: n("shard_count"), max_jokers: n("max_jokers"),
     my_colors: Object.fromEntries(SHARD_SLOTS.map((s) => [s, S.colors[s] || [1, 1, 1, 1]])),
-    time_limit: MAX_TIME, alternatives: 0,
+    time_limit: n("time_limit") || 180, alternatives: 0, neutral_combo: $("#neutral").checked,
   };
 }
 
@@ -286,7 +300,7 @@ async function poll() {
   let j;
   try { j = await api(`/api/job?id=${S.job}`); } catch (e) { setTimeout(poll, 800); return; }
   const pct = Math.round(j.progress * 100);
-  setProgress(j.progress, `${pct} % — ${j.msg}  (${Math.round(j.elapsed)} s, max ${MAX_TIME} s)`, !j.done);
+  setProgress(j.progress, `${pct} % — ${j.msg}  (${Math.round(j.elapsed)} s, max ${S.opts.time_limit} s)`, !j.done);
   if (!j.done) { setTimeout(poll, 400); return; }
   endRun();
   const r = j.result || {};
