@@ -13,8 +13,8 @@ const STAT_ICON = {
   melee_mastery: "melee_mastery", distance_mastery: "distance_mastery", rear_mastery: "rear_mastery",
   berserk_mastery: "berserk_mastery", heal_mastery: "healing_mastery", dmg_pct: "damage_inflicted",
   lock: "lock", dodge: "dodge", initiative: "initiative", willpower: "force_of_will", control: "control",
-  crit_res: "critical_resistance", rear_res: "rear_resistance", elem_mastery: "quadrumental_breeze",
-  elem_res: "quadrumental_breeze", wisdom: "wisdom", prospecting: "prospecting", score: "quadrumental_breeze",
+  crit_res: "critical_resistance", rear_res: "rear_resistance", elem_mastery: "elemental_damage",
+  elem_res: "elemental_resistance", wisdom: "wisdom", prospecting: "prospecting", score: "quadrumental_breeze",
 };
 const ELEMENTS = ["fire", "water", "earth", "air"];
 const EL_FR = { fire: "Feu", water: "Eau", earth: "Terre", air: "Air" };
@@ -26,7 +26,8 @@ const MAX_TIME = 90;
 function elOf(stat) { return ELEMENTS.find((e) => stat === e || stat === `${e}_mastery` || stat === `${e}_res`); }
 function icon(stat, title = "") {
   const e = elOf(stat);
-  if (e) return `<span class="ic round" title="${esc(title)}"><img src="assets/stats/${e}_coin.png" alt=""></span>`;
+  if (e && stat === e) return `<span class="ic round" title="${esc(title)}"><img src="assets/stats/${e}_coin.png" alt=""></span>`;
+  if (e) return `<span class="ic" title="${esc(title)}"><img src="assets/stats/${stat}.png" alt=""></span>`;
   return `<span class="ic" title="${esc(title)}"><img src="assets/stats/${STAT_ICON[stat] || "empty_coin"}.png" alt=""></span>`;
 }
 function chip(stat, text, title, cls = "") {
@@ -285,8 +286,8 @@ function renderResult() {
   const v = S.view, s = v.stats;
   const changed = S.changed.size
     ? `<div class="modified"><span>Build modifié à la main (${S.changed.size} changement(s)) — score ${v.score.toFixed(1)} au lieu de ${S.original.score.toFixed(1)}</span><button class="btn small" id="revert">Revenir au build optimisé</button></div>` : "";
-  const masteries = ELEMENTS.map((e) => sc(e, EL_FR[e], fmt(v.mastery[e]))).join("");
-  const res = ELEMENTS.map((e) => sc(e, EL_FR[e], `${v.res_pct[e]} % <small class="muted">(${v.res_flat[e]})</small>`)).join("");
+  const masteries = ELEMENTS.map((e) => sc(`${e}_mastery`, EL_FR[e], fmt(v.mastery[e]))).join("");
+  const res = ELEMENTS.map((e) => sc(`${e}_res`, EL_FR[e], `${v.res_pct[e]} % <small class="muted">(${v.res_flat[e]})</small>`)).join("");
   const g = (k, label, suffix = "") => sc(k, label, `${fmt(s[k] || 0)}${suffix}`, pn(s[k] || 0));
   const subs = v.active.map((a) => `<span title="${esc(a.desc)}">${esc(a.name)} <b>${a.level}</b></span>`).join("");
   $("#result").innerHTML = `
@@ -446,16 +447,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-close]")
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawers(); });
 
 // ===================================================================== aptitudes
-const APT_ICON = {
-  hp_pct: "health_points", elem_res: "quadrumental_breeze", barrier: "armor", heals_received_pct: "heals_performed",
-  armor_hp_pct: "armor", elem_mastery: "elemental_damage", melee_mastery: "melee_mastery", distance_mastery: "distance_mastery",
-  hp: "health_points", lock: "lock", dodge: "dodge", initiative: "initiative", lock_dodge: "lock", willpower: "force_of_will",
-  crit_rate: "critical_hit", block: "block", crit_mastery: "critical_mastery", rear_mastery: "rear_mastery",
-  berserk_mastery: "berserk_mastery", heal_mastery: "healing_mastery", rear_res: "rear_resistance", crit_res: "critical_resistance",
-  ap: "action_points", mp: "movement_points", range: "range", wp: "wakfu_points", armor_given_pct: "armor_given",
-  dmg_pct: "damage_inflicted", heal_pct: "heals_performed", indirect_pct: "indirect_damage",
-};
-const PRESET_ICON = { distance: "distance_mastery", melee: "melee_mastery", elemental: "elemental_damage", tank: "quadrumental_breeze", heal: "healing_mastery" };
+const PRESET_ICON = { distance: "distance_mastery", melee: "melee_mastery", elemental: "elemental_damage", tank: "elemental_resistance", heal: "healing_mastery" };
 const BRANCH_COLOR = { intelligence: "#6b2730", strength: "#2c5530", agility: "#4a2e66", fortune: "#1f4a5e", major: "#5a4a35" };
 S.apt = {};
 let presetSel = null;
@@ -475,7 +467,7 @@ function buildAptForm() {
     el.style.setProperty("--bc", BRANCH_COLOR[b.branch] || "#333");
     el.innerHTML = `<div class="branch-head"><span>${esc(b.name)}</span><span class="avail" data-avail="${b.branch}"></span></div>` +
       b.lines.map((l) => `<div class="apt-line" data-key="${l.key}">
-        <span class="ic"><img src="assets/stats/${APT_ICON[l.line] || "empty_coin"}.png" alt=""></span>
+        <span class="ic"><img src="assets/aptitudes/${l.line}.png" alt="" onerror="this.src='assets/stats/empty_coin.png'"></span>
         <span class="lab">${esc(l.label)}${l.max > 1 ? ` <small>(max ${l.max})</small>` : ""}</span>
         <span class="apt-ctl"><button data-d="-1" aria-label="moins">−</button><input type="number" min="0" value="0"><button data-d="1" aria-label="plus">+</button></span></div>`).join("");
     $(`#apt-col${col[b.branch] || 2}`).appendChild(el);

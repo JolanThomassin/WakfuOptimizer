@@ -58,7 +58,9 @@ Les données sont mises en cache dans `data/cache/<version>/` (variable `WAKFU_O
 ## Sources de données
 
 - Données de jeu : CDN officiel Ankama, `https://wakfu.cdn.ankama.com/gamedata/config.json` puis `/{version}/{type}.json`. Elles restent la propriété d'Ankama ; leur mise à disposition et ses conditions sont décrites sur le [forum Wakfu (JSON DATA)](https://www.wakfu.com/en/forum/332-development/236779-json-data). Ne pas redistribuer le cache.
-- Icônes : `https://static.ankama.com/wakfu/portal/game/item/115/{gfxId}.png`.
+- Icônes : `https://static.ankama.com/wakfu/portal/game/item/115/{gfxId}.png` (version locale) ; dans la version en ligne,
+  et pour les icônes de stats (`gui/assets/stats`) et d'aptitudes (`gui/assets/aptitudes`), le dépôt communautaire
+  [wakassets](https://github.com/Vertylo/wakassets) (images © Ankama, usage communautaire non commercial).
 - Formules de combat : [wakfu.wiki.gg](https://wakfu.wiki.gg/wiki/Damage), [Wakfu Calc](https://sites.google.com/view/wakfucalc/en/guides/formulas). Valeurs de runes recoupées avec [WakForge](https://github.com/Tmktahu/WakForge) (MIT).
 
 Le détail de chaque hypothèse vérifiée est dans [docs/verifications.md](docs/verifications.md).

@@ -89,7 +89,7 @@ STAT_ICON: dict[str, tuple[str, str]] = {
     "lock": ("lock", "Tacle"), "dodge": ("dodge", "Esquive"), "initiative": ("initiative", "Initiative"),
     "willpower": ("force_of_will", "Volonté"), "control": ("control", "Contrôle"),
     "crit_res": ("critical_resistance", "Résistance critique"), "rear_res": ("rear_resistance", "Résistance dos"),
-    "elem_mastery": ("elemental_damage", "Maîtrise élémentaire"), "elem_res": ("elemental_damage", "Résistance élémentaire"),
+    "elem_mastery": ("elemental_damage", "Maîtrise élémentaire"), "elem_res": ("elemental_resistance", "Résistance élémentaire"),
     "wisdom": ("wisdom", "Sagesse"), "prospecting": ("prospecting", "Prospection"),
     "armor_given_pct": ("armor_given", "% Armure donnée"), "armor_received_pct": ("armor_received", "% Armure reçue"),
     "hp_pct": ("health_points", "% PV"),
@@ -110,8 +110,10 @@ def pixmap(folder: str, name: str, size: int = 20) -> QPixmap:
 
 def stat_pixmap(stat: str, size: int = 20) -> QPixmap:
     for e, icon in ELEMENT_ICON.items():
-        if stat in (f"{e}_mastery", f"{e}_res", e):
+        if stat == e:
             return pixmap("stats", icon, size)
+        if stat in (f"{e}_mastery", f"{e}_res"):
+            return pixmap("stats", stat, size)
     return pixmap("stats", STAT_ICON.get(stat, ("empty_coin", ""))[0], size)
 
 

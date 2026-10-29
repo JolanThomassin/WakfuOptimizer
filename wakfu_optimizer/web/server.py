@@ -336,7 +336,7 @@ class Handler(BaseHTTPRequestHandler):
             if p.startswith("/static/"):
                 return self._file(STATIC / p[len("/static/"):].replace("..", ""))
             if p.startswith("/assets/"):
-                return self._file(ASSETS / p[len("/assets/"):].replace("..", ""), cache=True)
+                return self._file(ASSETS / p[len("/assets/"):].replace("..", ""))
             if p.startswith("/icon/"):
                 return self._item_icon(p[len("/icon/"):].removesuffix(".png"))
             if p == "/api/meta":
