@@ -899,6 +899,7 @@ class Optimizer:
         self.progress = progress or (lambda msg, frac: None)
         self.cancel = cancel or threading.Event()
         self._solver: cp_model.CpSolver | None = None
+        self._relaxed = False   # résistance visée de l'archétype déjà abaissée au maximum atteignable
         self._lock = threading.Lock()
 
     def stop(self) -> None:
@@ -927,25 +928,29 @@ class Optimizer:
             raise Cancelled()
         return status, solver
 
-    def _res_unreachable(self, res: SolveResult, cand: dict[Slot, list[Item]], tot: Totals, t0: float,
-                         budget: float) -> SolveResult:
-        """Résistance visée impossible : on cherche la meilleure résistance atteignable (sur l'élément le plus faible)."""
-        opts = self.opts
+    def _max_res(self, cand: dict[Slot, list[Item]], tot: Totals, t0: float, budget: float) -> int:
+        """Meilleure résistance (%) atteignable sur l'élément le plus faible, avec les autres contraintes."""
         self.progress("Résistance visée non atteinte : recherche du maximum possible…", 0.97)
-        got = min(tot.res_pct.values())
-        best = got
+        best = min(tot.res_pct.values())
         try:
-            probe = BuildModel(self.data, opts, cand, skip_constraints={"res"})
+            probe = BuildModel(self.data, self.opts, cand, skip_constraints={"res"})
             if WARM_START:
-                self._warm_start(probe, cand, opts, budget)
+                self._warm_start(probe, cand, self.opts, budget)
             rmin = probe.m.NewIntVar(-BIG, BIG, "Rmin_brut")
             probe.m.AddMinEquality(rmin, [probe.res[e] for e in ELEMENTS])
             probe.maximize(rmin)
             st, sv = self._solve(probe, max(5.0, min(20.0, budget - (time.monotonic() - t0))))
             if st in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-                best = max(got, res_pct(sv.Value(rmin)))
+                best = max(best, res_pct(sv.Value(rmin)))
         except Cancelled:
             pass
+        return best
+
+    def _res_unreachable(self, res: SolveResult, cand: dict[Slot, list[Item]], tot: Totals, t0: float,
+                         budget: float) -> SolveResult:
+        """Résistance visée impossible : on cherche la meilleure résistance atteignable (sur l'élément le plus faible)."""
+        opts = self.opts
+        best = self._max_res(cand, tot, t0, budget)
         res.status = "aucune solution"
         res.diagnostics = [
             f"Résistance visée {opts.res_target} % (± {opts.res_tol}) impossible avec ces réglages : au mieux {best} % "
@@ -1085,7 +1090,18 @@ class Optimizer:
                     best = best_ok
             score, b, tot = self._finish(best[1])
             if not res_ok(tot):
-                # résistance minimum non atteinte : on n'affiche pas un build qui ne respecte pas la demande
+                if "priorities" not in opts.custom_panels and not self._relaxed:
+                    # cible de l'archétype (pas la vôtre) hors d'atteinte à ce niveau : on vise le maximum possible
+                    wanted = opts.res_target
+                    best_pct = self._max_res(cand, tot, t0, budget)
+                    self._relaxed = True
+                    opts.res_target = max(0, best_pct)
+                    opts.res_tol = min(opts.res_tol, opts.res_target)
+                    again = self.run()
+                    again.warnings.insert(0, f"Résistance visée par l'archétype ({wanted} %) impossible au niveau {opts.level} : "
+                                             f"visée abaissée à {opts.res_target} %, le maximum atteignable.")
+                    return again
+                # résistance visée (la vôtre) non atteinte : on n'affiche pas un build qui ne respecte pas la demande
                 return self._res_unreachable(res, cand, tot, t0, budget)
             b.status = res.status
             b.solver_score = score

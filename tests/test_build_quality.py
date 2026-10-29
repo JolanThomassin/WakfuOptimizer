@@ -188,6 +188,7 @@ QUICK = [
     ("huppermage", 230, "dps_mixed"),
     ("masqueraider", 185, "support_buff"),
     ("feca", 80, "tank"),
+    ("pandawa", 65, "tank"),            # signalé : 70 % de résistance impossible à ce niveau, aucun build
 ]
 
 
