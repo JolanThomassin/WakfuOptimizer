@@ -191,7 +191,12 @@ def build_view(data: GameData, opts: OptimizeOptions, build: Build, t: Totals | 
             active.append({"name": st.name, "level": lvl, "desc": st.description, "limit": st.limit,
                            "raw": raw.get(sid, lvl), "modeled": st.modeled})
     cp = data.classes.get(opts.class_key)
+    passive = None
+    if cp and cp.passive_name:
+        passive = {"name": cp.passive_name, "desc": cp.passive_desc,
+                   "stats": [{"stat": k, "label": STAT_LABEL.get(k, k), "value": v} for k, v in cp.passive_stats(opts.level).items()]}
     return {
+        "passive": passive,
         "class": {"key": opts.class_key, "name": cp.name if cp else opts.class_key},
         "level": opts.level, "elements": list(opts.elements),
         "score": round(t.score, 2), "damage": round(damage_multiplier(t.d2), 2), "ehp": round(t.defense / 1e4),

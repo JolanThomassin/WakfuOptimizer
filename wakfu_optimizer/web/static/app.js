@@ -306,12 +306,19 @@ const ARCHETYPES = {
 };
 S.offense = 85; S.resFree = false;
 
+// portée imposée par la classe (Roublard : la meilleure des deux maîtrises compte)
+function classRange() {
+  const c = S.meta && S.meta.classes.find((x) => x.key === $("#cls").value);
+  return c ? c.range : "";
+}
+
 function defaultArchetype(c) {
   if (c.role === "tank") return "tank";
   if (c.role === "heal") return "heal";
+  if (c.role === "support") return "support_buff";
   if (c.rear) return "dps_rear";
   if (c.berserk) return "berserk";
-  return c.range === "distance" ? "dps_distance" : c.range === "mixed" ? "dps_mixed" : "dps_melee";
+  return c.range === "distance" ? "dps_distance" : c.range === "mixed" || c.range === "best" ? "dps_mixed" : "dps_melee";
 }
 
 function applyArchetype(key, cls) {
@@ -346,7 +353,9 @@ function refreshVis() {
     ? `Chaque élément entre ${Math.max(0, rt - tol)} et ${rt} % : aucun malus dans cet écart, le reste part dans les stats.`
     : "Pas de résistance visée : tout part dans les stats.";
   const arch = ARCHETYPES[$("#archetype").value];
-  $("#range-box").classList.toggle("hidden", !!(arch && arch.hideRange));
+  const best = classRange() === "best";
+  $("#range-box").classList.toggle("hidden", !!(arch && arch.hideRange) || best);
+  $("#range-note").classList.toggle("hidden", !best);
   const neutral = $("#neutral").checked;
   $("#rear-box").classList.toggle("hidden", !isOn("rear") || neutral);
   ["rear", "berserk", "heal"].forEach((id) => { $("#" + id).disabled = neutral; $("#" + id).classList.toggle("off", neutral); });
@@ -399,7 +408,7 @@ function options() {
   const els = $$("#elements .toggle.on").map((b) => b.dataset.el);
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
-    range: segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
+    range: classRange() === "best" ? "best" : segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,
     berserk: isOn("berserk"), heal: isOn("heal"), offense_weight: S.offense || 85, res_free: !!S.resFree, archetype: $("#archetype").value,
     res_target: n("res_target"), res_tol: n("res_tol"),
     count_conditional: $("#cond").checked,
@@ -595,7 +604,7 @@ function renderResult() {
     <div class="items-wrap">
       <div class="items-bar"><span class="muted">${v.items.length} items</span>
         <div class="seg view-seg" id="items-view"><button data-v="grid" title="Cartes en grille">▦ Grille</button><button data-v="list" title="Une ligne par item">☰ Liste</button></div></div>
-      <div class="items-grid ${itemsView()}">${v.items.map(itemCard).join("")}</div>
+      <div class="items-grid ${itemsView()}">${passiveCard(v)}${v.items.map(itemCard).join("")}</div>
     </div>
   </div>`;
   $$("#items-view button").forEach((b) => {
@@ -623,14 +632,14 @@ function renderResult() {
 }
 
 // ===================================================================== détail d'une stat
-const KIND_LABEL = { base: "Base", item: "Items", random: "Items (au choix)", rune: "Runes", apt: "Aptitudes", sub: "Sublimations", pct: "% PV" };
+const KIND_LABEL = { passive: "Passif de classe", base: "Base", item: "Items", random: "Items (au choix)", rune: "Runes", apt: "Aptitudes", sub: "Sublimations", pct: "% PV" };
 function srcIcon(x) {
   const img = (src, cls = "") => `<img class="sp-ic ${cls}" src="${src}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
   switch (x.kind) {
     case "item": case "random": return img(iconUrl(x.ref), "it");
     case "rune": return img(`assets/shards/shard${SHARD_FILE[x.ref] || "White"}Full.png`);
     case "apt": return img(`assets/aptitudes/${x.ref}.png`);
-    case "base": return img(`assets/classes/${S.view.class.key}.png`, "it");
+    case "base": case "passive": return img(`assets/classes/${S.view.class.key}.png`, "it");
     case "pct": return img("assets/stats/health_points.png");
     default: return `<span class="sp-ic sub">✦</span>`;
   }
@@ -887,6 +896,21 @@ function obtain(it) {
   if (it.wiki) parts.push(`<a href="${esc(it.wiki)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
     title="Où l'obtenir : monstres et taux de butin, coffres, succès (wakfu.wiki.gg)">↗</a>`);
   return `<div class="obtain">${parts.join("")}</div>`;
+}
+
+// Passif inné de la classe : toujours actif, en tête des items
+function passiveCard(v) {
+  const p = v.passive;
+  if (!p) return "";
+  const chips = p.stats.map((x) => chip(x.stat, signed(x.value), x.label, x.value < 0 ? "neg" : "")).join("");
+  return `<div class="item passive-item" style="--rc:#e8a93a" title="${esc(p.desc)}">
+    <div class="it-head">
+      <span class="it-iconbox"><img class="it-icon" src="assets/classes/${v.class.key}.png" alt=""></span>
+      <div class="it-names"><div class="it-name">${esc(p.name)}</div><div class="it-sub">Passif de classe · ${esc(v.class.name)} · toujours actif</div></div>
+    </div>
+    <div class="chip-row">${chips || `<span class="muted passive-none">Pas de stat chiffrée</span>`}</div>
+    <div class="it-foot"><div class="it-subs passive-desc">${esc(p.desc)}</div></div>
+  </div>`;
 }
 
 function itemCard(it) {

@@ -86,6 +86,8 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     add("wp", cls.base_wp if cls else int(base["wp"]), "Base du personnage", "base")
     add("crit_rate", int(base["crit_rate"]), "Base du personnage", "base")
     add("hp", int(base["hp_flat"]) + int(base["hp_per_level"]) * L, f"Base du personnage (niveau {L})", "base")
+    for stat, v in (cls.passive_stats(L) if cls else {}).items():
+        add(stat, v, f"Passif de classe : {cls.passive_name}", "passive", opts.class_key)  # type: ignore[union-attr]
     rand_m: dict[str, int] = defaultdict(int)
     rand_r: dict[str, int] = defaultdict(int)
 

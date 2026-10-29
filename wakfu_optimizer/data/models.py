@@ -244,11 +244,20 @@ class ClassProfile:
     key: str
     name: str
     elements: tuple[str, ...]
-    range: str                   # melee | distance
-    role: str                    # dps | heal | tank
+    range: str                   # melee | distance | mixed | best
+    role: str                    # dps | heal | tank | support
     rear: bool = False
     berserk: bool = False
     base_wp: int = 6
+    passive_name: str = ""       # passif inné (toujours actif)
+    passive_desc: str = ""
+    passive_effects: tuple[tuple[str, int, str], ...] = ()   # (stat, valeur, flat | pct_level)
+
+    def passive_stats(self, level: int) -> dict[str, int]:
+        out: dict[str, int] = {}
+        for stat, v, mode in self.passive_effects:
+            out[stat] = out.get(stat, 0) + (v * level // 100 if mode == "pct_level" else v)
+        return out
 
 
 @dataclass

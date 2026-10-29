@@ -231,7 +231,11 @@ def parse_classes(game: dict[str, Any]) -> dict[str, ClassProfile]:
     return {
         k: ClassProfile(key=k, name=str(v["fr"]), elements=tuple(v["elements"]), range=str(v.get("range", "melee")),
                         role=str(v.get("role", "dps")), rear=bool(v.get("rear", False)),
-                        berserk=bool(v.get("berserk", False)), base_wp=int(v.get("base_wp", 6)))
+                        berserk=bool(v.get("berserk", False)), base_wp=int(v.get("base_wp", 6)),
+                        passive_name=str((v.get("passive") or {}).get("name", "")),
+                        passive_desc=str((v.get("passive") or {}).get("desc", "")),
+                        passive_effects=tuple((str(e["stat"]), int(e["value"]), str(e.get("mode", "flat")))
+                                              for e in (v.get("passive") or {}).get("effects", [])))
         for k, v in game["classes"].items()
     }
 

@@ -104,6 +104,8 @@ def _features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
             f.append(-sum(g(k) for k in SECONDARY_MASTERIES))
         elif opts.range == "mixed":
             f.append(g("melee_mastery") + g("distance_mastery"))
+        elif opts.range == "best":   # la meilleure des deux : chacune est utile
+            f += [g("melee_mastery"), g("distance_mastery")]
         else:
             f.append(g("melee_mastery" if opts.range == "melee" else "distance_mastery"))
         if opts.crit:
@@ -327,6 +329,8 @@ class BuildModel:
         acc.add_const("wp", cls.base_wp if cls else int(base["wp"]))
         acc.add_const("crit_rate", int(base["crit_rate"]))
         acc.add_const("hp", int(base["hp_flat"]) + int(base["hp_per_level"]) * L)
+        for stat, val in (cls.passive_stats(L) if cls else {}).items():   # passif inné de la classe
+            acc.add_const(stat, val)
 
         by_item: dict[int, list[Any]] = defaultdict(list)
         for slot, items in self.cand.items():
@@ -669,6 +673,12 @@ class BuildModel:
             both = self.stat("melee_mastery") + self.stat("distance_mastery")
             m.Add(2 * self.mtot <= 2 * mtot_expr + both)
             m.Add(2 * self.mtot >= 2 * mtot_expr + both - 1)
+        elif opts.range == "best":
+            lo = min(acc.bounds("melee_mastery")[0], acc.bounds("distance_mastery")[0]) - 10
+            hi = max(acc.bounds("melee_mastery")[1], acc.bounds("distance_mastery")[1]) + 10
+            sec = m.NewIntVar(lo, hi, "M_best")
+            m.AddMaxEquality(sec, [self.stat("melee_mastery"), self.stat("distance_mastery")])
+            m.Add(self.mtot == mtot_expr + sec)
         else:
             m.Add(self.mtot == mtot_expr + self.stat("melee_mastery" if opts.range == "melee" else "distance_mastery"))
         # --- résistances
