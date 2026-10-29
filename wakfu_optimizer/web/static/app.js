@@ -98,6 +98,14 @@ $("#sfx-btn").addEventListener("click", () => {
 });
 renderSfxBtn();
 
+// ===================================================================== menu de gauche repliable
+function setSide(collapsed) {
+  document.body.classList.toggle("side-collapsed", collapsed);
+  $("#side-btn").classList.toggle("on", !collapsed);
+  $("#side-btn").title = collapsed ? "Afficher les réglages" : "Masquer les réglages";
+}
+$("#side-btn").addEventListener("click", () => setSide(!document.body.classList.contains("side-collapsed")));
+
 function toast(text) {
   const t = $("#toast");
   t.textContent = text;
@@ -464,6 +472,7 @@ async function poll() {
   $("#msg").innerHTML = warn;
   S.original = r.view; S.view = r.view; S.changed = new Set();
   subsCache = null;
+  setSide(true);   // build trouvé : on replie les réglages pour laisser la place au résultat
   showTab("build");
   renderResult();
   $("#apt-from-build").disabled = false;
