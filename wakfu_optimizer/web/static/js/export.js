@@ -39,6 +39,7 @@ async function exportPng(v) {
    "lock", "dodge", "melee_mastery", "distance_mastery", "critical_mastery", "rear_mastery", "berserk_mastery", "healing_mastery"].forEach((n) => srcs.add(`assets/stats/${n}.png`));
   ELEMENTS.forEach((e) => { srcs.add(`assets/stats/${e}_mastery.png`); srcs.add(`assets/stats/${e}_res.png`); srcs.add(`assets/stats/${e}_coin.png`); });
   Object.values(SHARD_FILE).forEach((c) => { srcs.add(`assets/shards/shard${c}Full.png`); srcs.add(`assets/shards/shard${c}Empty.png`); });
+  v.items.forEach((it) => (it.shards || []).forEach((sh) => sh.rune && srcs.add(statIconSrc(sh.stat))));
   const imgs = {};
   await Promise.all([...srcs].map(async (src) => { imgs[src] = await loadImg(src); }));
 
@@ -132,7 +133,15 @@ async function exportPng(v) {
     text(`${it.slot_name} · niv. ${it.level}`, x + 84, y + 46, 13, "#a29eb8", 400, "left", CW - 96);
     const sub = [it.sub && it.sub.name, it.special && `★ ${it.special.name}`].filter(Boolean).join("   ");
     if (sub) text(sub, x + 84, y + 68, 13, "#e8a93a", 700, "left", CW - 96);
-    (it.shards || []).forEach((sh, k) => img(`assets/shards/shard${SHARD_FILE[sh.color]}${sh.rune ? "Full" : "Empty"}.png`, x + 84 + k * 22, y + 80, 18));
+    // châsses : couleur, icône de la stat de la rune par-dessus, valeur à côté
+    let rx = x + 84;
+    for (const sh of it.shards || []) {
+      img(`assets/shards/shard${SHARD_FILE[sh.color]}${sh.rune ? "Full" : "Empty"}.png`, rx, y + 79, 20);
+      if (!sh.rune) { rx += 26; continue; }
+      rr(rx + 3, y + 82, 14, 14, 3); c.fillStyle = "rgba(10, 8, 18, .72)"; c.fill();
+      img(statIconSrc(sh.stat), rx + 4, y + 83, 12);
+      rx += 26 + text(`+${sh.value}`, rx + 23, y + 89, 12, "#ece9f4", 600) + 6;
+    }
   });
   y0 += itemRows * (CH + 14) + 6;
 

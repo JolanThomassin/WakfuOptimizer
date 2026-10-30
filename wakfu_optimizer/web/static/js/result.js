@@ -215,8 +215,7 @@ function passiveCard(v) {
 }
 
 function itemCard(it) {
-  const runes = (it.shards || []).map((sh) =>
-    `<img src="assets/shards/shard${SHARD_FILE[sh.color]}${sh.rune ? "Full" : "Empty"}.png" alt="" title="${sh.rune ? esc(`${sh.rune} niv. ${sh.level} : +${sh.value} ${sh.label}`) : "Châsse vide"}">`).join("");
+  const runes = (it.shards || []).map(runeBadge).join("");
   const forced = S.forced.has(it.id);
   return `<div class="item ${S.changed.has(it.slot) ? "changed" : ""} ${forced ? "forced-item" : ""}" data-slot="${it.slot}" style="--rc:${it.color}"
       title="Cliquer pour voir les autres items possibles">
@@ -246,6 +245,14 @@ function subLine(it, special) {
 }
 function patternHtml(pattern) {
   return pattern.map((c) => `<img class="pat" src="assets/shards/shard${SHARD_FILE[c]}Full.png" alt="">`).join("");
+}
+
+// Une châsse : la couleur en fond, l'icône de la stat de la rune par-dessus et sa valeur à côté
+function runeBadge(sh) {
+  const shard = `<img class="rn-shard" src="assets/shards/shard${SHARD_FILE[sh.color]}${sh.rune ? "Full" : "Empty"}.png" alt="">`;
+  if (!sh.rune) return `<span class="rn empty" title="Châsse vide">${shard}</span>`;
+  const tip = `${sh.rune} niv. ${sh.level} : +${sh.value} ${sh.label}`;
+  return `<span class="rn" title="${esc(tip)}"><span class="rn-gem">${shard}${icon(sh.stat, tip)}</span><b>+${sh.value}</b></span>`;
 }
 
 function summarizeRunes(shards) {

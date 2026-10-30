@@ -23,11 +23,13 @@ const SHARD_SLOTS = ["HEAD", "NECK", "CHEST", "LEFT_HAND", "RIGHT_HAND", "LEGS",
 
 
 function elOf(stat) { return ELEMENTS.find((e) => stat === e || stat === `${e}_mastery` || stat === `${e}_res`); }
+function statIconSrc(stat) {
+  const e = elOf(stat);
+  return `assets/stats/${e ? (stat === e ? `${e}_coin` : stat) : STAT_ICON[stat] || "empty_coin"}.png`;
+}
 function icon(stat, title = "") {
   const e = elOf(stat);
-  if (e && stat === e) return `<span class="ic round" title="${esc(title)}"><img src="assets/stats/${e}_coin.png" alt=""></span>`;
-  if (e) return `<span class="ic" title="${esc(title)}"><img src="assets/stats/${stat}.png" alt=""></span>`;
-  return `<span class="ic" title="${esc(title)}"><img src="assets/stats/${STAT_ICON[stat] || "empty_coin"}.png" alt=""></span>`;
+  return `<span class="ic${e && stat === e ? " round" : ""}" title="${esc(title)}"><img src="${statIconSrc(stat)}" alt=""></span>`;
 }
 function chip(stat, text, title, cls = "") {
   return `<span class="chip ${cls}" title="${esc(title)}">${icon(stat, title)}${text}</span>`;
