@@ -72,14 +72,14 @@ def _targets(opts: OptimizeOptions, arch: Archetype | None, tot: Totals) -> dict
                          "ok": tot.res_pct[e] >= floor} for e in ELEMENTS]}
     st = tot.stats
     melee, dist = st.get("melee_mastery", 0), st.get("distance_mastery", 0)
-    rng_val = 0 if opts.neutral_combo else secondary_mastery(melee, dist, opts.range)
+    rng_val = secondary_mastery(melee, dist, opts.range)
     rng_parts = {"melee": [("melee_mastery", "Maîtrise Mêlée", melee)],
                  "distance": [("distance_mastery", "Maîtrise Distance", dist)]}.get(
         opts.range, [("melee_mastery", "Maîtrise Mêlée", melee), ("distance_mastery", "Maîtrise Distance", dist)])
     extra = [(k, lab, st.get(k, 0)) for flag, k, lab in (("berserk", "berserk_mastery", "Maîtrise Berserk"),
                                                          ("heal", "heal_mastery", "Maîtrise Soin")) if getattr(opts, flag)]
     weakest = min(tot.mastery[e] for e in played) if played else 0
-    mastery = {"range": opts.range, "range_value": rng_val, "neutral": opts.neutral_combo,
+    mastery = {"range": opts.range, "range_value": rng_val,
                "parts": [{"stat": k, "label": lab, "value": v} for k, lab, v in rng_parts],
                "extra": [{"stat": k, "label": lab, "value": v} for k, lab, v in extra],
                "used": tot.mastery_used, "multi": len(played) > 1,
@@ -117,7 +117,8 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
          or "aucun", "src": src("constraints")},
         {"label": "Châsses", "value": {"ideal": f"idéales ({opts.shard_count} par item, {opts.max_jokers} joker max)",
                                        "mine": "mes couleurs", "none": "ignorées"}.get(opts.shard_mode, opts.shard_mode)
-         + (" ; sans sublimations" if opts.no_subs else ""), "src": src("subs")},
+         + (" ; sans sublimations" if opts.no_subs else " ; sublimations confirmées seulement" if opts.confirmed_subs_only
+            else ""), "src": src("subs")},
     ]
     # poids de chaque stat dans le score (1 point ≈ 1 % de valeur globale)
     arch_util = set(arch.utility) if arch else set()

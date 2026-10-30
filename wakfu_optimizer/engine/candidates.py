@@ -12,6 +12,7 @@ from collections import defaultdict
 
 from ..data.models import ELEMENTS, LEVELABLE_TYPES, SLOT_FR, GameData, Item, Slot
 from .options import SECONDARY_MASTERIES, OptimizeOptions
+from .shards import needs_no_secondary
 
 PER_SLOT = 40   # candidats gardés par emplacement (groupe ordinaire ; reliques, épiques, deux mains : le quart)
 
@@ -23,8 +24,19 @@ def bracket_of(level: int, brackets: list[tuple[int, int]]) -> tuple[int, int]:
     return 1, level
 
 
-def item_features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
-    """Vecteur de caractéristiques utiles (plus = mieux) pour l'élagage par dominance."""
+def no_secondary_possible(data: GameData, opts: OptimizeOptions) -> bool:
+    """Une sublimation « maîtrises secondaires <= 0 » (Ambition, Dénouement…) peut être placée."""
+    for sid, st in data.states.items():
+        if not needs_no_secondary(st) or sid in opts.excluded_subs:
+            continue
+        if sid in opts.forced_subs or not opts.no_subs and (st.confirmed or not opts.confirmed_subs_only):
+            return True
+    return False
+
+
+def item_features(it: Item, opts: OptimizeOptions, L: int, no_sec: bool = False) -> list[int]:
+    """Vecteur de caractéristiques utiles (plus = mieux) pour l'élagage par dominance.
+    `no_sec` : garder aussi les items aux maîtrises secondaires basses (voir no_secondary_possible)."""
     st = it.stats_at(L)
     g = lambda k: int(st.get(k, 0))  # noqa: E731
     played = opts.played_elements()
@@ -39,15 +51,15 @@ def item_features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
         # donc comptée dans chaque élément joué. Exact pour la dominance : min(élém.) + portée = min(élém. + portée).
         # Mixte : moitié mêlée, moitié distance (tout est doublé pour rester en entiers).
         rng, k = 0, 1
-        if opts.range == "mixed" and not opts.neutral_combo:
+        if opts.range == "mixed":
             rng, k = g("melee_mastery") + g("distance_mastery"), 2
-        elif opts.range in ("melee", "distance") and not opts.neutral_combo:
+        elif opts.range in ("melee", "distance"):
             rng = g(f"{opts.range}_mastery")
         f += [k * (g("elem_mastery") + g(f"{e}_mastery")) + rng for e in played]
         f += [rm_v, rm_n, g("dmg_pct")]
-        if opts.neutral_combo:   # maîtrises secondaires à 0 ou moins : plus elles sont basses, plus on a de marge
+        if no_sec:   # maîtrises secondaires à 0 ou moins : plus elles sont basses, plus on a de marge
             f.append(-sum(g(k) for k in SECONDARY_MASTERIES))
-        elif opts.range == "best":   # la meilleure des deux : chacune est utile
+        if opts.range == "best":   # la meilleure des deux : chacune est utile
             f += [g("melee_mastery"), g("distance_mastery")]
         if opts.crit:
             f += [g("crit_rate"), g("crit_mastery")]
@@ -148,8 +160,9 @@ def select_candidates(data: GameData, opts: OptimizeOptions, per_slot: int = PER
         warnings.append(f"Peu d'items avec vos filtres pour {', '.join(names)} : recherche élargie ({why}).")
 
     out: dict[Slot, list[Item]] = {}
+    no_sec = no_secondary_possible(data, opts)
     for slot, items in pool.items():
-        feats = {it.id: item_features(it, opts, L) for it in items}
+        feats = {it.id: item_features(it, opts, L, no_sec) for it in items}
         keep: list[Item] = []
         # groupes comparables : reliques, épiques, deux mains, items forcés à part
         groups: dict[tuple[bool, bool, bool], list[Item]] = defaultdict(list)

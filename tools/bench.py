@@ -51,7 +51,7 @@ FULL = QUICK + [
     ("rogue", 245, "dps_distance", {}),
     ("pandawa", 65, "tank", {}),
     ("iop", 20, "dps_melee", {}),
-    ("iop", 245, "dps_melee", {"no_subs": False, "neutral_combo": True}),
+    ("iop", 245, "dps_melee", {"no_subs": False, "forced_subs": [5077]}),
     ("iop", 245, "dps_melee", {"no_subs": False, "shard_mode": "mine",
                                "my_colors": {"HEAD": [1, 2, 3, 0], "CHEST": [3, 3, 3], "FIRST_WEAPON": [1, 1, 2, 2]}}),
     ("ecaflip", 200, "dps_melee", {"min_res_pct": 40, "char_mode": "manual",

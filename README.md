@@ -58,9 +58,12 @@ c'est possible, sans rendre le calcul impossible à bas niveau.
 - **Portée** : mêlée, distance ou **mixte** (les deux maîtrises comptent à moitié : Huppermage, Eliotrope).
 - **Coups de dos** : part des coups portés de dos (25 / 50 / 80 %) ; seule cette part profite de la Maîtrise Dos.
 - **Contraintes** : minimum et maximum de PA, PM, PO, PW, % critique et % parade.
-- **Combo Neutralité + Dénouement** (case à cocher) : maîtrises secondaires (mêlée, distance, dos, berserk, soin) ≤ 0
-  après items, runes, aptitudes et sublimations, ≥ 40 % critique ; la Maîtrise Critique compte comme Maîtrise
-  Élémentaire, Neutralité, Ambition et Prétention sont chiffrées.
+- **Sublimations « maîtrises secondaires ≤ 0 »** (Dénouement, Ambition, Neutralité, Prétention) : si l'optimiseur en
+  place une (ou si vous l'imposez), il garde les maîtrises mêlée, distance, dos, berserk et soin à 0 ou moins.
+  Dénouement demande aussi 40 % critique et convertit la Maîtrise Critique en Maîtrise Élémentaire ; le calcul essaie
+  une variante avec Dénouement imposé et garde la meilleure.
+- **Sublimations confirmées** : celles dont description, niveaux et effets ont été vérifiés (`confirmed: true` dans
+  `sublimations.yaml`) ; les autres sont grisées dans l'onglet Sublimations. Option du panneau : n'utiliser qu'elles.
 - **Durée du calcul** : 1, 3 (défaut) ou 6 minutes, réparties entre les passes.
 - **Sublimations** (onglet dédié) : apport chiffré de chacune sur le build, sublimations **imposées** (même celles dont
   l'effet n'est pas chiffré, ex. Destruction) ou **exclues** ; sur le build, clic sur une sublimation pour la changer.

@@ -23,6 +23,7 @@ class SubFamily:
     kind: str                      # normal | epic | relic
     modeled: bool                  # effet chiffré par l'optimiseur
     applicable: bool               # ses conditions sont compatibles avec les options
+    confirmed: bool = False        # vérifiée à la main (sublimations.yaml)
     subs: list[Sublimation] = field(default_factory=list)
     same_levels: bool = False      # tous les niveaux donnent les mêmes effets (le niveau ne sert qu'au cumul max)
     in_build: int = 0              # niveau cumulé dans le build
@@ -66,7 +67,7 @@ def catalog(data: GameData, opts: OptimizeOptions, build: Build | None = None) -
             f = fams[sub.state_id] = SubFamily(
                 state_id=sub.state_id, name=(st.name if st and st.name else sub.name(opts.lang)),
                 desc=st.description if st else "", limit=st.limit if st else 0, kind=_kind(sub),
-                modeled=modeled, applicable=ok, same_levels=same)
+                modeled=modeled, applicable=ok, same_levels=same, confirmed=bool(st and st.confirmed))
         f.subs.append(sub)
     base: Totals | None = None
     levels: dict[int, int] = {}
@@ -173,6 +174,7 @@ def fill_empty_subs(data: GameData, opts: OptimizeOptions, build: Build) -> tupl
             options, _ = sub_alternatives(data, opts, build, slot, special)
             usable = [o for o in options if o.sub is not None and o.delta >= -1e-6
                       and (st := data.states.get(o.sub.state_id)) is not None and st.modeled
+                      and (st.confirmed or not opts.confirmed_subs_only)
                       and not condition_failed(o.totals, st.name)]
             if usable:
                 best = usable[0]   # triées par gain décroissant

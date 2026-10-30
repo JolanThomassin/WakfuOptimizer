@@ -66,7 +66,8 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
         t = m.NewIntVar(-BIG, 100, "T")
         m.AddMinEquality(t, [bm.stat("crit_rate"), 100])
         f["crit"] = t
-        f["crit_mastery"] = 0 if opts.neutral_combo else bm.stat("crit_mastery")
+        cm = bm.stat("crit_mastery")
+        f["crit_mastery"] = cm if bm.crit_conv is None else cm - bm.crit_conv   # Dénouement : convertie
         if opts.crit_target:   # palier de critique de l'archétype (voir scoring.crit_short)
             sh = m.NewIntVar(0, BIG, "crit_short")
             m.AddMaxEquality(sh, [opts.crit_target - bm.stat("crit_rate"), 0])

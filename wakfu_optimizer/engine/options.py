@@ -9,9 +9,8 @@ from typing import Any
 from ..data.models import ELEMENTS, Color, Rarity, Slot
 
 
-DENOUEMENT_CRIT = 40     # % critique requis par Dénouement
-NEUTRAL_COMBO_STATES = (6931, 5077)   # Neutralité, Dénouement (id d'état)
-# Maîtrises « secondaires » qui doivent rester <= 0 (la Maîtrise Critique est convertie par Dénouement)
+# Maîtrises « secondaires » de la condition no_secondary des sublimations (Neutralité, Ambition, Dénouement…) :
+# toutes <= 0. La Maîtrise Critique n'en fait pas partie (Dénouement la convertit).
 SECONDARY_MASTERIES = ("melee_mastery", "distance_mastery", "rear_mastery", "berserk_mastery", "heal_mastery")
 
 
@@ -50,9 +49,6 @@ class OptimizeOptions:
     res_max: int = 90                    # obsolète (remplacé par res_target / res_tol)
     balance_res: bool = True             # obsolète : les résistances sont toujours équilibrées (gardé pour les anciens réglages)
     count_conditional: bool = True       # sublimations « PV > 90 % », « sans armure »
-    # Combo Neutralité + Dénouement : maîtrises secondaires <= 0, >= 40 % critique, Maîtrise Critique convertie
-    # en Maîtrise Élémentaire (Dénouement) ; Neutralité, Ambition, Prétention s'activent.
-    neutral_combo: bool = False
     # Valeur (en points de score) de chaque PA/PM/PO/PW, au-delà des minimums, jusqu'aux plafonds.
     ap_value: int = 6
     mp_value: int = 4
@@ -94,6 +90,7 @@ class OptimizeOptions:
     excluded_subs: tuple[int, ...] = ()   # sublimations interdites (id d'état)
     forced_sub_levels: dict[str, int] = field(default_factory=dict)   # id d'état -> niveau minimum imposé
     no_subs: bool = False                 # aucune sublimation, sauf celles imposées
+    confirmed_subs_only: bool = False     # seulement les sublimations confirmées (sublimations.yaml), sauf imposées
     # --- Châsses
     shard_mode: str = "ideal"            # ideal | mine | none
     shard_count: int = 4
@@ -137,14 +134,6 @@ class OptimizeOptions:
         self.crit_target = max(0, min(100, int(self.crit_target)))
         self.forced_sub_levels = {str(k): max(1, int(v)) for k, v in self.forced_sub_levels.items()
                                   if int(k) in self.forced_subs}
-        if self.neutral_combo:
-            self.crit = True
-            self.rear = self.berserk = self.heal = False   # ces maîtrises sont à 0 ou moins
-            if self.min_crit < DENOUEMENT_CRIT:
-                self.min_crit = DENOUEMENT_CRIT
-            if self.max_crit and self.max_crit < DENOUEMENT_CRIT:
-                out.append(f"Combo Neutralité : il faut au moins {DENOUEMENT_CRIT} % critique, maximum retiré.")
-                self.max_crit = 0
         return out
 
     def colors_for(self, slot: Slot) -> list[Color]:

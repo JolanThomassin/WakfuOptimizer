@@ -5,9 +5,12 @@
 # 'effects' = effets pris en compte par le solveur (choisis à la main) :
 #   stat, values (par niveau d'état 1..N), mode (flat | pct_level = % du niveau),
 #   condition (none, melee, distance, berserk, hp_high, no_armor, two_handed,
-#   light_weapons, element:<élément>, no_secondary = maîtrises secondaires <= 0, option « combo Neutralité »).
+#   light_weapons, element:<élément>, no_secondary = maîtrises secondaires <= 0).
 #   stat_le:<stat>:<v> / stat_ge:<stat>:<v> = la stat totale doit être <= / >= v (épiques « au lancement du
-#   combat ») : le solveur impose la condition quand il place la sublimation.
+#   combat »). no_secondary et stat_* : le solveur impose la condition quand il place la sublimation.
+#   « a&b » = les deux conditions. stat crit_to_elem = Dénouement (Maîtrise Critique convertie en Élémentaire).
+# 'confirmed: true' = description, niveaux et effets vérifiés à la main (les autres sont grisées dans l'interface ;
+#   option « seulement les sublimations confirmées »).
 # Après un patch : ajouter ici les nouveaux états (sinon : affichés, mais non optimisés).
 # Valeurs par niveau vérifiées sur l'encyclopédie Ankama et en jeu (voir OFFICIAL_LEVELS dans
 # tools/build_sublimations_yaml.py) : l'encyclopédie et WakForge se trompent sur le dernier niveau.
@@ -92,7 +95,16 @@ states:
       mode: flat
       condition: stat_ge:block:40
   5076: {name: Précis, desc: 'Au lancement du combat, si le porteur de l''état a 1 Portée ou moins : ; 20% Soins réalisés ; 15% Armure donnée et reçue', limit: 1}
-  5077: {name: Dénouement, desc: Convertit 100% de Maîtrise Critique en Maîtrise Élémentaire au lancement du combat si le porteur de l'état possède au moins 40% Coup critique., limit: 1}
+  5077:
+    name: Dénouement
+    desc: Convertit 100% de Maîtrise Critique en Maîtrise Élémentaire au lancement du combat si le porteur de l'état possède au moins 40% Coup critique.
+    limit: 1
+    confirmed: true
+    effects:
+    - stat: crit_to_elem
+      values: [100]
+      mode: flat
+      condition: stat_ge:crit_rate:40&no_secondary
   5078: {name: Fracass'carcasse, desc: Le premier sort qui occasionne des dégâts du tour retire 30% Armure à la cible., limit: 1}
   5079: {name: Alternance, desc: 'Si le porteur n''a utilisé qu''un élément pour occasionner des dégâts durant son tour, il gagne +20% à sa Maîtrise Élémentaire dans ses autres éléments.', limit: 1}
   5080: {name: Confiance, desc: 30% Parade si le porteur n'a pas reçu de soin le tour précédent., limit: 1}
@@ -337,6 +349,7 @@ states:
     name: Influence
     desc: '3/6/9/12/15/18% Coup critique'
     limit: 6
+    confirmed: true
     effects:
     - stat: crit_rate
       values: [3, 6, 9, 12, 15, 18]
@@ -506,6 +519,7 @@ states:
     name: Ambition
     desc: 'Au début du premier tour, si les maîtrises secondaires sont <= 0 : ; 5/10/15/20/25/30% Coup critique'
     limit: 6
+    confirmed: true
     effects:
     - stat: crit_rate
       values: [5, 10, 15, 20, 25, 30]
@@ -570,6 +584,7 @@ states:
     name: Force vitale
     desc: 'En début de tour, si les PV sont supérieurs à 90% : ; 1 PA'
     limit: 2
+    confirmed: true
     effects:
     - stat: ap
       values: [1, 1]

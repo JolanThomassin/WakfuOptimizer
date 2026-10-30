@@ -11,6 +11,7 @@ d'archétype, nouveau calcul avec la cible abaissée au maximum atteignable. San
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import threading
 import time
@@ -26,8 +27,9 @@ from .candidates import select_candidates
 from .characteristics import fill_unspent
 from .features import BIG, initial_point
 from .model import BuildModel
-from .options import NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions
+from .options import Build, OptimizeOptions
 from .scoring import gradient, res_need, res_pct
+from .shards import CRIT_TO_ELEM
 from .stats import Totals, evaluate
 from .sublimations import fill_empty_subs
 
@@ -39,6 +41,7 @@ MAX_ITER = 8
 # HiGHS (navigateur) a besoin de passes plus longues pour garder la même qualité.
 PASS_CAP = 10.0 if WARM_START else 6.0
 MAX_TIME = 600.0         # durée maximale d'un calcul (s) ; l'interface propose 1, 3 ou 6 minutes
+COMBO_SHARE = 0.4        # part du temps donnée à la variante « Dénouement imposé » (voir _combo_states)
 OK = (cp_model.OPTIMAL, cp_model.FEASIBLE)
 Scored = tuple[float, Build, Totals]   # (score exact, build, totaux)
 
@@ -127,11 +130,14 @@ class Optimizer:
                 st = self.data.states.get(sid)
                 res.warnings.append(f"Sublimation imposée « {st.name if st else sid} » impossible à placer "
                                     "(pas de châsses, ou épique/relique sans objet compatible) : ignorée.")
+            combo = self._combo_states()
             if WARM_START:
                 self._warm_start(bm, cand, opts, budget)
-            s = self._passes(bm, t0, budget)
+            s = self._passes(bm, t0, budget * (1 - COMBO_SHARE), (0.05, 0.55)) if combo else self._passes(bm, t0, budget)
             if s.best is None:
                 return self._infeasible(res, cand, s.status, t0)
+            if combo:
+                bm, s = self._combo_pass(bm, s, cand, combo, t0, budget)
             out_of_time = time.monotonic() - t0 >= budget - 2
             res.status = "optimal" if s.optimal else "bon build (durée max atteinte)" if out_of_time else "bon build"
             best = s.best
@@ -163,11 +169,6 @@ class Optimizer:
         """Options corrigées (changements signalés dans `res.warnings`) et items candidats."""
         opts = self.opts
         res.warnings.extend(opts.normalize())   # min > max, % hors bornes : corrigés et signalés
-        if opts.neutral_combo:
-            opts.forced_subs = tuple(dict.fromkeys(opts.forced_subs + NEUTRAL_COMBO_STATES))
-            opts.excluded_subs = tuple(s for s in opts.excluded_subs if s not in NEUTRAL_COMBO_STATES)
-            if opts.exclude_epic:
-                res.warnings.append("Combo Neutralité : Dénouement est une sublimation épique, décochez « Exclure les épiques ».")
         self.progress("Sélection des items candidats…", 0.01)
         cand, warnings = select_candidates(self.data, opts)
         res.warnings.extend(warnings)
@@ -177,9 +178,10 @@ class Optimizer:
         log.info("%d items candidats (%s)", res.candidates, {s.value: len(v) for s, v in cand.items()})
         return cand
 
-    def _passes(self, bm: BuildModel, t0: float, budget: float) -> _Search:
+    def _passes(self, bm: BuildModel, t0: float, budget: float, bar: tuple[float, float] = (0.05, 0.9)) -> _Search:
         """Linéarisation successive : on maximise le gradient du score autour du build courant,
-        on évalue exactement le build obtenu, puis on recommence autour de ce nouveau point."""
+        on évalue exactement le build obtenu, puis on recommence autour de ce nouveau point.
+        `bar` : début et étendue de la barre de progression."""
         opts = self.opts
         s = _Search(point=initial_point(opts))
         seen: set[tuple[Any, ...]] = set()
@@ -187,13 +189,13 @@ class Optimizer:
         per_iter = min(PASS_CAP, budget / MAX_ITER)
         stale = 0
         for it in range(MAX_ITER):
-            base = 0.05 + 0.9 * it / MAX_ITER
+            base = bar[0] + bar[1] * it / MAX_ITER
             remaining = budget - (time.monotonic() - t0)
             if remaining < 1.0 and s.best is not None:
                 break
             limit = max(1.0, min(per_iter * (1.5 if it == 0 else 1.0), remaining))
             bm.set_linear_objective(gradient(s.point, opts))
-            tick = self._ticker(base, 0.9 / MAX_ITER, limit, f"Optimisation (passe {it + 1}/{MAX_ITER})…")
+            tick = self._ticker(base, bar[1] / MAX_ITER, limit, f"Optimisation (passe {it + 1}/{MAX_ITER})…")
             try:
                 st, sv = self._solve(bm, limit)
                 remaining = budget - (time.monotonic() - t0)
@@ -230,6 +232,39 @@ class Optimizer:
             f = tot.features
             s.point = f if it == 0 else {k: 0.5 * s.point[k] + 0.5 * f[k] for k in s.point}
         return s
+
+    def _combo_states(self) -> tuple[int, ...]:
+        """Sublimations à conversion (Dénouement) utilisables et non imposées. Leur intérêt n'apparaît qu'une fois tout
+        le build basculé (maîtrises secondaires à 0, beaucoup de Maîtrise Critique) : les passes, qui avancent
+        autour du build courant, ne les trouvent pas seules. On essaie donc aussi une variante qui les impose."""
+        o = self.opts
+        if o.no_subs or o.offense_weight <= 0:
+            return ()
+        out = []
+        for sub in self.data.sublimations:
+            st = self.data.states.get(sub.state_id)
+            if (st is None or sub.state_id in out or sub.state_id in o.forced_subs or sub.state_id in o.excluded_subs
+                    or not any(e.stat == CRIT_TO_ELEM for e in st.effects)
+                    or o.confirmed_subs_only and not st.confirmed
+                    or sub.is_epic and o.exclude_epic or sub.is_relic and o.exclude_relic):
+                continue
+            out.append(sub.state_id)
+        return tuple(out)
+
+    def _combo_pass(self, bm: BuildModel, s: _Search, cand: dict[Slot, list[Item]], combo: tuple[int, ...],
+                    t0: float, budget: float) -> tuple[BuildModel, _Search]:
+        """Variante avec la sublimation à conversion imposée ; on garde la meilleure des deux recherches."""
+        best = s.best
+        if best is None or any(sid in best[2].active_states for sid in combo):
+            return bm, s   # déjà choisie par les passes
+        self.progress("Variante avec Dénouement…", 0.6)
+        opts2 = dataclasses.replace(self.opts, forced_subs=self.opts.forced_subs + combo[:1])
+        bm2 = BuildModel(self.data, opts2, cand)
+        s2 = self._passes(bm2, t0, budget, (0.6, 0.35))
+        if s2.best is not None and s2.best[0] > best[0]:
+            log.info("variante %s retenue : %.2f > %.2f", combo[0], s2.best[0], best[0])
+            return bm2, s2
+        return bm, s
 
     def _warm_start(self, bm: BuildModel, cand: dict[Slot, list[Item]], opts: OptimizeOptions, budget: float) -> None:
         """HiGHS trouve mal un premier build quand il doit aussi placer châsses, runes et sublimations,
@@ -371,25 +406,18 @@ class Optimizer:
             if self.cancel.is_set():
                 break
             relaxed = BuildModel(self.data, self.opts, cand, shard_mode=self.opts.shard_mode, skip_constraints={stat})
-            if stat == "neutral":
-                relaxed.maximize(-sum(relaxed.stat(k) for k in SECONDARY_MASTERIES))
-            else:
-                relaxed.maximize(relaxed.res["fire"] if stat == "res" else relaxed.stat(stat))
+            relaxed.maximize(relaxed.res["fire"] if stat == "res" else relaxed.stat(stat))
             try:
                 st, sv = self._solve(relaxed, 4.0)
             except Cancelled:
                 break
             if st in OK:
-                if stat == "neutral":
-                    diag.append("Contrainte bloquante : combo Neutralité (maîtrises secondaires à 0 ou moins) "
-                                "impossible avec les autres contraintes.")
-                    continue
                 best = sv.Value(relaxed.stat(stat)) if stat != "res" else None
                 extra = f" (maximum atteignable avec les autres contraintes : {best})" if best is not None else ""
                 diag.append(f"Contrainte bloquante : {labels.get(stat, stat)} ≥ {val}{extra}")
         if self.opts.forced_subs:
             diag.append("Vérifiez aussi les sublimations imposées (onglet Sublimations) : leurs couleurs ou "
-                        "leurs conditions peuvent bloquer.")
+                        "leurs conditions (ex. maîtrises secondaires à 0 ou moins, % critique) peuvent bloquer.")
         maxs = {"PA": self.opts.max_ap, "PM": self.opts.max_mp, "Portée": self.opts.max_range, "PW": self.opts.max_wp,
                 "% Critique": self.opts.max_crit, "% Parade": self.opts.max_block}
         for lab, val in maxs.items():

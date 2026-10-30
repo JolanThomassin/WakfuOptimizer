@@ -29,8 +29,7 @@ function renderTargets(x) {
   let mast = "";
   const m = t.mastery;
   if (m) {
-    const rngTxt = m.neutral ? "Combo Neutralité : les maîtrises de portée ne comptent pas (elles doivent rester à 0 ou moins)."
-      : m.range === "mixed" ? `Moitié mêlée, moitié distance : (${fmt(m.parts[0].value)} + ${fmt(m.parts[1].value)}) / 2 = ${fmt(m.range_value)}.`
+    const rngTxt = m.range === "mixed" ? `Moitié mêlée, moitié distance : (${fmt(m.parts[0].value)} + ${fmt(m.parts[1].value)}) / 2 = ${fmt(m.range_value)}.`
       : m.range === "best" ? `La meilleure des deux compte (passif de classe) : ${fmt(m.range_value)}.` : "";
     const extra = m.extra.filter((e) => e.value).map((e) => ` + ${icon(e.stat, e.label)} ${fmt(e.value)}`).join("");
     const parts = m.parts.map((p) => `${icon(p.stat, p.label)} ${esc(p.label)} <b>${fmt(p.value)}</b>`).join(" · ");

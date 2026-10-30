@@ -37,17 +37,7 @@ function buildForm() {
   ss.appendChild(stepper("shard_count", "Châsses par item", null, 1, 4));
   ss.appendChild(stepper("max_jokers", "Jaunes (joker) max", null, 0, 4, "Châsses jaunes : acceptent toutes les runes"));
 
-  const grid = document.createElement("div");
-  grid.className = "shard-grid";
-  for (const s of SHARD_SLOTS) {
-    const name = m.slots.find((x) => x.key === s).name;
-    grid.insertAdjacentHTML("beforeend", `<span>${esc(name)}</span><div class="shards" data-slot="${s}"></div>`);
-  }
-  $("#my-colors").appendChild(grid);
-  $("#my-colors").insertAdjacentHTML("beforeend", `<p class="hint">Clic : rouge → verte → bleue → jaune (joker) → aucune. Clic droit : aucune.</p>`);
-
-  seg("range"); seg("shard_mode"); seg("rear_share"); seg("subs-kind");
-  $("#shard_mode").addEventListener("change", refreshVis);
+  seg("range"); seg("rear_share"); seg("subs-kind");
   // double curseur : le min ne dépasse pas le max (le curseur qu'on bouge pousse l'autre)
   // résistance visée et écart max : saisie directe ou −/+ (Maj : par 5)
   const clampRes = () => {
@@ -64,15 +54,6 @@ function buildForm() {
   $("#time-btn").addEventListener("click", () => {
     const steps = [60, 180, 360];
     setTimeLimit(steps[(steps.indexOf(+$("#time_limit").value) + 1) % steps.length]);
-  });
-  $("#neutral").addEventListener("change", () => {
-    if ($("#neutral").checked) {   // le combo impose du critique et rend dos / berserk / soin inutiles
-      toggleBtn($("#crit"), true); ["rear", "berserk", "heal"].forEach((id) => toggleBtn($("#" + id), false));
-      if (+$("#min_crit").value < 40) $("#min_crit").value = 40;
-      if (+$("#max_crit").value && +$("#max_crit").value < 40) $("#max_crit").value = 0;
-      if ($("#no_epic").checked) { $("#no_epic").checked = false; toast("Épiques autorisées : Dénouement est une sublimation épique."); }
-    }
-    refreshVis();
   });
   cls.addEventListener("change", () => { applyClass(cls.value); refreshVis(); });
   $("#level").addEventListener("change", () => {
@@ -112,30 +93,6 @@ function buildForm() {
   $("#go").addEventListener("click", start);
   $("#stop").addEventListener("click", () => S.job && api("/api/cancel", { job: S.job }));
   $("#reload").addEventListener("click", reloadData);
-}
-
-function renderShardRows() {
-  for (const row of $$(".shards[data-slot]")) {
-    const s = row.dataset.slot;
-    const cols = S.colors[s] || [1, 1, 1, 1];
-    row.innerHTML = "";
-    for (let k = 0; k < 4; k++) {
-      const c = k < cols.length ? cols[k] : null;
-      const b = document.createElement("button");
-      b.className = "shard-btn" + (c === null ? "" : " filled");
-      b.innerHTML = c === null ? "" : `<img src="assets/shards/shard${SHARD_FILE[c]}Full.png" alt="">`;
-      b.addEventListener("click", () => cycleShard(s, k, false));
-      b.addEventListener("contextmenu", (e) => { e.preventDefault(); cycleShard(s, k, true); });
-      row.appendChild(b);
-    }
-  }
-}
-function cycleShard(slot, k, clear) {
-  const arr = [...(S.colors[slot] || [1, 1, 1, 1])];
-  while (arr.length < 4) arr.push(null);
-  arr[k] = clear ? null : SHARD_ORDER[(SHARD_ORDER.indexOf(arr[k] ?? null) + 1) % SHARD_ORDER.length];
-  S.colors[slot] = arr.filter((c) => c !== null && c !== undefined);
-  renderShardRows();
 }
 
 // ===================================================================== archétypes
@@ -191,7 +148,7 @@ function resetConstraints(a) {
   $("#no_shop").checked = true; $("#pets").checked = true;
 }
 function resetSubsPanel() {
-  setSeg("shard_mode", "ideal"); $("#shard_count").value = 4; $("#max_jokers").value = 1; $("#no_subs").checked = true;
+  $("#shard_count").value = 4; $("#max_jokers").value = 1; $("#confirmed_subs").checked = false;
 }
 
 // ===================================================================== panneaux activables
@@ -202,7 +159,6 @@ function setPanel(k, on) {
   const cb = $(`[data-panel="${k}"]`);
   cb.checked = on;
   cb.closest(".card").classList.toggle("panel-off", !on);
-  if (on && k === "subs") $("#no_subs").checked = false;   // activé : sublimations utilisées
   if (!on) {   // retour aux valeurs de l'archétype, pour que l'affichage dise ce qui sera utilisé
     const a = ARCHETYPES[$("#archetype").value];
     if (k === "priorities" && a) applyArchetype(a.key, curClass());
@@ -248,12 +204,7 @@ function refreshVis() {
   const best = classRange() === "best";
   $("#range-box").classList.toggle("hidden", !!(arch && arch.hide_range) || best);
   $("#range-note").classList.toggle("hidden", !best);
-  const neutral = $("#neutral").checked;
-  $("#rear-box").classList.toggle("hidden", !isOn("rear") || neutral);
-  ["rear", "berserk", "heal"].forEach((id) => { $("#" + id).disabled = neutral; $("#" + id).classList.toggle("off", neutral); });
-  const mode = segVal("shard_mode");
-  $("#shard-steps").classList.toggle("hidden", mode !== "ideal");
-  $("#my-colors").classList.toggle("hidden", mode !== "mine");
+  $("#rear-box").classList.toggle("hidden", !isOn("rear"));
   updateItemsBadge();
   renderApt();
 }
@@ -272,24 +223,20 @@ function applyOptions(o) {
   set("res_target", o.res_target ?? 50);
   set("res_tol", o.res_tol ?? 5);
   $("#cond").checked = o.count_conditional;
-  $("#neutral").checked = !!o.neutral_combo;
   setTimeLimit(180);   // toujours 3 min à l'ouverture de la page
   ["min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block",
    "shard_count", "max_jokers"].forEach((k) => set(k, o[k] ?? 0));
   S.subForced = new Set(o.forced_subs || []); S.subExcluded = new Set(o.excluded_subs || []);
   S.subLevels = Object.fromEntries(Object.entries(o.forced_sub_levels || {}).map(([k, v]) => [+k, +v]));
-  $("#no_subs").checked = !!o.no_subs;
+  $("#confirmed_subs").checked = !!o.confirmed_subs_only;
   $$("#rarities .toggle").forEach((b) => toggleBtn(b, (o.allowed_rarities || []).includes(+b.dataset.r)));
   $("#lower").checked = o.lower_brackets; $("#no_relic").checked = o.exclude_relic; $("#no_epic").checked = o.exclude_epic;
   $("#no_shop").checked = o.exclude_shop; $("#pets").checked = o.include_pet_mount;
   S.excluded = new Set(o.excluded_ids || []); S.forced = new Set(o.forced_ids || []);
-  setSeg("shard_mode", o.shard_mode || "ideal");
   S.apt = Object.assign({}, o.manual_chars || {});
   $("#apt_elem_res").checked = o.apt_elem_res ?? true;
   setSeg("char_mode", o.char_mode || "auto");
-  S.colors = o.my_colors || {};
   updateSubsBadge();
-  renderShardRows();
   refreshVis();
 }
 
@@ -307,15 +254,14 @@ function options() {
     min_crit: n("min_crit"), min_control: 0, min_res_pct: 0,
     max_ap: n("max_ap"), max_mp: n("max_mp"), max_range: n("max_range"), max_wp: n("max_wp"), max_crit: n("max_crit"),
     min_block: n("min_block"), max_block: n("max_block"), apt_elem_res: $("#apt_elem_res").checked,
-    forced_subs: [...S.subForced], excluded_subs: [...S.subExcluded], no_subs: $("#no_subs").checked,
+    forced_subs: [...S.subForced], excluded_subs: [...S.subExcluded], confirmed_subs_only: $("#confirmed_subs").checked,
     forced_sub_levels: Object.fromEntries([...S.subForced].filter((s) => S.subLevels[s] > 1).map((s) => [s, S.subLevels[s]])),
     allowed_rarities: $$("#rarities .toggle.on").map((b) => +b.dataset.r),
     lower_brackets: $("#lower").checked, exclude_relic: $("#no_relic").checked, exclude_epic: $("#no_epic").checked,
     exclude_shop: $("#no_shop").checked, include_pet_mount: $("#pets").checked, optimize_characteristics: true,
     char_mode: segVal("char_mode"), manual_chars: { ...S.apt },
     excluded_ids: [...S.excluded], forced_ids: [...S.forced],
-    shard_mode: segVal("shard_mode"), shard_count: n("shard_count"), max_jokers: n("max_jokers"),
-    my_colors: Object.fromEntries(SHARD_SLOTS.map((s) => [s, S.colors[s] || [1, 1, 1, 1]])),
-    time_limit: n("time_limit") || 180, alternatives: 0, neutral_combo: $("#neutral").checked,
+    shard_count: n("shard_count"), max_jokers: n("max_jokers"),
+    time_limit: n("time_limit") || 180, alternatives: 0,
   };
 }

@@ -23,7 +23,7 @@ import yaml
 #   le signe est lu dans le texte (« -{num_0} » => négatif)
 #   conditions : none, melee, distance, berserk, hp_high, no_armor, two_handed,
 #                light_weapons, element:fire|water|earth|air,
-#                no_secondary (maîtrises secondaires <= 0 : option « combo Neutralité + Dénouement »)
+#                no_secondary (maîtrises secondaires <= 0 : imposé par le solveur s'il place la sublimation)
 CURATED: dict[int, list[tuple[int, str, list[str], str, str]]] = {
     5982: [(1, "num_0", ["all_mastery"], "pct_level", "none"), (2, "num_0", ["elem_res"], "flat", "none")],  # Ravage
     5984: [(0, "num_0", ["hp_pct"], "flat", "none")],                       # Cicatrisation
@@ -79,7 +79,14 @@ STAT_CONDITIONAL: dict[int, list[tuple[str, int, str]]] = {
     5075: [("crit_rate", 10, "stat_ge:block:40")],                                         # Mesure
     5370: [("willpower", 10, "stat_ge:wp:8"), ("block", 15, "stat_ge:wp:8")],              # Pacte Wakfu
     6707: [("hp_pct", 30, "stat_ge:block:50")],                                            # Pilier
+    # Dénouement : conversion de la Maîtrise Critique (model._crit_conversion) ; >= 40 % critique et, choix du
+    # projet, maîtrises secondaires <= 0
+    5077: [("crit_to_elem", 100, "stat_ge:crit_rate:40&no_secondary")],
 }
+
+# Sublimations confirmées (description, niveaux, effets et contraintes vérifiés avec l'utilisateur) : les autres
+# sont grisées dans l'interface.
+CONFIRMED = {5077, 7115, 6026, 7861}   # Dénouement, Ambition, Influence, Force vitale
 
 # Valeurs officielles par niveau (encyclopédie Ankama, /fr/linker/state?id=X&level=k), vérifiées en jeu
 # (Visibilité I : -300 Tacle, II : -150). L'encyclopédie affiche le niveau k-1 et s'arrête au niveau max - 1 :
@@ -187,6 +194,8 @@ def main(wakforge: Path) -> None:
                 eff["values"] = v
             if lim:
                 entry["limit"] = lim
+        if sid in CONFIRMED:
+            entry["confirmed"] = True
         if effects:
             entry["effects"] = effects
         out[sid] = entry

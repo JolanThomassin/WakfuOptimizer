@@ -8,14 +8,12 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from ..data.models import ELEMENTS, GameData, Item, Slot
+from ..data.models import ELEMENTS, GameData, Item, Slot, SubEffect, SubState
 from .characteristics import BRANCH_FR, LINE_FR, char_lines
 from .features import evaluator_features
-from .options import DENOUEMENT_CRIT, NEUTRAL_COMBO_STATES, SECONDARY_MASTERIES, Build, OptimizeOptions
+from .options import Build, OptimizeOptions
 from .scoring import damage_d2, defense_value, ehp_factor, elem_mastery_used, log_score, res_pct, secondary_mastery
-from .shards import condition_holds, effect_targets, parse_stat_condition
-
-DENOUEMENT_STATE = NEUTRAL_COMBO_STATES[1]
+from .shards import CRIT_TO_ELEM, condition_holds, condition_label, effect_targets, needs_stats, parse_stat_condition
 
 DISPLAY_STATS = [
     ("hp", "PV"), ("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("range", "Portée"),
@@ -132,7 +130,19 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
             add(stat, n * v, f"Aptitude {BRANCH_FR.get(cl.branch, cl.branch)} · {LINE_FR.get(cl.line, cl.line)} ({n} pt)", "apt",
                 cl.line)
 
-    later = []   # effets « si la stat X est <= / >= v » : vérifiés une fois les autres effets appliqués
+    # Effets conditionnés par les stats du build, vérifiés une fois les autres effets appliqués : d'abord
+    # « maîtrises secondaires <= 0 » (Ambition, Neutralité…), puis « si la stat X est <= / >= v » (épiques).
+    mid: list[tuple[SubState, SubEffect, int]] = []
+    later: list[tuple[SubState, SubEffect, int]] = []
+    convert: list[str] = []   # Dénouement actif
+
+    def apply(st: SubState, e: SubEffect, eff_lvl: int) -> None:
+        if e.stat == CRIT_TO_ELEM:
+            convert.append(st.name)
+            return
+        for target in effect_targets(e):
+            add(target, e.value(eff_lvl, L), f"Sublimation {st.name} niv. {eff_lvl}", "sub")
+
     for sid, lvl in state_levels.items():
         st = data.states.get(sid)
         if st is None:
@@ -140,27 +150,21 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
         eff_lvl = min(lvl, st.limit) if st.limit else lvl
         t.active_states[sid] = eff_lvl
         for e in st.effects:
-            if parse_stat_condition(e.condition):
-                later.append((st, e, eff_lvl))
+            if needs_stats(e.condition):
+                (later if any(parse_stat_condition(c) for c in e.condition.split("&")) else mid).append((st, e, eff_lvl))
             elif condition_holds(e.condition, opts, two_handed, second_used):
-                for target in effect_targets(e):
-                    add(target, e.value(eff_lvl, L), f"Sublimation {st.name} niv. {eff_lvl}", "sub")
-    snapshot = dict(s)
-    for st, e, eff_lvl in later:
-        if condition_holds(e.condition, opts, two_handed, second_used, snapshot):
-            for target in effect_targets(e):
-                add(target, e.value(eff_lvl, L), f"Sublimation {st.name} niv. {eff_lvl}", "sub")
-        elif e is st.effects[0]:
-            t.warnings.append(f"{st.name} : condition non remplie ({e.condition}), sans effet.")
-
-    if opts.neutral_combo:
-        if any(s[k] > 0 for k in SECONDARY_MASTERIES):
-            t.warnings.append("Combo Neutralité inactif : une maîtrise secondaire est au-dessus de 0.")
-        cm = s["crit_mastery"]
-        if DENOUEMENT_STATE in t.active_states and s["crit_rate"] >= DENOUEMENT_CRIT and cm:
-            # Dénouement : la Maîtrise Critique est convertie en Maîtrise Élémentaire au lancement du combat
-            add("elem_mastery", cm, "Dénouement (Maîtrise Critique convertie)", "sub")
-            add("crit_mastery", -cm, "Dénouement (convertie en Maîtrise Élémentaire)", "sub")
+                apply(st, e, eff_lvl)
+    for group in (mid, later):
+        snapshot = dict(s)
+        for st, e, eff_lvl in group:
+            if condition_holds(e.condition, opts, two_handed, second_used, snapshot):
+                apply(st, e, eff_lvl)
+            elif e is st.effects[0]:
+                t.warnings.append(f"{st.name} : condition non remplie ({condition_label(e.condition)}), sans effet.")
+    cm = s["crit_mastery"]
+    if convert and cm > 0:   # Dénouement : la Maîtrise Critique est convertie en Maîtrise Élémentaire au lancement du combat
+        add("elem_mastery", cm, f"{convert[0]} (Maîtrise Critique convertie)", "sub")
+        add("crit_mastery", -cm, f"{convert[0]} (convertie en Maîtrise Élémentaire)", "sub")
     for e in ELEMENTS:
         t.mastery[e] = s["elem_mastery"] + s[f"{e}_mastery"] + rand_m[e]
         t.res_flat[e] = s["elem_res"] + s[f"{e}_res"] + rand_r[e]

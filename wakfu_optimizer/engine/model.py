@@ -22,7 +22,7 @@ from .characteristics import branch_points, char_lines
 from .features import BIG, linear_objective, model_features
 from .options import SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice, SlotChoice
 from .scoring import flat_for_pct
-from .shards import effect_targets, parse_stat_condition, rune_fits, static_condition
+from .shards import CRIT_TO_ELEM, effect_targets, parse_stat_condition, rune_fits, static_condition
 from .stats import spare_elements
 
 RGB = (Color.RED, Color.GREEN, Color.BLUE)
@@ -96,6 +96,8 @@ class BuildModel:
         self.stat_var: dict[str, Any] = {}
         self.socketed: dict[Slot, Any] = {}
         self.stat_conds: list[tuple[Any, str]] = []   # (sublimation placée, condition sur une stat totale)
+        self.convert: Any = None    # Dénouement placé (0/1) : Maîtrise Critique convertie en Maîtrise Élémentaire
+        self.crit_conv: Any = None  # Maîtrise Critique convertie
         self._build()
 
     # ------------------------------------------------------------------ items
@@ -313,6 +315,8 @@ class BuildModel:
         forced = sub.state_id in self.opts.forced_subs
         if self.opts.no_subs and not forced:
             return False, []
+        if self.opts.confirmed_subs_only and not forced and not (st and st.confirmed):
+            return False, []
         if st is None or not st.modeled:
             return forced, []   # effet non chiffré : placée seulement si l'utilisateur l'impose
         useful, dynamic = False, []
@@ -326,9 +330,11 @@ class BuildModel:
         return useful or forced, dynamic
 
     def _apply_dynamic(self, var: Any, conds: list[str]) -> None:
-        for c in conds:
+        for c in (part for cond in conds for part in cond.split("&")):
             if parse_stat_condition(c):   # appliquée dans _derived, quand toutes les stats sont connues
                 self.stat_conds.append((var, c))
+            if c == "no_secondary":   # maîtrises secondaires <= 0 si on la place (Neutralité, Ambition, Dénouement…)
+                self.stat_conds += [(var, f"stat_le:{k}:0") for k in SECONDARY_MASTERIES]
             if c == "two_handed":
                 self.m.Add(var <= self.two_handed)
             elif c == "light_weapons":
@@ -404,6 +410,9 @@ class BuildModel:
             for e in st.effects:
                 if static_condition(e.condition, opts) is False:
                     continue
+                if e.stat == CRIT_TO_ELEM:   # Dénouement : conversion faite dans _derived
+                    self.convert = eff
+                    continue
                 table = [0] + [e.value(k, self.L) for k in range(1, min(cap, total_ub) + 1)]
                 if not any(table):
                     continue
@@ -425,6 +434,7 @@ class BuildModel:
     def _derived(self) -> None:
         m, opts, acc = self.m, self.opts, self.acc
         weights = dict(opts.element_weights())
+        self._crit_conversion()
         # --- maîtrise élémentaire utile : moitié min, moitié moyenne pondérée (scoring.elem_mastery_used)
         mast = []
         mlo, mhi = BIG, -BIG
@@ -432,10 +442,9 @@ class BuildModel:
             lo = acc.lb["elem_mastery"] + acc.lb[f"{e}_mastery"]
             hi = acc.ub["elem_mastery"] + acc.ub[f"{e}_mastery"] + acc.ub[f"rand_mastery_{e}"]
             expr = acc.expr("elem_mastery") + acc.expr(f"{e}_mastery") + acc.expr(f"rand_mastery_{e}")
-            if opts.neutral_combo:   # Dénouement : la Maîtrise Critique devient de la Maîtrise Élémentaire
-                clo, chi = acc.bounds("crit_mastery")
-                lo, hi = lo + clo, hi + chi
-                expr = expr + self.stat("crit_mastery")
+            if self.crit_conv is not None:   # Dénouement : la Maîtrise Critique devient de la Maîtrise Élémentaire
+                hi += max(0, acc.bounds("crit_mastery")[1])
+                expr = expr + self.crit_conv
             var = m.NewIntVar(lo - 10, hi + 10, f"M_{e}")
             m.Add(var == expr)
             self.stat_var[f"mastery_{e}"] = var
@@ -495,10 +504,6 @@ class BuildModel:
                 m.Add(self.stat(stat) <= v + (hi - v) * (1 - var))
             elif kind == "ge" and lo < v:
                 m.Add(self.stat(stat) >= v - (v - lo) * (1 - var))
-        if opts.neutral_combo and "neutral" not in self.skip:
-            for k in SECONDARY_MASTERIES:
-                m.Add(self.stat(k) <= 0)
-            self.active_mins["neutral"] = 0
         maxs = {"ap": opts.max_ap, "mp": opts.max_mp, "range": opts.max_range, "wp": opts.max_wp,
                 "crit_rate": opts.max_crit, "block": opts.max_block}
         for stat, val in maxs.items():
@@ -510,6 +515,20 @@ class BuildModel:
                 m.Add(self.res[e] >= need)
             self.active_mins["res"] = opts.min_res_pct
         self.feat = model_features(self)   # variables du score (objectif)
+
+    def _crit_conversion(self) -> None:
+        """Dénouement placé : crit_conv = Maîtrise Critique (si positive), sinon 0."""
+        if self.convert is None:
+            return
+        m = self.m
+        hi = max(0, self.acc.bounds("crit_mastery")[1]) + 10
+        pos = m.NewIntVar(0, hi, "crit_m_pos")
+        m.AddMaxEquality(pos, [self.stat("crit_mastery"), 0])
+        conv = m.NewIntVar(0, hi, "crit_conv")
+        m.Add(conv <= pos)
+        m.Add(conv <= hi * self.convert)
+        m.Add(conv >= pos - hi * (1 - self.convert))
+        self.crit_conv = conv
 
     def maximize(self, expr: Any) -> None:
         clear = getattr(self.m, "clear_objective", None) or getattr(self.m, "ClearObjective", None)

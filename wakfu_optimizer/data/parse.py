@@ -184,7 +184,7 @@ def load_states(path: Path = STATIC_DIR / "sublimations.yaml") -> dict[int, SubS
             for x in e.get("effects", [])
         )
         out[int(sid)] = SubState(id=int(sid), name=str(e.get("name", "")), description=str(e.get("desc", "")),
-                                 limit=int(e.get("limit", 0)), effects=effects)
+                                 limit=int(e.get("limit", 0)), effects=effects, confirmed=bool(e.get("confirmed")))
     return out
 
 
@@ -208,6 +208,7 @@ def parse_sublimations(raw_items: list[dict[str, Any]], states: dict[int, SubSta
             pattern=tuple(Color(int(c)) for c in sp.get("slotColorPattern", [])),
             state_id=sid, state_level=lvl, is_epic=bool(sp.get("isEpic")), is_relic=bool(sp.get("isRelic")),
             rarity=int(d["baseParameters"].get("rarity", 0)),
+            gfx_id=int((d.get("graphicParameters") or {}).get("gfxId", 0)),
         ))
         max_level[sid] = max(max_level[sid], lvl)
     # États inconnus du YAML (nouvelle sublimation) : nom tiré de l'item, non modélisé.
@@ -216,9 +217,10 @@ def parse_sublimations(raw_items: list[dict[str, Any]], states: dict[int, SubSta
         if s.state_id not in merged:
             merged[s.state_id] = SubState(s.state_id, s.name().rsplit(" ", 1)[0], "(description inconnue)", 0)
     # Cumul max par défaut : niveau max de la sublimation (I/II/III) si non renseigné.
-    for sid, st in list(merged.items()):
-        if st.limit <= 0:
-            merged[sid] = SubState(st.id, st.name, st.description, max_level.get(sid, 1) or 1, st.effects)
+    for sid, state in list(merged.items()):
+        if state.limit <= 0:
+            merged[sid] = SubState(state.id, state.name, state.description, max_level.get(sid, 1) or 1, state.effects,
+                                   state.confirmed)
     return subs, merged
 
 

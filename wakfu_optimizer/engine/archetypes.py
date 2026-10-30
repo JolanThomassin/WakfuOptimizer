@@ -100,7 +100,7 @@ PRIORITY_FIELDS = ("range", "crit", "rear", "rear_share", "berserk", "heal", "re
 CONSTRAINT_FIELDS = ("min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp",
                      "max_range", "max_wp", "max_crit", "max_block", "allowed_rarities", "lower_brackets",
                      "exclude_relic", "exclude_epic", "exclude_shop", "include_pet_mount")
-SUB_FIELDS = ("shard_mode", "shard_count", "max_jokers", "no_subs")
+SUB_FIELDS = ("shard_mode", "shard_count", "max_jokers", "no_subs", "confirmed_subs_only")
 # Toujours ceux de l'archétype (pas réglables dans l'interface)
 WEIGHT_FIELDS = ("offense_weight", "res_free", "willpower_weight", "crit_target", "utility")
 PANELS = {"priorities": PRIORITY_FIELDS, "constraints": CONSTRAINT_FIELDS, "subs": SUB_FIELDS}
@@ -165,6 +165,7 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
         # châsses et sublimations
         "shard_mode": "ideal", "shard_count": 4, "max_jokers": base.max_jokers,
         "no_subs": True,   # panneau désactivé : aucune sublimation (sauf celles imposées dans l'onglet Sublimations)
+        "confirmed_subs_only": False,
     }
 
 

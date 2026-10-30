@@ -111,15 +111,11 @@
     </section>
 
     <section class="card panel">
-      <h2 class="panel-h">Châsses et sublimations <label class="switch" title="Activer pour choisir vos couleurs de châsses ou retirer les sublimations"><input type="checkbox" data-panel="subs"><span class="sl"></span><span class="sw-txt"></span></label></h2>
+      <h2 class="panel-h">Châsses et sublimations <label class="switch" title="Activer pour utiliser les sublimations et régler les châsses"><input type="checkbox" data-panel="subs"><span class="sl"></span><span class="sw-txt"></span></label></h2>
       <p class="hint panel-note">Châsses idéales (4 par item, 1 joker), sans sublimations. Activez le panneau pour les utiliser.</p>
       <div class="panel-body">
-      <div class="seg three" id="shard_mode">
-        <button data-v="ideal">Idéal</button><button data-v="mine">Mes couleurs</button><button data-v="none">Ignorer</button>
-      </div>
       <div class="steppers" id="shard-steps"></div>
-      <div id="my-colors"></div>
-      <label class="check"><input type="checkbox" id="no_subs"><span>Sans sublimations (sauf celles imposées dans l'onglet Sublimations)</span></label>
+      <label class="check"><input type="checkbox" id="confirmed_subs"><span>Seulement les sublimations confirmées (non grisées dans l'onglet Sublimations)</span></label>
       </div>
     </section>
   </aside>
@@ -154,13 +150,6 @@
             <label class="check" id="apt-res-box"><input type="checkbox" id="apt_elem_res" checked><span>Toujours 10 points en Résistance élémentaire (Intelligence), comme la plupart des joueurs</span></label>
             <div class="row"><button class="btn small" id="apt-from-build" disabled>Reprendre celles du build</button>
               <button class="btn small danger" id="apt-reset">Réinitialiser</button></div>
-          </section>
-          <section class="card">
-            <h2>Combos</h2>
-            <label class="check"><input type="checkbox" id="neutral"><span><b>Neutralité + Dénouement</b></span></label>
-            <p class="hint" id="neutral-hint">Maîtrises secondaires (mêlée, distance, dos, berserk, soin) à 0 ou moins une fois items, runes et
-              aptitudes comptés, et au moins 40 % de critique : Dénouement convertit la Maîtrise Critique en Maîtrise Élémentaire et
-              Neutralité donne jusqu'à +24 % de dommages. Ambition et Prétention deviennent aussi utilisables.</p>
           </section>
           <section class="card">
             <h2>Aptitudes rapides</h2>

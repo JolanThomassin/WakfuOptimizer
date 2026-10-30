@@ -279,8 +279,8 @@ def search(d: GameData, q: dict[str, list[str]]) -> list[dict[str, Any]]:
 def family_json(d: GameData, f: SubFamily, lang: str) -> dict[str, Any]:
     return {"state": f.state_id, "name": f.name, "desc": f.desc, "limit": f.limit, "kind": f.kind,
             "modeled": f.modeled, "applicable": f.applicable, "in_build": f.in_build, "gain": f.gain,
-            "same_levels": f.same_levels,
-            "levels": [{"id": s.id, "name": s.name(lang), "level": s.state_level,
+            "same_levels": f.same_levels, "confirmed": f.confirmed,
+            "levels": [{"id": s.id, "name": s.name(lang), "level": s.state_level, "gfx": s.gfx_id,
                         "pattern": [int(x) for x in s.pattern]} for s in f.subs]}
 
 

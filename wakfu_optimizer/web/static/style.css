@@ -93,11 +93,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* châsses */
-.shard-grid { display: grid; grid-template-columns: 95px 1fr; gap: 6px 8px; align-items: center; font-size: 12px; }
-.shards { display: flex; gap: 3px; }
-.shard-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px dashed var(--muted); background: transparent; padding: 0; cursor: pointer; }
-.shard-btn img { width: 24px; height: 24px; display: block; }
-.shard-btn.filled { border: none; }
 
 /* ----- barre de calcul */
 .runbar { display: flex; gap: 10px; align-items: stretch; }
@@ -336,6 +331,9 @@ img.pat { width: 15px; height: 15px; vertical-align: -3px; }
 .sub-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .sub-card.fo { border-color: var(--good); }
 .sub-card.ex { opacity: .55; }
+.sub-card.unconf { filter: grayscale(1); opacity: .5; }
+.sub-card.unconf:hover { opacity: .75; }
+.sub-ic { width: 26px; height: 26px; margin-right: 4px; object-fit: contain; }
 .sc-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
 .sc-name { font-weight: 700; color: var(--accent); }
 .sc-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; flex-wrap: wrap; }

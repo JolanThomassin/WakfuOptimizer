@@ -214,6 +214,7 @@ class SubState:
     description: str
     limit: int
     effects: tuple[SubEffect, ...] = ()
+    confirmed: bool = False   # description, niveaux et effets vérifiés à la main (sinon grisée dans l'interface)
 
     @property
     def modeled(self) -> bool:
@@ -230,6 +231,7 @@ class Sublimation:
     is_epic: bool
     is_relic: bool
     rarity: int
+    gfx_id: int = 0             # icône (parchemin I / II / III, ou image propre des épiques et reliques)
 
     def name(self, lang: str = "fr") -> str:
         return self.names.get(lang) or self.names.get("fr") or f"#{self.id}"

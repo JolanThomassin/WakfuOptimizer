@@ -19,7 +19,6 @@ const STAT_ICON = {
 const ELEMENTS = ["fire", "water", "earth", "air"];
 const EL_FR = { fire: "Feu", water: "Eau", earth: "Terre", air: "Air" };
 const SHARD_FILE = { 0: "White", 1: "Red", 2: "Green", 3: "Blue" };
-const SHARD_ORDER = [null, 1, 2, 3, 0];
 const SHARD_SLOTS = ["HEAD", "NECK", "CHEST", "LEFT_HAND", "RIGHT_HAND", "LEGS", "BACK", "SHOULDERS", "BELT", "FIRST_WEAPON", "SECOND_WEAPON"];
 
 
@@ -116,7 +115,7 @@ function toast(text) {
 
 // ===================================================================== état
 const S = {
-  meta: null, excluded: new Set(), forced: new Set(), colors: {}, job: null,
+  meta: null, excluded: new Set(), forced: new Set(), job: null,
   view: null, original: null, opts: null, changed: new Set(),
   subForced: new Set(), subExcluded: new Set(), subLevels: {}, elOrder: [],
 };

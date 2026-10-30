@@ -12,6 +12,7 @@ from ..data.models import SLOT_FR, GameData, Slot
 from .archetypes import ARCHETYPES, apt_profile
 from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions, default_min_ap, default_min_mp
+from .shards import needs_no_secondary
 from .stats import Totals
 
 # Emplacements qu'un build complet remplit toujours (familier, monture et emblème dépendent du niveau / des filtres ;
@@ -95,6 +96,8 @@ def check_build(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals
     arch = ARCHETYPES.get(opts.archetype)
     role = arch.role if arch else "dps"
     s, L = tot.stats, opts.level
+    # sublimation « maîtrises secondaires <= 0 » dans le build (Dénouement, Ambition…) : portée / dos / berserk à 0 exprès
+    no_sec = any(needs_no_secondary(data.states.get(sid)) for sid in tot.active_states)
 
     def add(key: str, label: str, ok: bool, detail: str, severity: str = "error") -> None:
         out.append(Check(key, label, bool(ok), detail, severity))
@@ -125,13 +128,13 @@ def check_build(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals
         c = s.get("crit_rate", 0)
         add("crit", "Critique suffisant", c >= opts.crit_target - CRIT_MARGIN,
             f"{c} % (palier de l'archétype au niveau {L} : {opts.crit_target} %)")
-    if role in ("dps", "heal") and opts.range in ("melee", "distance") and not opts.neutral_combo:
+    if role in ("dps", "heal") and opts.range in ("melee", "distance") and not no_sec:
         mine, other = ("melee_mastery", "distance_mastery") if opts.range == "melee" else ("distance_mastery", "melee_mastery")
         add("range_mastery", "Maîtrise de la bonne portée", s.get(mine, 0) > max(0, s.get(other, 0)),
             f"{LINE_FR[mine]} {s.get(mine, 0)} contre {LINE_FR[other]} {s.get(other, 0)}")
     for flag, stat, lab in (("rear", "rear_mastery", "Maîtrise Dos"), ("berserk", "berserk_mastery", "Maîtrise Berserk"),
                             ("heal", "heal_mastery", "Maîtrise Soin")):
-        if getattr(opts, flag) and not opts.neutral_combo:
+        if getattr(opts, flag) and not no_sec:
             add(f"{flag}_mastery", f"{lab} présente", s.get(stat, 0) > 0, f"{s.get(stat, 0)}")
     return out
 

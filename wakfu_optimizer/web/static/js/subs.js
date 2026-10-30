@@ -35,7 +35,8 @@ async function loadSubs() {
 
 function subCard(f) {
   const fo = S.subForced.has(f.state), ex = S.subExcluded.has(f.state);
-  const lv = f.levels.map((l) => `<span class="lv" title="${esc(l.name)}">${patternHtml(l.pattern)}<small>${esc(l.name.replace(/^.*\s/, ""))}</small></span>`).join("");
+  const ic = (l) => `<img class="sub-ic" src="${iconUrl(l.gfx)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
+  const lv = f.levels.map((l) => `<span class="lv" title="${esc(l.name)}">${ic(l)}${patternHtml(l.pattern)}<small>${esc(l.name.replace(/^.*\s/, ""))}</small></span>`).join("");
   const gain = f.gain == null ? "" : `<span class="gain ${pn(f.gain)}" title="Gain de score si on l'ajoute au build (niveau max)">${f.gain > 0 ? "+" : ""}${f.gain.toFixed(1)}</span>`;
   const tags = [
     f.kind !== "normal" ? `<span class="tag ${f.kind}">${KIND_FR[f.kind]}</span>` : "",
@@ -44,10 +45,11 @@ function subCard(f) {
     f.same_levels ? `<span class="tag" title="Dans les données du jeu, tous les niveaux donnent le même effet : le niveau ne sert qu'à atteindre le cumul maximum.">Niveaux identiques</span>` : "",
     f.modeled && !f.applicable ? `<span class="tag" title="Ses conditions ne correspondent pas à vos options (portée, élément, berserk…)">Incompatible</span>` : "",
   ].join("");
-  return `<div class="sub-card ${fo ? "fo" : ""} ${ex ? "ex" : ""}">
+  const unconf = f.confirmed ? "" : `title="Pas encore confirmée : description, niveaux et effets à vérifier"`;
+  return `<div class="sub-card ${fo ? "fo" : ""} ${ex ? "ex" : ""} ${f.confirmed ? "" : "unconf"}" ${unconf}>
     <div class="sc-head"><div class="sc-name">${esc(f.name)} ${tags}</div>${gain}</div>
     <div class="sub-desc">${esc(f.desc || "Pas de description.")}</div>
-    <div class="sc-foot"><div class="lvls">${f.kind === "normal" ? lv : `<small class="muted">Se pose dans un objet ${f.kind === "epic" ? "épique" : "relique"}</small>`}</div>
+    <div class="sc-foot"><div class="lvls">${f.kind === "normal" ? lv : `<span class="lv">${f.levels[0] ? ic(f.levels[0]) : ""}<small class="muted">Se pose dans un objet ${f.kind === "epic" ? "épique" : "relique"}</small></span>`}</div>
       <div class="btns">${fo ? levelSelect(f) : ""}<button class="btn small ${fo ? "good" : ""}" data-sfo="${f.state}" title="L'optimiseur doit la placer">${fo ? "✓ Imposée" : "Imposer"}</button>
       <button class="btn small ${ex ? "danger" : ""}" data-sex="${f.state}" title="L'optimiseur ne l'utilisera pas">${ex ? "✕ Exclue" : "Exclure"}</button></div></div>
   </div>`;
