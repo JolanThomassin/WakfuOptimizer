@@ -21,6 +21,7 @@ Survie : PV effectifs = PV × 100 / (100 − %rés).
 from __future__ import annotations
 
 import math
+from functools import lru_cache
 
 RES_CAP = 90
 RES_TABLE_MIN = -1000      # bornes de la table de conversion résistance fixe -> %
@@ -30,6 +31,7 @@ D2_SCALE = 1.6e9           # D2 / D2_SCALE = multiplicateur de dégâts moyen
 DEF_SCALE = 1e4            # Def / DEF_SCALE = PV effectifs (moyens ou minimum)
 
 
+@lru_cache(maxsize=None)   # fonctions pures très appelées (évaluateur, Build sombre)
 def res_pct(flat: int) -> int:
     """% de réduction pour une résistance fixe : floor(100 × (1 − 0,8^(rés/100))), plafonné à 90."""
     flat = max(RES_TABLE_MIN, min(RES_TABLE_MAX, int(flat)))
@@ -42,6 +44,7 @@ def ehp_factor(flat: int) -> int:
     return 10000 // (100 - res_pct(flat))
 
 
+@lru_cache(maxsize=None)
 def flat_for_pct(pct: int) -> int:
     """Plus petite résistance fixe donnant au moins `pct` %."""
     if pct <= 0:

@@ -55,6 +55,12 @@ c'est possible, sans rendre le calcul impossible à bas niveau.
   règle) ; activés, vos réglages remplacent ceux de l'archétype.
 - **Onglet Explication** (après un calcul) : réglages utilisés et leur origine, valeur d'un gain sur chaque stat au
   build final, composition du score, profil d'aptitudes et contrôles de qualité.
+- **Onglet Build sombre** (mode debug 🐞, après un calcul) : forge de combos de sublimations sur le build affiché, items,
+  runes et aptitudes inchangés. Elle cherche celles qui valent plus ensemble que séparément (solo, duos et synergies,
+  recherche en faisceau, descente locale itérée) : emplacements aux couleurs actuelles, en recolorant les châsses (runes
+  replacées, score exact) ou en rêve (théorique) ; objectif score, dégâts ou survie ; pivot imposé ; garde-fous PA / PM.
+  Chaque combo est détaillé (rôle de chaque sublimation, conditions remplies, gain seule et dans le combo), avec la
+  constellation des synergies entre familles ; il s'applique au build ou s'impose à la prochaine optimisation.
 - **Portée** : mêlée, distance ou **mixte** (les deux maîtrises comptent à moitié : Huppermage, Eliotrope).
 - **Coups de dos** : part des coups portés de dos (25 / 50 / 80 %) ; seule cette part profite de la Maîtrise Dos.
 - **Contraintes** : minimum et maximum de PA, PM, PO, PW, % critique et % parade.

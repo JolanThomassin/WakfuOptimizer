@@ -74,7 +74,7 @@ def needs_no_secondary(st: SubState | None) -> bool:
 
 COND_FR = {"no_secondary": "maîtrises secondaires ≤ 0", "two_handed": "arme à deux mains",
            "light_weapons": "ni bouclier, ni dague, ni arme à deux mains"}
-STAT_COND_FR = {"crit_rate": "% Critique", "ap": "PA", "block": "% Parade", "range": "Portée"}
+STAT_COND_FR = {"crit_rate": "% Critique", "ap": "PA", "block": "% Parade", "range": "Portée", "wp": "PW"}
 
 
 def condition_label(cond: str) -> str:

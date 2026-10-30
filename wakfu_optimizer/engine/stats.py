@@ -64,8 +64,23 @@ def item_rune_level(item: Item, cap_level: int, rune_reqs: tuple[int, ...]) -> i
     return lvl
 
 
-def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: dict[int, int] | None = None) -> Totals:
-    """`extra_states` : niveaux d'état ajoutés (pour estimer l'apport d'une sublimation)."""
+@dataclass
+class Prepared:
+    """Ce qui ne dépend pas des sublimations : base, passif, items, runes et aptitudes (voir prepare)."""
+
+    stats: dict[str, int]
+    sources: dict[str, list[tuple[str, str, int, str]]]
+    rand_m: dict[str, int]
+    rand_r: dict[str, int]
+    two_handed: bool
+    second_used: bool
+    state_levels: dict[int, int]     # niveaux d'états des sublimations posées sur le build
+    warnings: list[str]
+
+
+def prepare(data: GameData, opts: OptimizeOptions, build: Build) -> Prepared:
+    """Première moitié d'evaluate : à calculer une fois pour évaluer beaucoup de jeux de sublimations sur les mêmes items
+    (onglet Build sombre, engine/combos.py)."""
     items = data.item_by_id()
     runes = data.rune_by_id()
     subs = data.sub_by_id()
@@ -73,7 +88,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     base = data.game["base"]
     cls = data.classes.get(opts.class_key)
     s: dict[str, int] = defaultdict(int)
-    t = Totals()
+    warnings: list[str] = []
     src: dict[str, list[tuple[str, str, int, str]]] = defaultdict(list)
 
     def add(stat: str, v: int, origin: str, kind: str, ref: str = "") -> None:
@@ -97,7 +112,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     for slot, ch in build.slots.items():
         it = items.get(ch.item_id)
         if it is None:
-            t.warnings.append(f"Item {ch.item_id} introuvable")
+            warnings.append(f"Item {ch.item_id} introuvable")
             continue
         if slot is Slot.FIRST_WEAPON and it.two_handed:
             two_handed = True
@@ -123,13 +138,35 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
             if sid is not None and sid in subs:
                 state_levels[subs[sid].state_id] += subs[sid].state_level
 
-    for sid, lvl in (extra_states or {}).items():
-        state_levels[sid] += lvl
     for cl in char_lines(data.game):
         n = build.characteristics.get(cl.key, 0)
         for stat, v in cl.per_point.items():
             add(stat, n * v, f"Aptitude {BRANCH_FR.get(cl.branch, cl.branch)} · {LINE_FR.get(cl.line, cl.line)} ({n} pt)", "apt",
                 cl.line)
+    return Prepared(dict(s), dict(src), dict(rand_m), dict(rand_r), two_handed, second_used, dict(state_levels), warnings)
+
+
+def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: dict[int, int] | None = None,
+             prepared: Prepared | None = None) -> Totals:
+    """`extra_states` : niveaux d'état ajoutés (pour estimer l'apport d'une sublimation). `prepared` : prepare() du même
+    build (même items, runes et aptitudes ; les sublimations du build sont celles de prepare)."""
+    p = prepared or prepare(data, opts, build)
+    L = opts.level
+    s: dict[str, int] = defaultdict(int, p.stats)
+    src: dict[str, list[tuple[str, str, int, str]]] = defaultdict(list, {k: list(v) for k, v in p.sources.items()})
+    t = Totals(warnings=list(p.warnings))
+    rand_m: dict[str, int] = defaultdict(int, p.rand_m)
+    rand_r: dict[str, int] = defaultdict(int, p.rand_r)
+    two_handed, second_used = p.two_handed, p.second_used
+    state_levels: dict[int, int] = defaultdict(int, p.state_levels)
+
+    def add(stat: str, v: int, origin: str, kind: str, ref: str = "") -> None:
+        if v:
+            s[stat] += v
+            src[stat].append((origin, kind, v, ref))
+
+    for sid, lvl in (extra_states or {}).items():
+        state_levels[sid] += lvl
 
     # Effets conditionnés par les stats du build, vérifiés une fois les autres effets appliqués : d'abord
     # « maîtrises secondaires <= 0 » (Ambition, Neutralité…), puis « si la stat X est <= / >= v » (épiques).

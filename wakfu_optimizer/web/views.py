@@ -30,6 +30,7 @@ from ..engine.alternatives import alternatives
 from ..engine.archetypes import (ARCHETYPES, PANELS, apply_archetype, archetype_options, class_archetypes, meta_archetypes, preset,
                                  profile_desc)
 from ..engine.characteristics import BRANCH_FR, LINE_FR, char_lines
+from ..engine.combos import ForgeParams, Host, forge
 from ..engine.explain import explain
 from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min_mp
 from ..engine.report import SLOT_ORDER, build_json, build_text
@@ -342,6 +343,68 @@ def weights_route(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def forge_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
+    """Onglet Build sombre (debug) : combos de sublimations sur le build affiché (voir engine/combos.py)."""
+    opts = opts_from(body.get("opts", {}), d)
+    p = ForgeParams.from_dict(body.get("params", {}))
+    r = forge(d, opts, Build.from_dict(body["build"]), p)
+    lang, items, build = opts.lang, d.item_by_id(), Build.from_dict(body["build"])
+
+    def host(h: Host) -> dict[str, Any]:
+        ch = build.slots.get(h.slot) if h.slot else None
+        it = items.get(ch.item_id) if ch else None
+        special = "normal" not in h.kinds
+        name = SLOT_FR[h.slot] if h.slot else ("Emplacement épique (théorique)" if "epic" in h.kinds else "Emplacement relique (théorique)")
+        return {"slot": h.slot.value if h.slot else None, "slot_name": name, "special": special,
+                "item": it.name(lang) if it else None, "gfx": it.gfx_id if it else None, "colors": [int(c) for c in h.colors]}
+
+    def state(sid: int) -> dict[str, Any]:
+        st = d.states.get(sid)
+        sub = next((s for s in d.sublimations if s.state_id == sid), None)
+        return {"state": sid, "name": d.state_name(sid, lang), "desc": st.description if st else "",
+                "kind": "epic" if sub and sub.is_epic else "relic" if sub and sub.is_relic else "normal",
+                "gfx": sub.gfx_id if sub else 0, "confirmed": bool(st and st.confirmed)}
+
+    combos = []
+    for cb in r.combos:
+        final = cb.exact if cb.exact is not None else cb.value
+        parts = [dict(state(pt.state_id), level=pt.level, limit=pt.limit, solo=round(pt.solo, 2), marginal=round(pt.marginal, 2),
+                      role=pt.role, conditions=[{"label": c.label, "value": c.value, "threshold": c.threshold, "ok": c.ok,
+                                                 "margin": c.margin} for c in pt.conditions],
+                      subs=[{"id": s.id, "name": s.name(lang), "gfx": s.gfx_id, "level": s.state_level,
+                             "pattern": [int(x) for x in s.pattern], "host": host(h),
+                             "recolored": h.slot in cb.recolored and not s.is_epic and not s.is_relic} for s, h in pt.placed])
+                 for pt in cb.parts]
+        t = cb.totals
+        combos.append({
+            "name": cb.name, "gain": round(cb.gain, 2), "synergy": round(cb.synergy, 2), "value": round(final, 2),
+            "estimate": round(cb.value, 2), "vs_current": round(final - r.current_value, 2),
+            "score": round(t.score, 2), "damage": round(damage_multiplier(t.d2), 3), "ehp": round(t.defense / 1e4),
+            "stats": {k: int(t.stats.get(k, 0)) for k in ("ap", "mp", "wp", "range", "crit_rate", "block", "dmg_pct", "willpower")},
+            "mastery_used": t.mastery_used, "hp": t.hp,
+            "parts": parts, "compare": compare(r.bare, t, opts),
+            "build": cb.build.to_dict() if cb.build else None,
+            "recolored": [SLOT_FR[s] for s in cb.recolored],
+            "runes_changed": [{"slot_name": SLOT_FR[s], "before": a, "after": b} for s, a, b in cb.runes_changed],
+            "forced": {str(pt.state_id): pt.level for pt in cb.parts},
+        })
+    hosts = r.hosts
+    return {
+        "params": {"mode": p.mode, "objective": p.objective},
+        "bare": round(r.bare_value, 2), "current": round(r.current_value, 2),
+        "bare_score": round(r.bare.score, 2), "current_score": round(r.current.score, 2),
+        "combos": combos,
+        "solo": [dict(state(s), gain=round(v, 2)) for s, v in r.solo[:16]],
+        "matrix": {"states": [state(s) for s in r.matrix_states],
+                   "cells": [[None if v is None else round(v, 2) for v in row] for row in r.matrix]},
+        "duos": [{"a": state(a), "b": state(b), "synergy": round(v, 2)} for a, b, v in r.duos],
+        "search": {"evals": r.evals, "elapsed": round(r.elapsed, 2), "timed_out": r.timed_out, "pieces": r.n_pieces,
+                   "hosts": sum("normal" in h.kinds for h in hosts), "specials": sum("normal" not in h.kinds for h in hosts),
+                   "phases": [{"name": n, "time": round(sec, 2), "evals": e} for n, sec, e in r.phases]},
+        "messages": r.messages,
+    }
+
+
 def view_route(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
     return build_view(d, opts_from(body.get("opts", {}), d), Build.from_dict(body["build"]))
 
@@ -356,4 +419,5 @@ ROUTES: dict[tuple[str, str], Route] = {
     ("POST", "/api/alternatives"): lambda d, q, body: alternatives_view(d, body),
     ("POST", "/api/subs"): lambda d, q, body: subs_view(d, body),
     ("POST", "/api/sub_alternatives"): lambda d, q, body: sub_alternatives_view(d, body),
+    ("POST", "/api/forge"): lambda d, q, body: forge_view(d, body),
 }
