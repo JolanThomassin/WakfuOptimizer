@@ -131,5 +131,35 @@ def test_pivot_present_dans_chaque_combo(data: GameData) -> None:
 
 
 def test_parametres_bornes() -> None:
-    p = ForgeParams.from_dict({"mode": "??", "objective": "damage", "beam": 999, "time_limit": 0, "top": 0, "pivot": None})
+    p = ForgeParams.from_dict({"base": "build", "mode": "??", "objective": "damage", "beam": 999, "time_limit": 0, "top": 0,
+                               "pivot": None})
     assert (p.mode, p.objective, p.beam, p.time_limit, p.top, p.pivot) == ("colors", "damage", 64, 1.0, 1, 0)
+    assert ForgeParams.from_dict({"mode": "colors"}).mode == "dream"   # corps neutre : pas de couleurs
+
+
+def test_une_sublimation_par_famille(data: GameData) -> None:
+    r = forge(data, opts(), build(data), ForgeParams(time_limit=10))
+    for cb in r.combos:
+        assert all(len(pt.placed) == 1 for pt in cb.parts)
+    r = forge(data, opts(), build(data), ForgeParams(stack=True, time_limit=10))
+    assert any(len(pt.placed) > 1 for cb in r.combos for pt in cb.parts)   # Influence III + II
+
+
+def test_deck_building_sans_classe_ni_items() -> None:
+    # vraies données : sur le corps neutre, en survie, la parade empilée déclenche Pilier (+30 % PV si parade >= 50 %)
+    import os
+
+    from wakfu_optimizer.data.fetch import DEFAULT_CACHE_ROOT, GameDataFetcher
+    from wakfu_optimizer.engine.combos import Forge, neutral_body
+    fetcher = GameDataFetcher(cache_root=os.environ.get("WAKFU_OPTIMIZER_CACHE", DEFAULT_CACHE_ROOT))  # type: ignore[arg-type]
+    versions = fetcher.cached_versions()
+    if not versions:
+        pytest.skip("données Ankama absentes")
+    real = load_game_data(DataBundle(versions[0], fetcher.cache_root / versions[0], offline=True))
+    p = ForgeParams.from_dict({"objective": "survival", "rank": "synergy", "time_limit": 20})
+    o, prepared, hosts = neutral_body(real, p)
+    r = Forge(real, o, Build(), p, prepared, hosts).run()
+    best = r.combos[0]
+    pilier = next(pt for pt in best.parts if pt.state_id == 6707)
+    assert pilier.role == "Déclenchée" and all(c.ok for c in pilier.conditions)
+    assert best.synergy > 10

@@ -30,7 +30,7 @@ from ..engine.alternatives import alternatives
 from ..engine.archetypes import (ARCHETYPES, PANELS, apply_archetype, archetype_options, class_archetypes, meta_archetypes, preset,
                                  profile_desc)
 from ..engine.characteristics import BRANCH_FR, LINE_FR, char_lines
-from ..engine.combos import ForgeParams, Host, forge
+from ..engine.combos import Forge, ForgeParams, Host, neutral_body
 from ..engine.explain import explain
 from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min_mp
 from ..engine.report import SLOT_ORDER, build_json, build_text
@@ -344,17 +344,29 @@ def weights_route(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def forge_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
-    """Onglet Build sombre (debug) : combos de sublimations sur le build affiché (voir engine/combos.py)."""
+    """Onglet Build sombre (debug) : combos de sublimations, sur un corps de référence sans classe ni items (deck
+    building) ou sur le build affiché (voir engine/combos.py)."""
     opts = opts_from(body.get("opts", {}), d)
     p = ForgeParams.from_dict(body.get("params", {}))
-    r = forge(d, opts, Build.from_dict(body["build"]), p)
-    lang, items, build = opts.lang, d.item_by_id(), Build.from_dict(body["build"])
+    messages = []
+    if p.base == "build" and not body.get("build"):
+        messages.append("Aucun build affiché : combos sur le corps de référence.")
+        p.base, p.mode = "neutral", "dream"
+    if p.base == "neutral":
+        build = Build()
+        opts, prepared, hosts = neutral_body(d, p, opts)
+        r = Forge(d, opts, build, p, prepared, hosts).run()
+    else:
+        build = Build.from_dict(body["build"])
+        r = Forge(d, opts, build, p).run()
+    lang, items = opts.lang, d.item_by_id()
 
     def host(h: Host) -> dict[str, Any]:
         ch = build.slots.get(h.slot) if h.slot else None
         it = items.get(ch.item_id) if ch else None
         special = "normal" not in h.kinds
-        name = SLOT_FR[h.slot] if h.slot else ("Emplacement épique (théorique)" if "epic" in h.kinds else "Emplacement relique (théorique)")
+        name = (SLOT_FR[h.slot] if h.slot else f"Châsses {h.index}" if not special
+                else "Emplacement épique (théorique)" if "epic" in h.kinds else "Emplacement relique (théorique)")
         return {"slot": h.slot.value if h.slot else None, "slot_name": name, "special": special,
                 "item": it.name(lang) if it else None, "gfx": it.gfx_id if it else None, "colors": [int(c) for c in h.colors]}
 
@@ -390,7 +402,7 @@ def forge_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
         })
     hosts = r.hosts
     return {
-        "params": {"mode": p.mode, "objective": p.objective},
+        "params": {"mode": p.mode, "objective": p.objective, "base": p.base, "rank": p.rank, "stack": p.stack},
         "bare": round(r.bare_value, 2), "current": round(r.current_value, 2),
         "bare_score": round(r.bare.score, 2), "current_score": round(r.current.score, 2),
         "combos": combos,
@@ -401,7 +413,7 @@ def forge_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
         "search": {"evals": r.evals, "elapsed": round(r.elapsed, 2), "timed_out": r.timed_out, "pieces": r.n_pieces,
                    "hosts": sum("normal" in h.kinds for h in hosts), "specials": sum("normal" not in h.kinds for h in hosts),
                    "phases": [{"name": n, "time": round(sec, 2), "evals": e} for n, sec, e in r.phases]},
-        "messages": r.messages,
+        "messages": messages + r.messages,
     }
 
 

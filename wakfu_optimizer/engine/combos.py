@@ -16,7 +16,13 @@ on garde des combos assez différents les uns des autres (`diversity`).
 Les évaluations sont exactes (stats.evaluate, niveaux d'états ajoutés au build nu) et mémorisées par niveaux d'états :
 deux combos qui donnent les mêmes niveaux ont la même valeur.
 
-Emplacements (`mode`) :
+Base (`base`) :
+  neutral : deck building, sans classe ni items. Un corps de référence (PA, PM, PW, % critique, % parade, maîtrises
+            secondaires, portée, élément : voir neutral_body) et les emplacements d'un personnage complet : 10 sublimations
+            normales (sans contrainte de couleur), une épique et une relique. Chaque combo dit quelles couleurs il faut.
+  build   : le build affiché ; ses items, runes et aptitudes ne bougent pas.
+
+Emplacements du build affiché (`mode`) :
   colors  : motif dans les couleurs actuelles des châsses (le jaune sert de joker) ; épiques / reliques dans les items
             qui les acceptent. Le combo se pose tel quel sur le build.
   recolor : n'importe quel item à 3 châsses ou plus. À l'application, les châsses sont recolorées et les runes
@@ -34,14 +40,16 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..data.models import PROP_EPIC_GEM, PROP_RELIC_GEM, SHARD_SLOTS, Color, GameData, Slot, Sublimation
+from ..data.models import ELEMENTS, PROP_EPIC_GEM, PROP_RELIC_GEM, SHARD_SLOTS, Color, GameData, Slot, Sublimation
 from .options import SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice
 from .scoring import ln_damage, ln_defense
 from .shards import COND_FR, STAT_COND_FR, color_matches, needs_stats, parse_stat_condition, pattern_offsets, rune_fits, static_condition
-from .stats import Totals, evaluate, item_rune_level, prepare
+from .stats import Prepared, Totals, evaluate, item_rune_level, prepare
 
 MODES = ("colors", "recolor", "dream")
 OBJECTIVES = ("score", "damage", "survival")
+REACHES = ("melee", "distance", "mixed")
+NEUTRAL_SLOTS = 10   # sublimations normales d'un personnage complet (une par item à châsses)
 INVALID = 1000.0     # malus d'un combo qui passe sous les PA / PM minimums (garde-fou) : jamais proposé
 # recolor : coût estimé d'un item recoloré, en part de la valeur moyenne d'une rune du build. Les runes sont replacées
 # (la meilleure de la couleur dans une châsse libérée) : mesuré sur de vrais builds, le coût réel est d'environ 10 %.
@@ -63,6 +71,19 @@ class ForgeParams:
     keep_minimums: bool = True     # PA / PM jamais sous les minimums (ou sous ceux du build actuel s'ils sont plus bas)
     confirmed_only: bool = False   # seulement les sublimations confirmées (sublimations.yaml)
     conditional: bool = True       # compter les conditions « PV > 90 % », « sans armure »
+    stack: bool = False            # la même sublimation plusieurs fois pour cumuler ses niveaux (ex. III + III)
+    rank: str = "gain"             # gain (les plus puissants) | synergy (ceux qui valent le plus au-delà de leurs parts)
+    # base neutre (deck building) : le corps de référence
+    base: str = "neutral"          # neutral | build
+    level: int = 245
+    ap: int = 12
+    mp: int = 5
+    wp: int = 6
+    crit: int = 30                 # % critique
+    block: int = 10                # % parade
+    secondary: bool = False        # maîtrises secondaires (mêlée / distance) : sans elles, Neutralité, Ambition… marchent
+    reach: str = "mixed"           # melee | distance | mixed
+    element: str = ""              # un élément joué (Brûlure, Gel… comptent) ou "" : plusieurs éléments
 
     @staticmethod
     def from_dict(d: dict[str, Any]) -> "ForgeParams":
@@ -76,6 +97,15 @@ class ForgeParams:
         p.time_limit = max(1.0, min(60.0, p.time_limit))
         p.top = max(1, min(12, p.top))
         p.diversity = max(1, min(4, p.diversity))
+        p.rank = p.rank if p.rank in ("gain", "synergy") else "gain"
+        p.base = p.base if p.base in ("neutral", "build") else "neutral"
+        p.reach = p.reach if p.reach in REACHES else "mixed"
+        p.element = p.element if p.element in ELEMENTS else ""
+        p.level = max(1, min(245, p.level))
+        p.crit, p.block = max(-10, min(100, p.crit)), max(0, min(100, p.block))
+        p.ap, p.mp, p.wp = max(1, min(20, p.ap)), max(1, min(10, p.mp)), max(0, min(20, p.wp))
+        if p.base == "neutral":
+            p.mode = "dream"   # pas d'items : aucune couleur imposée
         return p
 
 
@@ -83,9 +113,10 @@ class ForgeParams:
 class Host:
     """Un emplacement de sublimation : les châsses d'un item, ou son emplacement épique / relique."""
 
-    slot: Slot | None              # None : emplacement théorique (mode dream)
+    slot: Slot | None              # None : emplacement théorique (mode dream, corps neutre)
     kinds: frozenset[str]          # normal | epic | relic
     colors: tuple[Color, ...] = ()
+    index: int = 0                 # emplacements théoriques normaux : leur numéro
 
 
 @dataclass(frozen=True)
@@ -192,8 +223,37 @@ def hosts_of(data: GameData, build: Build, mode: str) -> list[Host]:
     return out
 
 
+def neutral_body(data: GameData, p: ForgeParams, base_opts: OptimizeOptions | None = None
+                 ) -> tuple[OptimizeOptions, Prepared, list[Host]]:
+    """Deck building : options, stats et emplacements d'un corps de référence, sans classe ni items.
+
+    Ordres de grandeur d'un personnage équipé de son niveau (maîtrise, PV, résistance ~58 % au niveau 245) : seules les
+    stats réglables (PA, PM, PW, % critique, % parade, maîtrises secondaires) décident des conditions des sublimations ;
+    le reste fixe l'échelle des gains (une même maîtrise ajoutée vaut moins sur un corps déjà fort). Aucun objectif
+    d'archétype (résistance ou critique visés) : seuls les garde-fous PA / PM."""
+    L = p.level
+    o = OptimizeOptions(class_key="", level=L, lang=base_opts.lang if base_opts else "fr", range=p.reach,
+                        elements=(p.element,) if p.element else tuple(ELEMENTS), crit=True, offense_weight=70,
+                        res_target=0, res_tol=0, crit_target=0, will_min=0, min_ap=p.ap, min_mp=p.mp,
+                        count_conditional=p.conditional,
+                        excluded_subs=base_opts.excluded_subs if base_opts else ())
+    base = data.game["base"]
+    hp = (int(base["hp_flat"]) + int(base["hp_per_level"]) * L) * 3  # type: ignore[index]
+    sec = round(2.5 * L) if p.secondary else 0
+    stats = {"ap": p.ap, "mp": p.mp, "wp": p.wp, "range": 2, "crit_rate": p.crit, "block": p.block, "hp": hp,
+             "elem_mastery": 7 * L, "crit_mastery": round(1.2 * L), "melee_mastery": sec, "distance_mastery": sec,
+             "elem_res": round(1.6 * L)}
+    prepared = Prepared(stats={k: v for k, v in stats.items() if v}, sources={}, rand_m={}, rand_r={}, two_handed=False,
+                        second_used=False, state_levels={}, warnings=[])
+    hosts = [Host(None, frozenset({"normal"}), index=i + 1) for i in range(NEUTRAL_SLOTS)]
+    hosts += [Host(None, frozenset({"epic"})), Host(None, frozenset({"relic"}))]
+    return o, prepared, hosts
+
+
 class Forge:
-    def __init__(self, data: GameData, opts: OptimizeOptions, build: Build, params: ForgeParams) -> None:
+    def __init__(self, data: GameData, opts: OptimizeOptions, build: Build, params: ForgeParams,
+                 prepared: Prepared | None = None, hosts: list[Host] | None = None) -> None:
+        """`prepared` et `hosts` : corps de référence sans items (neutral_body) ; sinon ceux du build."""
         self.data, self.p = data, params
         self.opts = copy.copy(opts)
         self.opts.count_conditional = params.conditional
@@ -201,15 +261,15 @@ class Forge:
         self.deadline = self.t0 + params.time_limit
         self.timed_out = False
         self.bare = strip_subs(build)
-        self.prepared = prepare(data, self.opts, self.bare)   # items, runes, aptitudes : calculés une fois
-        self.hosts = hosts_of(data, build, params.mode)
+        self.prepared = prepared or prepare(data, self.opts, self.bare)   # items, runes, aptitudes : calculés une fois
+        self.hosts = hosts if hosts is not None else hosts_of(data, build, params.mode)
         self.pieces = self._pieces()
         self.memo: dict[tuple[tuple[int, int], ...], tuple[float, float, Totals]] = {}   # niveaux -> (valeur, brute, totaux)
         self.feas: dict[tuple[int, ...], tuple[list[int], int] | None] = {}   # combo -> (hôtes, châsses à recolorer)
         self.best_rune: dict[tuple[Slot, Color], int | None] = {}
         self.sigs: dict[tuple[int, ...], frozenset[int]] = {}
         self.evals = 0
-        self.current = evaluate(data, self.opts, build)
+        self.current = evaluate(data, self.opts, build, prepared=prepared) if prepared else evaluate(data, self.opts, build)
         self.ap_floor = min(opts.min_ap, int(self.current.stats.get("ap", 0)))
         self.mp_floor = min(opts.min_mp, int(self.current.stats.get("mp", 0)))
         _, self.v0, self.bare_totals = self.evaluate(())   # base des gains : valeur brute (le build nu peut manquer de PA)
@@ -333,6 +393,10 @@ class Forge:
         if combo in self.feas:
             return self.feas[combo]
         out: tuple[list[int], int] | None = None
+        states = [self.pieces[i].sub.state_id for i in combo]
+        if not self.p.stack and len(set(states)) < len(states):   # une sublimation par famille
+            self.feas[combo] = None
+            return None
         if all(not (st := self.data.states.get(s)) or not st.limit or lv <= st.limit for s, lv in self.levels(combo).items()):
             n = len(self.hosts)
             owner = [-1] * n
@@ -506,7 +570,10 @@ class Forge:
 
         # 5. sélection : poids mort retiré, combos assez différents
         ranked = [c for c in sorted(pool.values(), key=lambda c: -self.value(c))
-                  if has_pivot(c) and self.valid(c)][:400]
+                  if has_pivot(c) and self.valid(c)][:400 if self.p.rank == "gain" else 1500]
+        order = self.value if self.p.rank == "gain" else self.synergy
+        if self.p.rank == "synergy":   # combos originaux : ceux qui valent le plus au-delà de la somme de leurs parts
+            ranked.sort(key=lambda c: -self.synergy(c))
         finals: list[Combo] = []
         # recolor : la recherche n'estime que le coût des runes déplacées ; on pose deux fois plus de combos et on
         # garde les meilleurs à la valeur exacte
@@ -514,11 +581,13 @@ class Forge:
         for c in ranked[: 40 * self.p.top]:
             if len(pruned) >= 3 * self.p.top and not self.time_left():
                 break
-            pruned.append(self._prune(c, has_pivot))
+            c = self._prune(c, has_pivot)
+            pruned.append(self._core(c, has_pivot) if self.p.rank == "synergy" else c)
         pruned = list(dict.fromkeys(pruned))
-        pruned.sort(key=lambda c: -self.value(c))
-        picked = self._diverse(pruned, self.p.top * (2 if self.p.mode == "recolor" else 1),
-                               keep=lambda c: self.gain(c) > 0.01 or bool(pivot))
+        pruned.sort(key=lambda c: -order(c))
+        picked = self._diverse(pruned, self.p.top * (2 if self.p.mode == "recolor" else 1), order,
+                               keep=lambda c: (self.gain(c) > 0.01 or bool(pivot))
+                               and (self.p.rank == "gain" or self.synergy(c) > 0.05))
         for c in picked:
             if self.p.mode == "recolor" and not self.time_left() and len(finals) >= self.p.top:
                 break
@@ -527,6 +596,8 @@ class Forge:
             finals = [x for x in finals if x.exact is None or x.exact - self.v0 > 0.01]
             finals.sort(key=lambda x: -(x.exact if x.exact is not None else x.value))
             del finals[self.p.top:]
+        if self.p.rank == "synergy":
+            finals.sort(key=lambda x: -x.synergy)
         self._names(finals, pivot)
         phase("Analyse")
 
@@ -541,6 +612,26 @@ class Forge:
             combos=finals, solo=sorted(fam_solo.items(), key=lambda kv: -kv[1]), matrix_states=mstates, matrix=matrix, duos=best_duos,
             hosts=self.hosts, n_pieces=len(self.pieces), evals=self.evals, elapsed=time.monotonic() - self.t0,
             timed_out=self.timed_out, phases=phases, messages=messages)
+
+    def synergy(self, combo: tuple[int, ...]) -> float:
+        """Gain du combo moins la somme des gains de chacune de ses familles seule (au même niveau)."""
+        fams = {self.pieces[i].sub.state_id for i in combo}
+        return self.gain(combo) - sum(self.gain(tuple(i for i in combo if self.pieces[i].sub.state_id == f)) for f in fams)
+
+    def _core(self, combo: tuple[int, ...], has_pivot: Any) -> tuple[int, ...]:
+        """Noyau d'un combo (classement par synergie) : on retire les familles d'appoint, celles dont le retrait ne fait
+        pas baisser la synergie. Reste ce qui se renforce : Pilier et les sublimations de parade qui le déclenchent…"""
+        changed = True
+        while changed and len({self.pieces[i].sub.state_id for i in combo}) > 2:
+            changed = False
+            syn = self.synergy(combo)
+            tol = max(0.2, 0.05 * syn)   # une famille qui n'apporte presque rien à la synergie n'est pas du noyau
+            for f in {self.pieces[i].sub.state_id for i in combo}:
+                c = tuple(i for i in combo if self.pieces[i].sub.state_id != f)
+                if has_pivot(c) and self.valid(c) and self.gain(c) > 0.01 and self.synergy(c) >= syn - tol:
+                    combo, changed = c, True
+                    break
+        return combo
 
     def _prune(self, combo: tuple[int, ...], has_pivot: Any) -> tuple[int, ...]:
         """Retire les sublimations dont le retrait ne coûte rien (condition non remplie, plafond, niveau perdu)."""
@@ -575,11 +666,13 @@ class Forge:
         la, lb = self.levels(a), self.levels(b)
         return 1 if any(la.get(s) != lb.get(s) for s in sa) else 0   # mêmes familles à d'autres niveaux : variante proche
 
-    def _diverse(self, combos: list[tuple[int, ...]], n: int, keep: Any = lambda c: True) -> list[tuple[int, ...]]:
+    def _diverse(self, combos: list[tuple[int, ...]], n: int, order: Any = None,
+                 keep: Any = lambda c: True) -> list[tuple[int, ...]]:
         """Les meilleurs combos assez différents les uns des autres (familles qui comptent, voir _signature) ; s'il en
-        manque, on assouplit l'écart demandé, jusqu'à une famille ou un niveau d'écart. Rangés par valeur."""
+        manque, on assouplit l'écart demandé, jusqu'à une famille ou un niveau d'écart. Rangés par `order` (valeur)."""
         out: list[tuple[int, ...]] = []
-        for d in range(self.p.diversity, 0, -1):
+        floor = 1 if self.p.rank == "gain" else min(2, self.p.diversity)   # originalité : pas de simples variantes de niveau
+        for d in range(self.p.diversity, floor - 1, -1):
             for c in combos:
                 if len(out) >= n:
                     break
@@ -587,7 +680,7 @@ class Forge:
                     out.append(c)
             if len(out) >= n:
                 break
-        return sorted(out, key=lambda c: -self.value(c))
+        return sorted(out, key=lambda c: -(order or self.value)(c))
 
     # ------------------------------------------------------------------ analyse d'un combo
     def _analyse(self, combo: tuple[int, ...], fam_solo: dict[int, float]) -> Combo:
@@ -641,7 +734,9 @@ class Forge:
         seen: dict[str, dict[int, int]] = {}   # nom de base -> familles (et niveaux) du premier combo de ce nom
         used: set[str] = set()
         for cb in combos:
-            order = sorted(cb.parts, key=lambda pt: (pt.state_id != pivot, -pt.marginal))
+            # classement par synergie : d'abord celles qui valent plus dans le combo que seules (le cœur du combo)
+            syn = self.p.rank == "synergy"
+            order = sorted(cb.parts, key=lambda pt: (pt.state_id != pivot, -(pt.marginal - pt.solo if syn else pt.marginal)))
             base = " × ".join(name(pt.state_id) for pt in order[:2]) or "—"
             first = seen.setdefault(base, {pt.state_id: pt.level for pt in cb.parts})
             tags = [name(pt.state_id) for pt in order[2:] if pt.state_id not in first]

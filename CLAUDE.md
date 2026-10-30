@@ -39,8 +39,8 @@ finitions (`sublimations.fill_empty_subs`, `characteristics.fill_unspent`) → `
 - Le score est en points (≈ % de valeur globale) : `w_off × ln(dégâts) + w_def × ln(PV effectifs) + utilité − pénalités`.
 - `archetypes.py` est la seule définition des archétypes (l'interface les reçoit par `/api/meta`).
 - `alternatives.py`, `sublimations.py` : remplacement d'un item / d'une sublimation sur un build (onglets du site).
-- `combos.py` : Build sombre, recherche de combos de sublimations sur un build fixe (évaluations exactes avec
-  `stats.prepare` une fois + `stats.evaluate(prepared=…)` par combo).
+- `combos.py` : Build sombre, recherche de combos de sublimations sur un corps de référence sans items (`neutral_body`)
+  ou sur un build fixe (évaluations exactes : `stats.prepare` une fois + `stats.evaluate(prepared=…)` par combo).
 - `report.py` : export texte / JSON. `shards.py` : règles châsses / runes / conditions de sublimations.
 
 ## Web (`wakfu_optimizer/web/`)

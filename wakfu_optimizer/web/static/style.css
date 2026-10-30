@@ -815,6 +815,12 @@ body[data-lang="pt"] .switch input:checked ~ .sw-txt::after { content: "Ativado"
 .fg-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; align-items: start; margin-top: 14px; }
 .fg-params { position: sticky; top: 0; }
 .fg-params .stepper { margin-top: 8px; }
+.fg-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; margin-top: 4px; }
+.fg-body .stepper { margin-top: 6px; }
+.fg-chips { margin: 10px 0 8px; }
+#fg-body-box .seg, #fg-mode-box .seg, .fg-gap { margin: 8px 0; }
+#fg-element { margin-top: 2px; }
+.fg-pmain .sub-desc { margin: 2px 0 0; }
 .fg-go { width: 100%; margin-top: 14px; padding: 12px; font-weight: 800; font-size: 15px; color: #fff; letter-spacing: .3px; border: 1px solid #b98cff;
   background: linear-gradient(135deg, #5b2bb0, #8f3fd1 55%, #c2408f); box-shadow: 0 0 18px rgba(166, 107, 255, .45); transition: box-shadow .2s, transform .1s; }
 .fg-go:hover:not(:disabled) { box-shadow: 0 0 28px rgba(166, 107, 255, .8); border-color: #e0c8ff; }
