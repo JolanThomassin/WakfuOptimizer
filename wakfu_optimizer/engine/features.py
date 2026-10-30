@@ -33,7 +33,7 @@ def initial_point(opts: OptimizeOptions) -> dict[str, float]:
     L = opts.level
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
-            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "res_short": 0.0, "will": 0.0,
+            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "res_short": 0.0, "will": 0.0,
             "crit_short": 0.0, "range_neg": 0.0}
 
 
@@ -49,6 +49,7 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
         "hp": float(s["hp"]), "hp_pct": float(s["hp_pct"]),
         "res": float(sum(capped) / 4),
         "ap": float(s["ap"]), "mp": float(s["mp"]), "range": float(s["range"]), "wp": float(s["wp"]),
+        "lock": float(s["lock"]), "dodge": float(s["dodge"]),
         "will": float(max(WILL_FLOOR, min(WILL_CAP, s["willpower"]))),
         "res_short": float(sum(max(0, res_need(opts) - res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
         "crit_short": crit_short(s["crit_rate"], opts),
@@ -101,8 +102,10 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
     neg = m.NewIntVar(0, BIG, "range_neg")   # Portée sous 0 (scoring.RANGE_NEG_PENALTY)
     m.AddMaxEquality(neg, [-bm.stat("range"), 0])
     f["range_neg"] = neg
-    for stat, (_v, cap) in utility_table(opts).items():
-        capped_u = m.NewIntVar(-100, max(0, cap), f"cap_{stat}")
+    for stat, (v, cap) in utility_table(opts).items():
+        if not v:
+            continue
+        capped_u = m.NewIntVar(-BIG, max(0, cap), f"cap_{stat}")
         m.AddMinEquality(capped_u, [bm.stat(stat), cap])
         pos = m.NewIntVar(0, max(0, cap), f"pos_{stat}")
         m.AddMaxEquality(pos, [capped_u, 0])

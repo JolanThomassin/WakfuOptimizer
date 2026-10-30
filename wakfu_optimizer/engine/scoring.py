@@ -84,7 +84,7 @@ LN_RES = -math.log(0.8) / 100         # ln(PV effectifs) gagné par point de ré
 RES_CAP_FLAT = 1032                   # résistance fixe donnant 90 % (au-delà : inutile)
 
 # Valeur automatique (fraction de la valeur globale) de chaque PA/PM/PO/PW, jusqu'au plafond.
-UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12)}
+UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12), "lock": (0.0, 0), "dodge": (0.0, 0)}   # Tacle / Esquive : selon l'archétype
 RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.0, 0), "mixed": (0.025, 5), "best": (0.025, 5)}   # mêlée : la portée ne vaut rien
 # Pénalité (points de score) par point de résistance fixe manquant sous la résistance visée, par élément :
 # assez forte pour que la cible soit atteinte dès que possible, sans rendre le calcul infaisable sinon.
@@ -136,12 +136,13 @@ FEATURES: dict[str, float] = {
     "hp_pct": 0.5,
     "res": 5.0,           # résistance fixe moyenne des quatre éléments, plafonnée (scoring.res_cap)
     "ap": 0.5, "mp": 0.5, "range": 0.5, "wp": 0.5,   # utilité, plafonnée (utility_table)
+    "lock": 0.5, "dodge": 0.5,
     "res_short": 5.0,     # points de résistance manquants sous le plancher, sommés sur les éléments
     "will": 5.0,          # Volonté bornée [WILL_FLOOR, WILL_CAP]
     "crit_short": 5.0,    # % critique manquant sous le palier de l'archétype
     "range_neg": 0.5,     # Portée sous 0
 }
-UTILITY_FEATURES = ("ap", "mp", "range", "wp")   # gradient constant (plafond géré dans le modèle)
+UTILITY_FEATURES = ("ap", "mp", "range", "wp", "lock", "dodge")   # gradient constant (plafond géré dans le modèle)
 
 # Volonté (Wakfu Calc) : retrait = base du sort × 0,5 × FF, FF = 1 + (Volonté lanceur − Volonté cible) / 100,
 # borné entre 0 et 2. Contre une cible à 0 Volonté : +1 % de retrait par point, jusqu'à 100.

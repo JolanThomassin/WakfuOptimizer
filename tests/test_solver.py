@@ -225,3 +225,16 @@ def test_alternatives_toutes_les_raretes(real) -> None:  # type: ignore[no-untyp
     b = optimize(d, o).builds[0]
     names = [a.item.name("fr") for a in alternatives(d, o, b, Slot.HEAD)]
     assert names.count("Skoualp") == 2
+
+
+def test_tank_garde_son_tacle(real) -> None:  # type: ignore[no-untyped-def]
+    """Tank : le Tacle compte ; un casque à −100 Tacle perd face à un casque un peu moins solide sans malus."""
+    items = [i for i in base_items() if i.slots != (Slot.HEAD,)] + [
+        mk(Slot.HEAD, "Casque -Tacle", hp=330, elem_res=60, lock=-100), mk(Slot.HEAD, "Casque", hp=300, elem_res=60)]
+    d = data_with(real, items)
+    o = opts(offense_weight=0, shard_mode="none", utility={"lock": [0.1 / 245, 980]})   # tank niveau 245
+    r = optimize(d, o)
+    assert r.builds, r.message
+    assert d.item_by_id()[r.builds[0].slots[Slot.HEAD].item_id].name("fr") == "Casque"
+    o.utility = {}
+    assert d.item_by_id()[optimize(d, o).builds[0].slots[Slot.HEAD].item_id].name("fr") == "Casque -Tacle"

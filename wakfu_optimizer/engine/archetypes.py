@@ -42,6 +42,9 @@ class Archetype:
     hide_range: bool = False          # la portée n'a pas de sens pour ce rôle (interface)
     mins: dict[str, int] = field(default_factory=dict)   # minimums en plus de ceux du niveau (ap, mp, wp)
     utility: dict[str, tuple[float, int]] = field(default_factory=dict)   # PA/PM/PO/PW : (valeur, plafond), voir scoring.UTILITY
+    # Tacle / Esquive : (valeur de « niveau » points, plafond en multiples du niveau) ; ces stats montent avec le
+    # niveau, la valeur d'un point aussi (ex. (0.1, 4) au niveau 65 : jusqu'à 260 de Tacle, 0,1 % par 65 points)
+    per_level: dict[str, tuple[float, float]] = field(default_factory=dict)
     focus: tuple[tuple[str, str], ...] = ()   # stats privilégiées (stat, libellé), affichées dans l'onglet Explication
 
 
@@ -68,11 +71,12 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
               "dps", range="melee", berserk=True, res_target=60, offense=88, crit_floor=True,
               count_conditional=False, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
                                               ("crit_rate", "Critique"), ("hp", "PV"))),
-    Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et tacle ; "
+    Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et Tacle (compté jusqu'à 4 × le niveau) ; "
               "dégâts ignorés. Aptitudes : Force en PV, Chance en parade et résistances.",
               "tank", range="melee", hide_range=True, crit=False, res_target=70, res_tol=4, res_free=True,
               offense=0, utility={"mp": (0.05, 6)},   # un tank ne compte ni ses dégâts ni sa Volonté
-              focus=(("hp", "PV"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
+              per_level={"lock": (0.1, 4)},           # Tacle : retenir les ennemis au contact
+              focus=(("hp", "PV"), ("lock", "Tacle"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
               "heal", heal=True, offense=80, crit_floor=True,
               focus=(("heal_mastery", "Maîtrise soin"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
@@ -149,7 +153,8 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
         # poids
         "offense_weight": arch.offense, "res_free": arch.res_free, "willpower_weight": arch.will,
         "crit_target": crit_target(level, arch.crit_bonus) if arch.crit_floor and arch.crit else 0,
-        "utility": {k: [v, cap] for k, (v, cap) in arch.utility.items()},
+        "utility": {**{k: [v, cap] for k, (v, cap) in arch.utility.items()},
+                    **{k: [v / max(1, level), round(cap * level)] for k, (v, cap) in arch.per_level.items()}},
         # contraintes
         "min_ap": max(default_min_ap(level), arch.mins.get("ap", 0)),
         "min_mp": max(default_min_mp(level), arch.mins.get("mp", 0)),

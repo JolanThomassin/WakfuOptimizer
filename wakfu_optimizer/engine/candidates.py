@@ -33,6 +33,7 @@ def item_features(it: Item, opts: OptimizeOptions, L: int) -> list[int]:
     rr_v = sum(v for v, _ in it.random_resistance)
     rr_n = max([n for _, n in it.random_resistance], default=0)
     f = [g("ap"), g("mp"), g("range"), g("wp"), g("control")]
+    f += [g(k) for k in ("lock", "dodge") if opts.utility.get(k, (0, 0))[0]]   # Tacle / Esquive comptés (tank)
     if opts.offense_weight > 0:
         # maîtrise de portée : elle s'ajoute à chaque sort, quel que soit l'élément (comme la maîtrise élémentaire),
         # donc comptée dans chaque élément joué. Exact pour la dominance : min(élém.) + portée = min(élém. + portée).

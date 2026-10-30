@@ -15,11 +15,11 @@ from .archetypes import (ARCHETYPES, PANELS, RES_FULL_LEVEL, Archetype, apt_forc
 from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions
 from .quality import check_build
-from .scoring import (CRIT_SHORT_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
+from .scoring import (CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
                       secondary_mastery, utility_table)
 from .stats import Totals, evaluate
 
-FEATURE_FR = {"offense": "Dégâts", "defense": "Survie (PV effectifs)", "ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW",
+FEATURE_FR = {"offense": "Dégâts", "defense": "Survie (PV effectifs)", "ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW", "lock": "Tacle", "dodge": "Esquive",
               "will": "Volonté (retraits)", "res_short": "Pénalité : résistance sous le plancher",
               "crit_short": "Pénalité : critique sous le palier", "range_neg": "Pénalité : Portée négative"}
 
@@ -52,6 +52,7 @@ def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
         ("Résistance élémentaire", "+100 (4 él.)", gain(**res_plus(100))),
         ("PA", "+1", gain(ap=f["ap"] + 1)), ("PM", "+1", gain(mp=f["mp"] + 1)),
         ("Portée", "+1", gain(range=f["range"] + 1, range_neg=max(0.0, f["range_neg"] - 1))), ("PW", "+1", gain(wp=f["wp"] + 1)),
+        ("Tacle", "+100", gain(lock=f["lock"] + 100) if utility_table(opts)["lock"][0] else 0.0),
         ("Volonté", "+10", gain(will=f["will"] + 10) if opts.willpower_weight else 0.0),
     ]
     return [{"label": lab, "unit": u, "points": p} for lab, u, p in rows]
@@ -136,6 +137,12 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
         if util[k][0]:
             weights.append({"stat": k, "label": lab, "pts": round(100 * util[k][0], 2), "unit": f"par {lab} (max {util[k][1]})",
                             "boosted": k in arch_util or k in focus})
+    for k, lab in (("lock", "Tacle"), ("dodge", "Esquive")):   # par 100 points : ces stats se comptent en centaines
+        if util[k][0]:
+            weights.append({"stat": k, "label": lab, "pts": round(1e4 * util[k][0], 2), "unit": f"par 100 de {lab} (max {util[k][1]})",
+                            "boosted": True})
+    if util["range"][0] == 0:
+        weights.append({"stat": "range", "label": "Portée < 0", "pts": -RANGE_NEG_PENALTY, "unit": "malus par PO sous 0"})
     if opts.willpower_weight:
         weights.append({"stat": "willpower", "label": "Volonté", "pts": round(opts.willpower_weight / 100, 2),
                         "unit": "par point (retraits PA / PM)", "boosted": "willpower" in focus})
