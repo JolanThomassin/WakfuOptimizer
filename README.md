@@ -55,15 +55,11 @@ c'est possible, sans rendre le calcul impossible à bas niveau.
   règle) ; activés, vos réglages remplacent ceux de l'archétype.
 - **Onglet Explication** (après un calcul) : réglages utilisés et leur origine, valeur d'un gain sur chaque stat au
   build final, composition du score, profil d'aptitudes et contrôles de qualité.
-- **Onglet Build sombre** (mode debug 🐞) : deck building de sublimations, sans classe ni items et sans optimisation
-  préalable. Sur un corps de référence réglable (niveau, PA, PM, PW, % critique, % parade, maîtrises secondaires, portée,
-  élément), la forge cherche les sublimations qui valent plus ensemble que séparément (solo, duos et synergies, recherche
-  en faisceau, descente locale itérée) : Ambition qui déclenche Dénouement, la parade qui déclenche Mesure ou Pilier…
-  Classement par originalité (synergie, combo réduit à son noyau) ou par puissance ; une sublimation par famille (cumul
-  en option) ; objectif équilibré, dégâts ou survie ; pivot imposé ; garde-fous PA / PM. Chaque combo est détaillé (rôle
-  de chaque sublimation, conditions remplies, gain seule et dans le combo, couleurs de châsses demandées), avec la
-  constellation des synergies ; il s'impose à la prochaine optimisation. Base « build affiché » : mêmes recherches sur le
-  build optimisé (couleurs actuelles, châsses recolorées ou rêve), combo applicable au build.
+- **Onglet Build sombre** (mode debug 🐞) : un bouton, et des sublimations qui vont bien ensemble, sans classe, sans items
+  et sans optimisation préalable (Ambition qui déclenche Dénouement, la parade qui déclenche Mesure ou Pilier…). La
+  forge explore des corps types (sans maîtrises secondaires, parade, peu de PA, peu de critique…) et garde les combos qui
+  valent plus que la somme de leurs sublimations, plus le deck le plus fort de chaque objectif. Chaque carte dit pourquoi
+  elles vont ensemble et quelles couleurs de châsses il faut ; un combo peut s'imposer à la prochaine optimisation.
 - **Portée** : mêlée, distance ou **mixte** (les deux maîtrises comptent à moitié : Huppermage, Eliotrope).
 - **Coups de dos** : part des coups portés de dos (25 / 50 / 80 %) ; seule cette part profite de la Maîtrise Dos.
 - **Contraintes** : minimum et maximum de PA, PM, PO, PW, % critique et % parade.

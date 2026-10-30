@@ -163,3 +163,20 @@ def test_deck_building_sans_classe_ni_items() -> None:
     pilier = next(pt for pt in best.parts if pt.state_id == 6707)
     assert pilier.role == "Déclenchée" and all(c.ok for c in pilier.conditions)
     assert best.synergy > 10
+
+
+def test_idees_sans_doublon() -> None:
+    # vraies données : le générateur de l'onglet (un bouton) trouve des combos, chacun avec d'autres familles
+    import os
+
+    from wakfu_optimizer.data.fetch import DEFAULT_CACHE_ROOT, GameDataFetcher
+    from wakfu_optimizer.engine.combos import ideas
+    fetcher = GameDataFetcher(cache_root=os.environ.get("WAKFU_OPTIMIZER_CACHE", DEFAULT_CACHE_ROOT))  # type: ignore[arg-type]
+    versions = fetcher.cached_versions()
+    if not versions:
+        pytest.skip("données Ankama absentes")
+    real = load_game_data(DataBundle(versions[0], fetcher.cache_root / versions[0], offline=True))
+    found = ideas(real, time_per=1.0)
+    fams = [frozenset(pt.state_id for pt in cb.parts) for _, _, cb in found]
+    assert len(found) >= 4 and len(set(fams)) == len(fams)
+    assert any(6707 in f for f in fams)   # Pilier, déclenché par la parade

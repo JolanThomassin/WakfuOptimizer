@@ -837,3 +837,41 @@ class Forge:
 
 def forge(data: GameData, opts: OptimizeOptions, build: Build, params: ForgeParams) -> ForgeResult:
     return Forge(data, opts, build, params).run()
+
+
+# Générateur d'idées (onglet Build sombre) : des corps types où des sublimations se déclenchent entre elles, chacun avec
+# son objectif. Les combos de tous les corps sont réunis, sans doublon : le site en montre quelques-uns à chaque clic.
+IDEA_PROFILES: tuple[tuple[str, dict[str, Any]], ...] = (
+    ("Sans maîtrises secondaires", {"objective": "damage"}),
+    ("Sans maîtrises secondaires", {"objective": "survival"}),
+    ("Sans maîtrises secondaires", {"objective": "score"}),
+    ("Avec maîtrises secondaires", {"objective": "damage", "secondary": True}),
+    ("Parade", {"objective": "survival", "block": 30, "secondary": True}),
+    ("Peu de PA", {"objective": "damage", "ap": 10}),
+    ("Peu de critique", {"objective": "damage", "crit": 5, "secondary": True}),
+    ("Beaucoup de PW", {"objective": "score", "wp": 8, "secondary": True}),
+    ("Distance, un seul élément", {"objective": "damage", "reach": "distance", "element": "fire", "secondary": True}),
+    # decks les plus forts (classement par puissance), un par objectif
+    ("Deck le plus fort", {"objective": "damage", "rank": "gain"}),
+    ("Deck le plus fort", {"objective": "survival", "rank": "gain"}),
+    ("Deck le plus fort", {"objective": "score", "rank": "gain"}),
+)
+
+
+def ideas(data: GameData, base_opts: OptimizeOptions | None = None, time_per: float = 2.0
+          ) -> list[tuple[str, ForgeParams, Combo]]:
+    """Combos originaux (synergie positive, réduits à leur noyau) sur chaque corps type, sans doublon de familles,
+    les plus forts d'abord, puis le deck le plus fort de chaque objectif : (nom du corps, réglages, combo)."""
+    out: list[tuple[str, ForgeParams, Combo]] = []
+    seen: set[frozenset[int]] = set()
+    for label, spec in IDEA_PROFILES:
+        power = spec.get("rank") == "gain"
+        p = ForgeParams.from_dict({"rank": "synergy", "top": 1 if power else 4, "beam": 8, "time_limit": time_per,
+                                   "diversity": 2, **spec})
+        o, prepared, hosts = neutral_body(data, p, base_opts)
+        for cb in Forge(data, o, Build(), p, prepared, hosts).run().combos:
+            fams = frozenset(pt.state_id for pt in cb.parts)
+            if (power and cb.gain > 0.3 or cb.synergy > 0.3) and fams not in seen:
+                seen.add(fams)
+                out.append((label, p, cb))
+    return sorted(out, key=lambda x: (x[1].rank == "gain", -x[2].synergy))
