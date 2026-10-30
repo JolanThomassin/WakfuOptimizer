@@ -46,12 +46,14 @@ class Archetype:
     # Tacle / Esquive : (valeur de « niveau » points, plafond en multiples du niveau) ; ces stats montent avec le
     # niveau, la valeur d'un point aussi (ex. (0.1, 4) au niveau 65 : jusqu'à 260 de Tacle, 0,1 % par 65 points)
     per_level: dict[str, tuple[float, float]] = field(default_factory=dict)
+    # mêlée (DPS mêlée, dos, berserk) : Tacle (prioritaire) et un peu d'Esquive, moins que pour le tank
     focus: tuple[tuple[str, str], ...] = ()   # stats privilégiées (stat, libellé), affichées dans l'onglet Explication
 
 
 ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     Archetype("dps_melee", "DPS mêlée", "Dégâts au corps-à-corps : Maîtrise mêlée et critique, et de bonnes résistances "
               "(au contact, on encaisse).", "dps", range="melee", res_target=70, crit_floor=True,
+              per_level={"lock": (0.03, 3), "dodge": (0.02, 2)},
               focus=(("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
     # attaque à 97 : une fois le plancher de résistance atteint (pénalité res_short), tout part dans les maîtrises.
     # Critique visé plus haut que les autres DPS ; PM moins utiles (on frappe de loin sans se déplacer beaucoup).
@@ -65,18 +67,22 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
               focus=(("elem_mastery", "Maîtrise élémentaire"), ("crit_rate", "Critique"), ("ap", "PA"))),
     Archetype("dps_rear", "DPS dos", "Coups dans le dos (Sram) : Maîtrise dos prioritaire, avec de bonnes résistances "
               "(au contact, on encaisse).", "dps", range="melee", rear=True, rear_share=80, res_target=70,
-              offense=88, crit_floor=True,
+              offense=88, crit_floor=True, per_level={"lock": (0.03, 3), "dodge": (0.02, 2)},
               focus=(("rear_mastery", "Maîtrise dos"), ("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"),
                      ("elem_res", "Résistances"))),
     Archetype("berserk", "Berserk", "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances un peu plus basses.",
               "dps", range="melee", berserk=True, res_target=60, offense=88, crit_floor=True,
-              count_conditional=False, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
+              count_conditional=False, per_level={"lock": (0.03, 3), "dodge": (0.02, 2)}, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
                                               ("crit_rate", "Critique"), ("hp", "PV"))),
-    Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et Tacle (compté jusqu'à 4 × le niveau) ; "
-              "dégâts ignorés. Aptitudes : Force en PV, Chance en parade et résistances.",
+    Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade, Tacle (compté jusqu'à 4 × le niveau), "
+              "un peu d'Esquive, PM (jusqu'à 7), un peu de Portée et la Volonté (retraits PA / PM subis) ; dégâts ignorés. "
+              "Aptitudes : Force en PV, Chance en parade et résistances.",
               "tank", range="melee", hide_range=True, hide_elements=True, crit=False, res_target=70, res_tol=4, res_free=True,
-              offense=0, utility={"mp": (0.05, 6)},   # un tank ne compte ni ses dégâts ni sa Volonté
-              per_level={"lock": (0.1, 4)},           # Tacle : retenir les ennemis au contact
+              # PM : se placer, porter (jusqu'à 7) ; Portée : un peu, chaque point moins que le précédent (DECAYING) ;
+              # Volonté : les retraits PA / PM subis (même formule que pour un débuff, poids faible)
+              offense=0, will=10, utility={"mp": (0.05, 7), "range": (0.01, 3)},
+              per_level={"lock": (0.1, 4),            # Tacle : retenir les ennemis au contact
+                         "dodge": (0.04, 3)},          # Esquive : se dégager, moins prioritaire que le Tacle
               focus=(("hp", "PV"), ("lock", "Tacle"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
               "heal", heal=True, offense=80, crit_floor=True,
@@ -213,6 +219,8 @@ def apt_profile(opts: OptimizeOptions) -> dict[str, list[str]]:
 
     strength = ["hp"] if tank else range_lines + ["elem_mastery", "hp"]
     agility = ["lock", "willpower"] if tank else [dodge_line, "willpower"]
+    if (opts.utility.get("dodge") or (0, 0))[0] and "dodge" not in agility:   # Esquive comptée : sa ligne, après la première
+        agility.insert(1, "dodge")
     if opts.willpower_weight >= 20:   # retraits PA / PM : Volonté au maximum d'abord
         agility = ["willpower"] + [x for x in agility if x != "willpower"]
 

@@ -153,7 +153,8 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
         weights.append({"stat": "range", "label": "Portée < 0", "pts": -RANGE_NEG_PENALTY, "unit": "malus par PO sous 0"})
     if opts.willpower_weight:
         weights.append({"stat": "willpower", "label": "Volonté", "pts": round(opts.willpower_weight / 100, 2),
-                        "unit": "par point (retraits PA / PM)", "boosted": "willpower" in focus})
+                        "unit": "par point (retraits PA / PM " + ("subis)" if arch and arch.role == "tank" else "infligés)"),
+                        "boosted": "willpower" in focus or bool(arch and arch.role == "tank")})
     if opts.crit and opts.crit_target:
         weights.append({"stat": "crit_rate", "label": f"Critique < {opts.crit_target} %", "pts": -CRIT_SHORT_PENALTY,
                         "unit": f"malus par % de critique sous {opts.crit_target} %"})
