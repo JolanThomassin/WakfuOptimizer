@@ -45,7 +45,7 @@ def item_features(it: Item, opts: OptimizeOptions, L: int, no_sec: bool = False)
     rr_v = sum(v for v, _ in it.random_resistance)
     rr_n = max([n for _, n in it.random_resistance], default=0)
     f = [g("ap"), g("mp"), g("range"), g("wp"), g("control")]
-    f += [g(k) for k in ("lock", "dodge") if opts.utility.get(k, (0, 0))[0]]   # Tacle / Esquive comptés (tank)
+    f += [g(k) for k in ("lock", "dodge", "crit_res", "rear_res") if opts.utility.get(k, (0, 0))[0]]   # comptés (tank, mêlée)
     if opts.offense_weight > 0:
         # maîtrise de portée : elle s'ajoute à chaque sort, quel que soit l'élément (comme la maîtrise élémentaire),
         # donc comptée dans chaque élément joué. Exact pour la dominance : min(élém.) + portée = min(élém. + portée).
@@ -73,7 +73,7 @@ def item_features(it: Item, opts: OptimizeOptions, L: int, no_sec: bool = False)
         f += [g("hp"), g("hp_pct")] + [g("elem_res") + g(f"{e}_res") for e in ELEMENTS] + [rr_v, rr_n]
     if opts.min_crit > 0 and not opts.crit:
         f.append(g("crit_rate"))
-    if opts.willpower_weight:
+    if opts.willpower_weight or opts.will_min:
         f.append(g("willpower"))
     if opts.min_block > 0 or opts.offense_weight < 100:   # Parade : compte dans la survie
         f.append(g("block"))

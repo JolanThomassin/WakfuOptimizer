@@ -15,11 +15,12 @@ from .archetypes import (ARCHETYPES, PANELS, RES_FULL_LEVEL, Archetype, apt_forc
 from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions
 from .quality import check_build
-from .scoring import (BLOCK_REDUCTION, DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
+from .scoring import (WILL_SHORT_PENALTY, BLOCK_REDUCTION, DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
                       decayed, secondary_mastery, utility_table)
 from .stats import Totals, evaluate
 
 FEATURE_FR = {"offense": "Dégâts", "defense": "Survie (PV effectifs)", "ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW", "lock": "Tacle", "dodge": "Esquive",
+              "crit_res": "Résistance critique", "rear_res": "Résistance dos", "will_short": "Pénalité : Volonté sous le minimum",
               "will": "Volonté (retraits)", "res_short": "Pénalité : résistance sous le plancher",
               "crit_short": "Pénalité : critique sous le palier", "range_neg": "Pénalité : Portée négative"}
 
@@ -149,6 +150,13 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
         if util[k][0]:
             weights.append({"stat": k, "label": lab, "pts": round(1e4 * util[k][0], 2), "unit": f"par 100 de {lab} (max {util[k][1]})",
                             "boosted": True})
+    for k, lab in (("crit_res", "Rés. critique"), ("rear_res", "Rés. dos")):
+        if util[k][0]:
+            weights.append({"stat": k, "label": lab, "pts": round(100 * util[k][0], 2), "unit": f"par point de {lab} (max {util[k][1]})",
+                            "boosted": True})
+    if opts.will_min:
+        weights.append({"stat": "willpower", "label": f"Volonté < {opts.will_min}", "pts": -WILL_SHORT_PENALTY,
+                        "unit": "malus par point de Volonté sous le minimum (retraits PA / PM subis)"})
     if util["range"][0] == 0:
         weights.append({"stat": "range", "label": "Portée < 0", "pts": -RANGE_NEG_PENALTY, "unit": "malus par PO sous 0"})
     if opts.willpower_weight:

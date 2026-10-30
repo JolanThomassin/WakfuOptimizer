@@ -85,7 +85,8 @@ RES_CAP_FLAT = 1032                   # résistance fixe donnant 90 % (au-delà 
 BLOCK_REDUCTION = 0.2                 # un coup paré fait 20 % de dégâts en moins : dégâts subis × (1 − 0,2 × % Parade)
 
 # Valeur automatique (fraction de la valeur globale) de chaque PA/PM/PO/PW, jusqu'au plafond.
-UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12), "lock": (0.0, 0), "dodge": (0.0, 0)}   # Tacle / Esquive : selon l'archétype
+UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12), "lock": (0.0, 0), "dodge": (0.0, 0),
+           "crit_res": (0.0, 0), "rear_res": (0.0, 0)}   # Tacle, Esquive, rés. critique / dos : selon l'archétype (tank)
 RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.0, 0), "mixed": (0.025, 5), "best": (0.025, 5)}   # mêlée : la portée ne vaut rien
 # Utilités à rendement décroissant : le k-ième point vaut (plafond − k + 1) / plafond du premier (Portée, plafond 6 :
 # 1, 5/6, 4/6… ; le 6e ne vaut que 1/6). La variable du score est alors le nombre de points « pleins » (decayed).
@@ -99,6 +100,9 @@ CRIT_SHORT_PENALTY = 1.0
 # Pénalité par point de Portée sous 0, pour tous les archétypes (même au contact : sorts à distance, boosts,
 # soins à porter sur un allié). Sinon un item à −1 PO ne coûte rien à un mêlée, qui ne compte pas la portée.
 RANGE_NEG_PENALTY = 3.0
+# Pénalité par point de Volonté sous le minimum de l'archétype (tank : 10) : sous ce seuil, les retraits PA / PM subis
+# font mal ; au-dessus, la Volonté ne rapporte rien de plus.
+WILL_SHORT_PENALTY = 0.5
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:
@@ -150,13 +154,14 @@ FEATURES: dict[str, float] = {
     "res": 5.0,           # résistance fixe moyenne des quatre éléments, plafonnée (scoring.res_cap)
     "block": 0.5,         # % Parade, plafonné à 100
     "ap": 0.5, "mp": 0.5, "range": 0.5, "wp": 0.5,   # utilité, plafonnée (utility_table)
-    "lock": 0.5, "dodge": 0.5,
+    "lock": 0.5, "dodge": 0.5, "crit_res": 0.5, "rear_res": 0.5,
     "res_short": 5.0,     # points de résistance manquants sous le plancher, sommés sur les éléments
     "will": 5.0,          # Volonté bornée [WILL_FLOOR, WILL_CAP]
     "crit_short": 5.0,    # % critique manquant sous le palier de l'archétype
     "range_neg": 0.5,     # Portée sous 0
+    "will_short": 5.0,    # Volonté manquante sous le minimum de l'archétype (will_short)
 }
-UTILITY_FEATURES = ("ap", "mp", "range", "wp", "lock", "dodge")   # gradient constant (plafond géré dans le modèle)
+UTILITY_FEATURES = ("ap", "mp", "range", "wp", "lock", "dodge", "crit_res", "rear_res")   # gradient constant (plafond géré dans le modèle)
 
 # Volonté (Wakfu Calc) : retrait = base du sort × 0,5 × FF, FF = 1 + (Volonté lanceur − Volonté cible) / 100,
 # borné entre 0 et 2. Contre une cible à 0 Volonté : +1 % de retrait par point, jusqu'à 100.
@@ -183,6 +188,7 @@ def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
     out["res_short"] = -RES_SHORT_PENALTY * f.get("res_short", 0.0)
     out["crit_short"] = -CRIT_SHORT_PENALTY * f.get("crit_short", 0.0)
     out["range_neg"] = -RANGE_NEG_PENALTY * f.get("range_neg", 0.0)
+    out["will_short"] = -WILL_SHORT_PENALTY * f.get("will_short", 0.0)
     w_will = int(getattr(opts, "willpower_weight", 0) or 0)
     if w_will:   # retraits PA / PM : même échelle que les dégâts (1 point ≈ 1 % de valeur × poids / 100)
         out["will"] = w_will * math.log(removal_factor(f.get("will", 0.0)))
@@ -191,6 +197,12 @@ def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
 
 def log_score(f: dict[str, float], opts: object) -> float:
     return sum(score_parts(f, opts).values())
+
+
+def will_short(willpower: float, opts: object) -> float:
+    """Volonté manquante sous le minimum de l'archétype (0 sans minimum)."""
+    t = int(getattr(opts, "will_min", 0) or 0)
+    return float(max(0.0, t - willpower)) if t else 0.0
 
 
 def crit_short(crit_rate: float, opts: object) -> float:

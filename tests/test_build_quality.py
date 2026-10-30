@@ -81,12 +81,12 @@ def test_options_tank_sans_critique(data: GameData) -> None:
 
 
 def test_poids_pm_du_tank(data: GameData) -> None:
-    """Un tank se place et porte : ses PM valent plus que ceux d'un DPS."""
+    """Un tank se place et porte : ses PM (et ses PA) valent plus que ceux d'un DPS."""
     from wakfu_optimizer.engine.scoring import utility_table
 
     tank = utility_table(archetype_options(data, "pandawa", 200, "tank"))
     dps = utility_table(archetype_options(data, "pandawa", 200, "dps_melee"))
-    assert tank["mp"][0] > dps["mp"][0] and tank["ap"] == dps["ap"]
+    assert tank["mp"][0] > dps["mp"][0] and tank["ap"][0] > dps["ap"][0]
 
 
 def test_palier_critique_croissant() -> None:

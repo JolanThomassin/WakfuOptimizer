@@ -36,6 +36,7 @@ class Archetype:
     res_free: bool = False            # la résistance compte encore au-delà de la cible (tank)
     offense: int = 85                 # poids de l'attaque (la défense prend le reste)
     will: int = 0                     # poids de la Volonté (retraits PA / PM)
+    will_min: int = 0                 # Volonté minimum : malus en dessous (tank : retraits PA / PM subis)
     crit_floor: bool = False          # palier de critique selon le niveau (voir crit_target)
     crit_bonus: int = 0               # % de critique visé en plus du palier du niveau
     count_conditional: bool = True
@@ -53,7 +54,7 @@ class Archetype:
 ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     Archetype("dps_melee", "DPS mêlée", "Dégâts au corps-à-corps : Maîtrise mêlée et critique, et de bonnes résistances "
               "(au contact, on encaisse).", "dps", range="melee", res_target=70, crit_floor=True,
-              per_level={"lock": (0.03, 3), "dodge": (0.02, 2)},
+              per_level={"lock": (0.02, 6), "dodge": (0.015, 6)},
               focus=(("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
     # attaque à 97 : une fois le plancher de résistance atteint (pénalité res_short), tout part dans les maîtrises.
     # Critique visé plus haut que les autres DPS ; PM moins utiles (on frappe de loin sans se déplacer beaucoup).
@@ -67,22 +68,24 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
               focus=(("elem_mastery", "Maîtrise élémentaire"), ("crit_rate", "Critique"), ("ap", "PA"))),
     Archetype("dps_rear", "DPS dos", "Coups dans le dos (Sram) : Maîtrise dos prioritaire, avec de bonnes résistances "
               "(au contact, on encaisse).", "dps", range="melee", rear=True, rear_share=80, res_target=70,
-              offense=88, crit_floor=True, per_level={"lock": (0.03, 3), "dodge": (0.02, 2)},
+              offense=88, crit_floor=True, per_level={"lock": (0.02, 6), "dodge": (0.015, 6)},
               focus=(("rear_mastery", "Maîtrise dos"), ("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"),
                      ("elem_res", "Résistances"))),
     Archetype("berserk", "Berserk", "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances un peu plus basses.",
               "dps", range="melee", berserk=True, res_target=60, offense=88, crit_floor=True,
-              count_conditional=False, per_level={"lock": (0.03, 3), "dodge": (0.02, 2)}, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
+              count_conditional=False, per_level={"lock": (0.02, 6), "dodge": (0.015, 6)}, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
                                               ("crit_rate", "Critique"), ("hp", "PV"))),
-    Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade, Tacle (compté jusqu'à 4 × le niveau), "
-              "un peu d'Esquive, PM (jusqu'à 7), un peu de Portée et la Volonté (retraits PA / PM subis) ; dégâts ignorés. "
+    Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade, Tacle et "
+              "Esquive, PM (jusqu'à 7), un peu de Portée, résistances critique et dos, Volonté d'au moins 10 ; dégâts ignorés. "
               "Aptitudes : Force en PV, Chance en parade et résistances.",
               "tank", range="melee", hide_range=True, hide_elements=True, crit=False, res_target=70, res_tol=4, res_free=True,
-              # PM : se placer, porter (jusqu'à 7) ; Portée : un peu, chaque point moins que le précédent (DECAYING) ;
-              # Volonté : les retraits PA / PM subis (même formule que pour un débuff, poids faible)
-              offense=0, will=10, utility={"mp": (0.05, 7), "range": (0.01, 3)},
-              per_level={"lock": (0.1, 4),            # Tacle : retenir les ennemis au contact
-                         "dodge": (0.04, 3)},          # Esquive : se dégager, moins prioritaire que le Tacle
+              # PA : plus que pour les autres (8 points chacun) ; PM : se placer, porter (jusqu'à 7) ;
+              # Portée : jusqu'à 3, chaque point moins que le précédent (DECAYING) ;
+              # résistances critique et dos : 0,1 point de score par point ; Volonté : malus sous 10 (retraits subis)
+              offense=0, will_min=10,
+              utility={"ap": (0.08, 14), "mp": (0.05, 7), "range": (0.03, 3), "crit_res": (0.001, 100), "rear_res": (0.001, 100)},
+              per_level={"lock": (0.05, 9),           # Tacle : retenir les ennemis au contact (≈ 2 200 au niveau 245)
+                         "dodge": (0.04, 9)},          # Esquive : se dégager, un peu moins que le Tacle
               focus=(("hp", "PV"), ("lock", "Tacle"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
               "heal", heal=True, offense=80, crit_floor=True,
@@ -103,13 +106,13 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
 )}
 
 # Champs de OptimizeOptions réglés par chaque panneau de l'interface (désactivé = valeur de l'archétype)
-PRIORITY_FIELDS = ("range", "crit", "rear", "rear_share", "berserk", "heal", "res_target", "res_tol", "count_conditional")
+PRIORITY_FIELDS = ("range", "crit", "rear", "rear_share", "berserk", "heal", "res_target", "res_tol")
 CONSTRAINT_FIELDS = ("min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min_block", "max_ap", "max_mp",
                      "max_range", "max_wp", "max_crit", "max_block", "allowed_rarities", "lower_brackets",
                      "exclude_relic", "exclude_epic", "exclude_shop", "include_pet_mount")
-SUB_FIELDS = ("shard_mode", "shard_count", "max_jokers", "no_subs", "confirmed_subs_only")
+SUB_FIELDS = ("shard_mode", "shard_count", "max_jokers", "no_subs", "confirmed_subs_only", "count_conditional")
 # Toujours ceux de l'archétype (pas réglables dans l'interface)
-WEIGHT_FIELDS = ("offense_weight", "res_free", "willpower_weight", "crit_target", "utility")
+WEIGHT_FIELDS = ("offense_weight", "res_free", "willpower_weight", "will_min", "crit_target", "utility")
 PANELS = {"priorities": PRIORITY_FIELDS, "constraints": CONSTRAINT_FIELDS, "subs": SUB_FIELDS}
 
 
@@ -159,6 +162,7 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
         "count_conditional": arch.count_conditional,
         # poids
         "offense_weight": arch.offense, "res_free": arch.res_free, "willpower_weight": arch.will,
+        "will_min": arch.will_min,
         "crit_target": crit_target(level, arch.crit_bonus) if arch.crit_floor and arch.crit else 0,
         "utility": {**{k: [v, cap] for k, (v, cap) in arch.utility.items()},
                     **{k: [v / max(1, level), round(cap * level)] for k, (v, cap) in arch.per_level.items()}},

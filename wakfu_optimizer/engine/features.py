@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..data.models import ELEMENTS
 from .options import OptimizeOptions
-from .scoring import DECAYING, WILL_CAP, WILL_FLOOR, crit_short, decayed, res_cap, res_need, utility_table
+from .scoring import DECAYING, WILL_CAP, WILL_FLOOR, crit_short, decayed, res_cap, res_need, utility_table, will_short
 
 if TYPE_CHECKING:
     from .model import BuildModel
@@ -33,7 +33,7 @@ def initial_point(opts: OptimizeOptions) -> dict[str, float]:
     L = opts.level
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
-            "res": 3.0 * L, "block": 10.0, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "res_short": 0.0, "will": 0.0,
+            "res": 3.0 * L, "block": 10.0, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "crit_res": 0.0, "rear_res": 0.0, "res_short": 0.0, "will": 0.0, "will_short": 0.0,
             "crit_short": 0.0, "range_neg": 0.0}
 
 
@@ -50,7 +50,8 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
         "hp": float(s["hp"]), "hp_pct": float(s["hp_pct"]),
         "res": float(sum(capped) / 4), "block": float(max(0, min(100, s["block"]))),
         "ap": float(s["ap"]), "mp": float(s["mp"]), "range": float(s["range"]), "wp": float(s["wp"]),
-        "lock": float(s["lock"]), "dodge": float(s["dodge"]),
+        "lock": float(s["lock"]), "dodge": float(s["dodge"]), "crit_res": float(s["crit_res"]), "rear_res": float(s["rear_res"]),
+        "will_short": will_short(s["willpower"], opts),
         "will": float(max(WILL_FLOOR, min(WILL_CAP, s["willpower"]))),
         "res_short": float(sum(max(0, res_need(opts) - res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
         "crit_short": crit_short(s["crit_rate"], opts),
@@ -109,6 +110,10 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
         wv = m.NewIntVar(WILL_FLOOR, WILL_CAP, "will")
         m.AddMaxEquality(wv, [wcap, WILL_FLOOR])
         f["will"] = wv
+    if opts.will_min:   # Volonté sous le minimum de l'archétype (scoring.will_short)
+        ws = m.NewIntVar(0, BIG, "will_short")
+        m.AddMaxEquality(ws, [opts.will_min - bm.stat("willpower"), 0])
+        f["will_short"] = ws
     neg = m.NewIntVar(0, BIG, "range_neg")   # Portée sous 0 (scoring.RANGE_NEG_PENALTY)
     m.AddMaxEquality(neg, [-bm.stat("range"), 0])
     f["range_neg"] = neg

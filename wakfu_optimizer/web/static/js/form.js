@@ -149,6 +149,8 @@ function resetConstraints(a) {
 }
 function resetSubsPanel() {
   $("#shard_count").value = 4; $("#max_jokers").value = 1; $("#confirmed_subs").checked = false;
+  const a = ARCHETYPES[$("#archetype").value];
+  $("#cond").checked = !a || !!a.count_conditional;
 }
 
 // ===================================================================== panneaux activables
