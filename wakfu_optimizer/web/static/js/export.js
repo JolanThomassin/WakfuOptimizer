@@ -36,7 +36,7 @@ async function exportPng(v) {
   // images : classe, icônes de stats, items, châsses
   const srcs = new Set([`assets/classes/${v.class.key}.png`, ...v.items.map((it) => iconUrl(it.gfx))]);
   ["health_points", "action_points", "movement_points", "wakfu_points", "range", "critical_hit", "block", "damage_inflicted",
-   "melee_mastery", "distance_mastery", "critical_mastery", "rear_mastery", "berserk_mastery", "healing_mastery"].forEach((n) => srcs.add(`assets/stats/${n}.png`));
+   "lock", "dodge", "melee_mastery", "distance_mastery", "critical_mastery", "rear_mastery", "berserk_mastery", "healing_mastery"].forEach((n) => srcs.add(`assets/stats/${n}.png`));
   ELEMENTS.forEach((e) => { srcs.add(`assets/stats/${e}_mastery.png`); srcs.add(`assets/stats/${e}_res.png`); srcs.add(`assets/stats/${e}_coin.png`); });
   Object.values(SHARD_FILE).forEach((c) => { srcs.add(`assets/shards/shard${c}Full.png`); srcs.add(`assets/shards/shard${c}Empty.png`); });
   const imgs = {};
@@ -84,8 +84,9 @@ async function exportPng(v) {
   // stats principales
   const main = [["health_points", nf(v.hp), "PV", "#ff7d8a"], ["action_points", s.ap, "PA", "#5cc8ff"], ["movement_points", s.mp, "PM", "#a5d94b"],
     ["wakfu_points", s.wp, "PW", "#3fd9c8"], ["range", s.range || 0, "PO", "#ece9f4"], ["critical_hit", `${s.crit_rate || 0} %`, "Critique", "#ffcf6e"],
-    ["block", `${s.block || 0} %`, "Parade", "#ece9f4"], ["damage_inflicted", `${s.dmg_pct || 0} %`, "Dommages", "#7ddc7d"]];
-  const mw = (W - 2 * P - 7 * 10) / 8;
+    ["block", `${s.block || 0} %`, "Parade", "#ece9f4"], ["damage_inflicted", `${s.dmg_pct || 0} %`, "Dommages", "#7ddc7d"],
+    ["lock", nf(s.lock || 0), "Tacle", "#e8a93a"], ["dodge", nf(s.dodge || 0), "Esquive", "#ece9f4"]];
+  const mw = (W - 2 * P - (main.length - 1) * 10) / main.length;
   main.forEach(([ic, val, lab, col], i) => {
     const x = P + i * (mw + 10), y = 160;
     box(x, y, mw, 74);

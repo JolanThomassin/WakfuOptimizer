@@ -135,7 +135,7 @@ function toast(text) {
 
 // ===================================================================== état
 const S = {
-  meta: null, excluded: new Set(), forced: new Set(), weights: {}, job: null,
+  meta: null, excluded: new Set(), forced: new Set(), itemSubs: {}, weights: {}, job: null,
   view: null, original: null, opts: null, changed: new Set(),
   subForced: new Set(), subExcluded: new Set(), subLevels: {}, elOrder: [],
 };

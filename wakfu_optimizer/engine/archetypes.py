@@ -77,14 +77,15 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
               count_conditional=False, per_level={"lock": (0.02, 6), "dodge": (0.015, 6)}, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
                                               ("crit_rate", "Critique"), ("hp", "PV"))),
     Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade, Tacle et "
-              "Esquive, PM (jusqu'à 7), un peu de Portée, résistances critique et dos, Volonté d'au moins 10 ; dégâts ignorés. "
+              "Esquive, PM (jusqu'à 7), un peu de Portée, résistances critique et dos (jamais négatives), Volonté d'au moins 10 ; dégâts ignorés. "
               "Aptitudes : Force en PV, Chance en parade et résistances.",
               "tank", range="melee", hide_range=True, hide_elements=True, crit=False, res_target=70, res_tol=4, res_free=True,
               # PA : plus que pour les autres (8 points chacun) ; PM : se placer, porter (jusqu'à 7) ;
               # Portée : jusqu'à 3, chaque point moins que le précédent (DECAYING) ;
-              # résistances critique et dos : 0,1 point de score par point ; Volonté : malus sous 10 (retraits subis)
+              # résistances critique et dos : 0,1 et 0,15 point de score par point (dos : on se fait contourner),
+              # malus sous 0 (scoring.SEC_RES_NEG_PENALTY) ; Volonté : malus sous 10 (retraits subis)
               offense=0, will_min=10,
-              utility={"ap": (0.08, 14), "mp": (0.05, 7), "range": (0.03, 3), "crit_res": (0.001, 100), "rear_res": (0.001, 100)},
+              utility={"ap": (0.08, 14), "mp": (0.05, 7), "range": (0.03, 3), "crit_res": (0.001, 100), "rear_res": (0.0015, 150)},
               per_level={"lock": (0.05, 9),           # Tacle : retenir les ennemis au contact (≈ 2 200 au niveau 245)
                          "dodge": (0.04, 9)},          # Esquive : se dégager, un peu moins que le Tacle
               focus=(("hp", "PV"), ("lock", "Tacle"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
@@ -95,11 +96,15 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
               "(Armure donnée non chiffrée.)", "support", crit=False, res_target=67, offense=60,
               mins={"ap": 11, "mp": 5, "wp": 8}, utility={"mp": (0.04, 6), "wp": (0.015, 14)},
               focus=(("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("elem_res", "Résistances"))),
-    Archetype("support_heal", "Support soin", "Soigneur et booster (Zobal…) : Maîtrise soin (avec la maîtrise "
-              "élémentaire et de portée, qui s'ajoutent aux soins), PA, PM, PW et survie.", "support", heal=True,
-              res_target=67, offense=60, mins={"ap": 11, "mp": 5},
-              utility={"mp": (0.04, 6), "wp": (0.015, 14)},
-              focus=(("heal_mastery", "Maîtrise soin"), ("ap", "PA"), ("mp", "PM"), ("wp", "PW"), ("elem_res", "Résistances"))),
+    # Soins et boosts portés sur les alliés, au contact comme à distance : la maîtrise mêlée (cible à 2 cases au
+    # plus) ou distance ne s'applique qu'à une partie des soins, d'où la portée « mixte » (moitié de chaque).
+    # PA d'abord (plus de sorts de soin et de boost par tour), puis la puissance des soins (poids 45 seulement).
+    Archetype("support_heal", "Support soin", "Soigneur et booster (Zobal…) : PA avant tout (plus de soins et de "
+              "boosts par tour), PM, PW et survie, puis Maîtrise soin et élémentaire ; les maîtrises mêlée et "
+              "distance ne comptent qu'à moitié (on soigne à toutes les distances).", "support", heal=True,
+              range="mixed", hide_range=True, res_target=67, offense=45, mins={"ap": 11, "mp": 5},
+              utility={"ap": (0.1, 14), "mp": (0.04, 6), "wp": (0.015, 14)},
+              focus=(("ap", "PA"), ("heal_mastery", "Maîtrise soin"), ("mp", "PM"), ("wp", "PW"), ("elem_res", "Résistances"))),
     Archetype("support_debuff", "Support débuff", "Retraits PA / PM : la Volonté compte beaucoup (+1 % de retrait "
               "par point, jusqu'à 100), puis PA, PM et survie.", "support", crit=False, res_target=67,
               offense=55, will=45, mins={"ap": 11, "mp": 5},

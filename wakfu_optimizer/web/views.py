@@ -91,6 +91,7 @@ def item_brief(data: GameData, it: Item, lang: str, level: int) -> dict[str, Any
         "rand_mastery": [{"value": v, "n": n} for v, n in it.random_mastery],
         "rand_res": [{"value": v, "n": n} for v, n in it.random_resistance],
         "craft": craft_of(CRAFTS, it.id, lang), "shop": it.is_shop, "wiki": wiki_url(it.names),
+        "can_epic": it.is_epic or PROP_EPIC_GEM in it.properties, "can_relic": it.is_relic or PROP_RELIC_GEM in it.properties,
     }
 
 

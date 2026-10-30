@@ -103,6 +103,10 @@ RANGE_NEG_PENALTY = 3.0
 # Pénalité par point de Volonté sous le minimum de l'archétype (tank : 10) : sous ce seuil, les retraits PA / PM subis
 # font mal ; au-dessus, la Volonté ne rapporte rien de plus.
 WILL_SHORT_PENALTY = 0.5
+# Pénalité par point de résistance critique / dos sous 0, quand l'archétype compte ces résistances (tank) : un item
+# à −50 de résistance dos fait plus de mal que ne rapporte un item à +50 (on se fait frapper de dos par tous).
+SEC_RES_NEG_PENALTY = 0.3
+SEC_RES = ("crit_res", "rear_res")
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:
@@ -160,6 +164,7 @@ FEATURES: dict[str, float] = {
     "crit_short": 5.0,    # % critique manquant sous le palier de l'archétype
     "range_neg": 0.5,     # Portée sous 0
     "will_short": 5.0,    # Volonté manquante sous le minimum de l'archétype (will_short)
+    "sec_res_neg": 0.5,   # résistances critique et dos sous 0, quand elles comptent (sec_res_counted)
 }
 UTILITY_FEATURES = ("ap", "mp", "range", "wp", "lock", "dodge", "crit_res", "rear_res")   # gradient constant (plafond géré dans le modèle)
 
@@ -189,6 +194,7 @@ def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
     out["crit_short"] = -CRIT_SHORT_PENALTY * f.get("crit_short", 0.0)
     out["range_neg"] = -RANGE_NEG_PENALTY * f.get("range_neg", 0.0)
     out["will_short"] = -WILL_SHORT_PENALTY * f.get("will_short", 0.0)
+    out["sec_res_neg"] = -SEC_RES_NEG_PENALTY * f.get("sec_res_neg", 0.0)
     w_will = int(getattr(opts, "willpower_weight", 0) or 0)
     if w_will:   # retraits PA / PM : même échelle que les dégâts (1 point ≈ 1 % de valeur × poids / 100)
         out["will"] = w_will * math.log(removal_factor(f.get("will", 0.0)))
@@ -197,6 +203,12 @@ def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
 
 def log_score(f: dict[str, float], opts: object) -> float:
     return sum(score_parts(f, opts).values())
+
+
+def sec_res_counted(opts: object) -> tuple[str, ...]:
+    """Résistances critique / dos qui comptent pour l'archétype (utilité non nulle) : un malus y coûte."""
+    util = utility_table(opts)
+    return tuple(k for k in SEC_RES if util[k][0])
 
 
 def will_short(willpower: float, opts: object) -> float:

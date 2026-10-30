@@ -26,6 +26,22 @@ function buildItemsTab() {
   });
   $("#it-bracket").addEventListener("change", loadItemsTab);
   $("#it-q").addEventListener("input", () => { clearTimeout(IT.timer); IT.timer = setTimeout(loadItemsTab, 250); });
+  // sublimations d'un item forcé : ajout (liste déroulante) et retrait
+  $("#it-fo").addEventListener("change", (e) => {
+    const sel = e.target.closest("[data-itsub]");
+    if (!sel || !sel.value) return;
+    const id = +sel.dataset.itsub;
+    S.itemSubs[id] = [...new Set([...(S.itemSubs[id] || []), +sel.value])];
+    sfx("click");
+    renderPicked();
+  });
+  $("#it-fo").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-itsubrm]");
+    if (!b) return;
+    const [id, st] = b.dataset.itsubrm.split(":").map(Number);
+    S.itemSubs[id] = (S.itemSubs[id] || []).filter((s) => s !== st);
+    renderPicked();
+  });
   // forcer / exclure / retirer, depuis la liste ou les colonnes de droite
   $("#tab-items").addEventListener("click", (e) => {
     const b = e.target.closest("[data-itfo],[data-itex],[data-itrm]");
@@ -82,6 +98,28 @@ function itemRow(it, compact = false) {
     ${compact ? "" : `<div class="chip-row">${statChips(it, false)}</div>`}
     <div class="btns">${btns}</div></div>`;
 }
+// Sublimations à poser sur un item forcé : normales (dans ses châsses), épiques / reliques si l'item peut en recevoir
+async function loadSubNames() {
+  if (IT.subs) return IT.subs;
+  try { IT.subs = await api("/api/subs", { opts: options(), build: null }); } catch (e) { IT.subs = []; }
+  return IT.subs;
+}
+function itemSubsHtml(it) {
+  const by = Object.fromEntries((IT.subs || []).map((f) => [f.state, f]));
+  const mine = S.itemSubs[it.id] || [];
+  const chips = mine.map((st) => `<span class="tag on">${esc(by[st] ? by[st].name : st)}
+    <button type="button" class="x" data-itsubrm="${it.id}:${st}" title="Retirer">✕</button></span>`).join("");
+  // une sublimation normale (châsses) et une épique / relique au plus, comme en jeu
+  const has = (k) => mine.some((st) => by[st] && by[st].kind === k);
+  const groups = [["normal", "Normales", true], ["epic", "Épiques", it.can_epic], ["relic", "Reliques", it.can_relic]]
+    .filter(([k, , ok]) => ok && !has(k))
+    .map(([k, lab]) => {
+      const fams = (IT.subs || []).filter((f) => f.kind === k).sort((a, b) => a.name.localeCompare(b.name));
+      return fams.length ? `<optgroup label="${lab}">${fams.map((f) => `<option value="${f.state}">${esc(f.name)}</option>`).join("")}</optgroup>` : "";
+    }).join("");
+  return `<div class="it-subs">${chips}${groups ? `<select class="it-subsel" data-itsub="${it.id}" title="Sublimation à poser sur cet item">
+    <option value="">+ Sublimation sur cet item…</option>${groups}</select>` : ""}</div>`;
+}
 function renderItemRows() {
   if (!IT.list) return;
   $("#it-results").innerHTML = IT.list.map((it) => itemRow(it)).join("") || `<p class="muted pad">Aucun item ne correspond.</p>`;
@@ -93,8 +131,10 @@ async function renderPicked() {
     try { (await api(`/api/items?ids=${ids.join(",")}&level=${$("#level").value}&lang=${$("#lang").value}`)).forEach((it) => { IT.cache[it.id] = it; }); }
     catch (e) { /* sans effet */ }
   }
+  if (S.forced.size) await loadSubNames();
   const list = (set) => [...set].filter((i) => IT.cache[i]).map((i) => itemRow(IT.cache[i], true)).join("");
-  $("#it-fo").innerHTML = list(S.forced) || `<p class="muted">Aucun item forcé.</p>`;
+  $("#it-fo").innerHTML = [...S.forced].filter((i) => IT.cache[i]).map((i) => itemRow(IT.cache[i], true) + itemSubsHtml(IT.cache[i])).join("")
+    || `<p class="muted">Aucun item forcé.</p>`;
   $("#it-ex").innerHTML = list(S.excluded) || `<p class="muted">Aucun item exclu.</p>`;
   $("#it-fo-n").textContent = S.forced.size ? `(${S.forced.size})` : "";
   $("#it-ex-n").textContent = S.excluded.size ? `(${S.excluded.size})` : "";

@@ -130,6 +130,11 @@ class Optimizer:
                 st = self.data.states.get(sid)
                 res.warnings.append(f"Sublimation imposée « {st.name if st else sid} » impossible à placer "
                                     "(pas de châsses, ou épique/relique sans objet compatible) : ignorée.")
+            for iid, sid in bm.item_sub_missing:
+                st, it = self.data.states.get(sid), self.data.item_by_id().get(iid)
+                res.warnings.append(f"Sublimation « {st.name if st else sid} » impossible à poser sur "
+                                    f"« {it.name(opts.lang) if it else iid} » (châsses, ou item ni épique ni relique) : "
+                                    "placée ailleurs si possible.")
             combo = self._combo_states()
             if WARM_START:
                 self._warm_start(bm, cand, opts, budget)

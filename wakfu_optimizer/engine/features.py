@@ -19,7 +19,8 @@ from typing import TYPE_CHECKING, Any
 
 from ..data.models import ELEMENTS
 from .options import OptimizeOptions
-from .scoring import DECAYING, WILL_CAP, WILL_FLOOR, crit_short, decayed, res_cap, res_need, utility_table, will_short
+from .scoring import (DECAYING, WILL_CAP, WILL_FLOOR, crit_short, decayed, res_cap, res_need, sec_res_counted,
+                      utility_table, will_short)
 
 if TYPE_CHECKING:
     from .model import BuildModel
@@ -34,7 +35,7 @@ def initial_point(opts: OptimizeOptions) -> dict[str, float]:
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
             "res": 3.0 * L, "block": 10.0, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "crit_res": 0.0, "rear_res": 0.0, "res_short": 0.0, "will": 0.0, "will_short": 0.0,
-            "crit_short": 0.0, "range_neg": 0.0}
+            "crit_short": 0.0, "range_neg": 0.0, "sec_res_neg": 0.0}
 
 
 # =====================================================================  évaluateur (valeurs exactes)
@@ -56,6 +57,7 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
         "res_short": float(sum(max(0, res_need(opts) - res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
         "crit_short": crit_short(s["crit_rate"], opts),
         "range_neg": float(max(0, -s["range"])),
+        "sec_res_neg": float(sum(max(0, -s[k]) for k in sec_res_counted(opts))),
     }
     for k in DECAYING:   # rendement décroissant : chaque point vaut moins que le précédent
         out[k] = decayed(s[k], util[k][1])
@@ -117,6 +119,13 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
     neg = m.NewIntVar(0, BIG, "range_neg")   # Portée sous 0 (scoring.RANGE_NEG_PENALTY)
     m.AddMaxEquality(neg, [-bm.stat("range"), 0])
     f["range_neg"] = neg
+    negs = []
+    for k in sec_res_counted(opts):   # résistance critique / dos sous 0 (scoring.SEC_RES_NEG_PENALTY)
+        v = m.NewIntVar(0, BIG, f"neg_{k}")
+        m.AddMaxEquality(v, [-bm.stat(k), 0])
+        negs.append(v)
+    if negs:
+        f["sec_res_neg"] = sum(negs)
     for stat, (v, cap) in utility_table(opts).items():
         if not v:
             continue

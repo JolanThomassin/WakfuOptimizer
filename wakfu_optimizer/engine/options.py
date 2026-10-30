@@ -91,6 +91,8 @@ class OptimizeOptions:
     forced_subs: tuple[int, ...] = ()     # sublimations imposées (id d'état : n'importe quel niveau)
     excluded_subs: tuple[int, ...] = ()   # sublimations interdites (id d'état)
     forced_sub_levels: dict[str, int] = field(default_factory=dict)   # id d'état -> niveau minimum imposé
+    # sublimations à poser sur un item forcé (onglet Items) : id d'item -> ids d'état ; imposées aussi (normalize)
+    forced_item_subs: dict[str, list[int]] = field(default_factory=dict)
     no_subs: bool = False                 # aucune sublimation, sauf celles imposées
     confirmed_subs_only: bool = False     # seulement les sublimations confirmées (sublimations.yaml), sauf imposées
     # --- Châsses
@@ -134,6 +136,10 @@ class OptimizeOptions:
         self.min_res_pct = max(0, min(90, int(self.min_res_pct)))
         self.rear_share = max(0, min(100, int(self.rear_share)))
         self.crit_target = max(0, min(100, int(self.crit_target)))
+        self.forced_item_subs = {str(k): [int(s) for s in v] for k, v in self.forced_item_subs.items()
+                                 if int(k) in self.forced_ids and v}
+        extra = [s for v in self.forced_item_subs.values() for s in v if s not in self.forced_subs]
+        self.forced_subs = tuple(self.forced_subs) + tuple(dict.fromkeys(extra))
         self.forced_sub_levels = {str(k): max(1, int(v)) for k, v in self.forced_sub_levels.items()
                                   if int(k) in self.forced_subs}
         return out

@@ -237,6 +237,7 @@ function applyOptions(o) {
   $("#lower").checked = o.lower_brackets; $("#no_relic").checked = o.exclude_relic; $("#no_epic").checked = o.exclude_epic;
   $("#no_shop").checked = o.exclude_shop; $("#pets").checked = o.include_pet_mount;
   S.excluded = new Set(o.excluded_ids || []); S.forced = new Set(o.forced_ids || []);
+  S.itemSubs = Object.fromEntries(Object.entries(o.forced_item_subs || {}).map(([k, v]) => [+k, v.map(Number)]));
   S.apt = Object.assign({}, o.manual_chars || {});
   $("#apt_elem_res").checked = o.apt_elem_res ?? true;
   setSeg("char_mode", o.char_mode || "auto");
@@ -268,6 +269,7 @@ function options() {
     exclude_shop: $("#no_shop").checked, include_pet_mount: $("#pets").checked, optimize_characteristics: true,
     char_mode: segVal("char_mode"), manual_chars: { ...S.apt },
     excluded_ids: [...S.excluded], forced_ids: [...S.forced],
+    forced_item_subs: Object.fromEntries([...S.forced].filter((i) => (S.itemSubs[i] || []).length).map((i) => [i, S.itemSubs[i]])),
     shard_count: n("shard_count"), max_jokers: n("max_jokers"),
     time_limit: n("time_limit") || 180, alternatives: 0, custom_weights: { ...S.weights },
   };

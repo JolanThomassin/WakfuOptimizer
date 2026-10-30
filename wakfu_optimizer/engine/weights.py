@@ -14,7 +14,7 @@ from typing import Any
 
 from .options import OptimizeOptions
 from .scoring import (BLOCK_REDUCTION, CRIT_SHORT_PENALTY, DECAYING, RANGE_NEG_PENALTY, RES_SHORT_PENALTY,
-                      WILL_SHORT_PENALTY, utility_table)
+                      SEC_RES_NEG_PENALTY, WILL_SHORT_PENALTY, utility_table)
 
 # Utilités affichées : (stat, libellé, taille de l'unité, description)
 UTILITY_ROWS: tuple[tuple[str, str, int, str], ...] = (
@@ -67,6 +67,8 @@ def weights_view(default: OptimizeOptions, opts: OptimizeOptions) -> dict[str, A
                  "penalty": CRIT_SHORT_PENALTY},
         "fixed": [
             {"stat": "range", "label": "Portée sous 0", "pts": -RANGE_NEG_PENALTY, "unit": "par PO sous 0 (tous les archétypes)"},
+            {"stat": "rear_res", "label": "Résistance critique / dos sous 0", "pts": -SEC_RES_NEG_PENALTY,
+             "unit": "par point sous 0, quand ces résistances ont un poids (tank)"},
             {"stat": "elem_res", "label": "Résistance sous le plancher", "pts": -RES_SHORT_PENALTY,
              "unit": "par point de résistance fixe sous la résistance visée moins l'écart"},
         ],

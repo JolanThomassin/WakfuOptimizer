@@ -350,6 +350,33 @@ class BuildModel:
             elif c == "light_weapons":
                 self.m.Add(var + self.two_handed + self.filled(Slot.SECOND_WEAPON) <= 1)
 
+    def _item_subs(self) -> None:
+        """Sublimations à poser sur un item forcé (onglet Items) : normale dans ses châsses, épique / relique dans
+        l'item s'il peut la recevoir. `item_sub_missing` : (item, état) impossibles, signalés et ignorés."""
+        m, v = self.m, self.v
+        subs = {s.id: s for s in self.data.sublimations}
+        self.item_sub_missing: list[tuple[int, int]] = []
+        for key, states in self.opts.forced_item_subs.items():
+            iid = int(key)
+            it = self.items.get(iid)
+            places = [(slot, x) for (i, slot), x in v.x.items() if i == iid]
+            if it is None or not places:
+                continue
+            for sid in states:
+                kinds = [s for s in self.data.sublimations if s.state_id == sid]
+                if any(s.is_normal for s in kinds):
+                    for slot, x in places:   # posée dans l'emplacement où l'item finit (anneaux : l'un ou l'autre)
+                        ws = [w for (s2, sub_id, _o), w in v.sub.items() if s2 is slot and subs[sub_id].state_id == sid]
+                        if not ws:
+                            self.item_sub_missing.append((iid, sid))
+                            break
+                        m.Add(sum(ws) >= x)
+                    continue
+                fits = any((it.is_epic or PROP_EPIC_GEM in it.properties) if s.is_epic
+                           else (it.is_relic or PROP_RELIC_GEM in it.properties) for s in kinds)
+                if not fits or not any(s.id in v.special for s in kinds):
+                    self.item_sub_missing.append((iid, sid))
+
     def _sublimations(self) -> None:
         m, v, acc, opts = self.m, self.v, self.acc, self.opts
         level_terms: dict[int, list[tuple[int, Any]]] = defaultdict(list)
@@ -406,6 +433,7 @@ class BuildModel:
                 m.Add(sum(c * w for c, w in terms) >= max(1, int(opts.forced_sub_levels.get(str(sid), 1))))
             else:
                 self.forced_missing.append(sid)
+        self._item_subs()
         # niveaux d'état cumulés, plafonnés
         for sid, terms in level_terms.items():
             st = self.data.states.get(sid)
@@ -590,7 +618,9 @@ class BuildModel:
             if not val(w):
                 continue
             sub = subs[sid]
-            for ch in b.slots.values():
+            wanted = [ch for ch in b.slots.values()   # d'abord l'item forcé qui doit la porter (onglet Items)
+                      if sub.state_id in self.opts.forced_item_subs.get(str(ch.item_id), [])]
+            for ch in wanted + list(b.slots.values()):
                 it = self.items[ch.item_id]
                 fits = (it.is_epic or PROP_EPIC_GEM in it.properties) if sub.is_epic else (it.is_relic or PROP_RELIC_GEM in it.properties)
                 if fits and ch.special_sublimation_id is None:
