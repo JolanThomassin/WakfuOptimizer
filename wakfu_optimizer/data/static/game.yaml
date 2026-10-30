@@ -113,7 +113,7 @@ classes:
      passive: {name: Mage du temps, desc: "+6 PW (12 au lieu de 6) ; regagne 1 PW (+1 par PA non utilisé) en fin de tour ; Cadran, Vol du temps, Distorsion.",
                effects: [{stat: wp, value: 6}]}}
   ecaflip:
-    {fr: Ecaflip, elements: [fire, water, earth], range: melee, role: dps, archetypes: [dps_melee, tank],
+    {fr: Ecaflip, elements: [fire, water, earth], range: distance, role: dps, archetypes: [dps_melee, dps_distance, heal],
      passive: {name: Guerrier joueur, desc: "+20 % Coup critique en début de combat ; les critiques au-delà de 100 % augmentent les dommages ; +1 PW en fin de tour.",
                effects: [{stat: crit_rate, value: 20}]}}
   eniripsa:
