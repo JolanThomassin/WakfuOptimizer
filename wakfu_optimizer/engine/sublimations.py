@@ -172,10 +172,12 @@ def fill_empty_subs(data: GameData, opts: OptimizeOptions, build: Build) -> tupl
             if not special and not ch.shards:
                 continue
             options, _ = sub_alternatives(data, opts, build, slot, special)
+            levels = build_levels(data, build)
             # sans gain, pas de sublimation qui impose une condition au build (Dénouement, Ambition, Pilier…)
             usable = [o for o in options if o.sub is not None and o.delta >= -1e-6
                       and (st := data.states.get(o.sub.state_id)) is not None and st.modeled
                       and (st.confirmed or not opts.confirmed_subs_only)
+                      and (not st.limit or levels.get(o.sub.state_id, 0) + o.sub.state_level <= st.limit)
                       and (o.delta > 0.01 or not any(needs_stats(e.condition) for e in st.effects))
                       and not condition_failed(o.totals, st.name)]
             if usable:

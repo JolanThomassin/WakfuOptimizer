@@ -434,6 +434,12 @@ class BuildModel:
             else:
                 self.forced_missing.append(sid)
         self._item_subs()
+        # niveau cumulé jamais au-delà du maximum de l'état (niveaux perdus), sauf si l'utilisateur en impose plus
+        imposed = {sid for states in opts.forced_item_subs.values() for sid in states}
+        for sid, terms in level_terms.items():
+            st = self.data.states.get(sid)
+            if st is not None and st.limit and sid not in imposed and sum(c for c, _ in terms) > st.limit:
+                m.Add(sum(c * w for c, w in terms) <= max(st.limit, int(opts.forced_sub_levels.get(str(sid), 1))))
         # niveaux d'état cumulés, plafonnés
         for sid, terms in level_terms.items():
             st = self.data.states.get(sid)

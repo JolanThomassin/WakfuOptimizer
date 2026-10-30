@@ -86,7 +86,7 @@ STAT_CONDITIONAL: dict[int, list[tuple[str, int, str]]] = {
 
 # Sublimations confirmées (description, niveaux, effets et contraintes vérifiés avec l'utilisateur) : les autres
 # sont grisées dans l'interface.
-CONFIRMED = {5077, 7115, 6026, 7861}   # Dénouement, Ambition, Influence, Force vitale
+CONFIRMED = {5077, 7115, 6026, 7861, 7722}   # Dénouement, Ambition, Influence, Force vitale, Conservation
 
 # Valeurs officielles par niveau (encyclopédie Ankama, /fr/linker/state?id=X&level=k), vérifiées en jeu
 # (Visibilité I : -300 Tacle, II : -150). L'encyclopédie affiche le niveau k-1 et s'arrête au niveau max - 1 :
