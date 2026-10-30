@@ -757,3 +757,16 @@ body.side-collapsed .sidebar { opacity: 0; padding: 0; border: none; overflow: h
   .w-balance { grid-template-columns: 1fr; }
   .w-side.right { justify-content: flex-start; }
 }
+
+/* ----- en-tête : langue des items (drapeaux) et mode debug */
+.lang-pick { position: relative; }
+.flag { width: 22px; height: 15px; border-radius: 2px; display: block; box-shadow: 0 0 0 1px rgba(255, 255, 255, .18); }
+.flag-btn { padding: 4px 8px; }
+.lang-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 4px; display: flex; flex-direction: column; min-width: 140px; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
+.lang-menu button { display: flex; align-items: center; gap: 10px; background: transparent; border: none; color: var(--text);
+  padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; text-align: left; }
+.lang-menu button:hover { background: var(--line); }
+.lang-menu button.on { color: var(--accent); font-weight: 600; }
+.debug-btn { opacity: .45; filter: grayscale(1); }
+.debug-btn.on { opacity: 1; filter: none; border-color: var(--accent); }

@@ -13,8 +13,13 @@
     <img class="logo-img" src="static/favicon.svg" alt=""> Wakfu Optimizer</div>
   <div class="top-right">
     <span id="version" class="muted"></span>
+    <div class="lang-pick">
+      <button id="lang-btn" class="btn ghost small flag-btn" type="button" title="Langue des items"></button>
+      <div id="lang-menu" class="lang-menu hidden"></div>
+    </div>
     <button id="sfx-btn" class="btn ghost small" title="Sons activés (clic pour couper)">🔊</button>
     <button id="reload" class="btn ghost small" title="Retélécharger les données Ankama">Mettre à jour les données</button>
+    <button id="debug-btn" class="btn ghost small debug-btn" type="button" title="Mode debug : onglets Poids et Explication">🐞</button>
   </div>
 </header>
 
@@ -29,11 +34,9 @@
           <select id="cls"></select>
         </div>
       </div>
-      <div class="field two">
-        <div><label>Niveau</label><select id="level"></select></div>
-        <div><label>Langue des items</label>
-          <select id="lang"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="pt">Português</option></select>
-        </div>
+      <div class="field">
+        <label>Niveau</label><select id="level"></select>
+        <input type="hidden" id="lang" value="fr">
       </div>
       <div class="field" id="elements-box">
         <label>Éléments joués</label>
@@ -137,8 +140,8 @@
       <button class="tab" data-tab="apt">Aptitudes <span id="apt-badge" class="badge">auto</span></button>
       <button class="tab" data-tab="subs">Sublimations <span id="subs-badge" class="badge hidden"></span></button>
       <button class="tab" data-tab="items">Items <span id="items-badge" class="badge hidden"></span></button>
-      <button class="tab" data-tab="weights">Poids <span id="weights-badge" class="badge">archétype</span></button>
-      <button class="tab" data-tab="explain" disabled title="Disponible après une optimisation : ce que le calcul a privilégié">Explication <span id="explain-badge" class="badge hidden"></span></button>
+      <button class="tab debug-only" data-tab="weights">Poids <span id="weights-badge" class="badge">archétype</span></button>
+      <button class="tab debug-only" data-tab="explain" disabled title="Disponible après une optimisation : ce que le calcul a privilégié">Explication <span id="explain-badge" class="badge hidden"></span></button>
     </nav>
     <div id="tab-apt" class="tab-page hidden">
       <div class="apt-layout">

@@ -218,7 +218,8 @@ function applyOptions(o) {
   set("cls", o.class_key);
   const lv = S.meta.levels.map((l) => l.level).filter((l) => l >= o.level).pop() ?? S.meta.levels[0].level;
   set("level", lv);
-  set("lang", o.lang);
+  set("lang", savedLang() || o.lang || "fr");
+  renderLang();
   setElements(o.elements || []);
   setSeg("range", o.range || "melee");
   toggleBtn($("#crit"), o.crit); toggleBtn($("#rear"), o.rear); toggleBtn($("#berserk"), o.berserk); toggleBtn($("#heal"), o.heal);
