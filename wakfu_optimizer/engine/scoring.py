@@ -82,6 +82,7 @@ def defense_value(hp_base: int, hp_pct: int, ehp_g: int) -> int:
 # (w_off + w_def = 100). 1 point de score ≈ 1 % de valeur globale : +1 % de dégâts vaut w_off / 100.
 LN_RES = -math.log(0.8) / 100         # ln(PV effectifs) gagné par point de résistance fixe
 RES_CAP_FLAT = 1032                   # résistance fixe donnant 90 % (au-delà : inutile)
+BLOCK_REDUCTION = 0.2                 # un coup paré fait 20 % de dégâts en moins : dégâts subis × (1 − 0,2 × % Parade)
 
 # Valeur automatique (fraction de la valeur globale) de chaque PA/PM/PO/PW, jusqu'au plafond.
 UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12), "lock": (0.0, 0), "dodge": (0.0, 0)}   # Tacle / Esquive : selon l'archétype
@@ -129,8 +130,11 @@ def ln_damage(mtot: float, crit: float, crit_mastery: float, rear_mastery: float
     return math.log(max(1e-3, b)) + math.log(max(1.0, 100 + dmg_pct))
 
 
-def ln_defense(hp: float, hp_pct: float, res: float) -> float:
-    return math.log(max(1.0, hp)) + math.log(max(1.0, 100 + hp_pct)) + LN_RES * min(res, RES_CAP_FLAT)
+def ln_defense(hp: float, hp_pct: float, res: float, block: float = 0.0) -> float:
+    """ln(PV effectifs) : PV, % PV, résistance, et Parade (moins de dégâts subis en moyenne)."""
+    b = max(0.0, min(100.0, block)) / 100
+    return (math.log(max(1.0, hp)) + math.log(max(1.0, 100 + hp_pct)) + LN_RES * min(res, RES_CAP_FLAT)
+            - math.log(1 - BLOCK_REDUCTION * b))
 
 
 # Variables du score : nom -> pas des différences centrées (gradient). Chacune est calculée exactement par
@@ -144,6 +148,7 @@ FEATURES: dict[str, float] = {
     "hp": 5.0,            # PV fixes (avant % PV)
     "hp_pct": 0.5,
     "res": 5.0,           # résistance fixe moyenne des quatre éléments, plafonnée (scoring.res_cap)
+    "block": 0.5,         # % Parade, plafonné à 100
     "ap": 0.5, "mp": 0.5, "range": 0.5, "wp": 0.5,   # utilité, plafonnée (utility_table)
     "lock": 0.5, "dodge": 0.5,
     "res_short": 5.0,     # points de résistance manquants sous le plancher, sommés sur les éléments
@@ -172,7 +177,7 @@ def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
         out["offense"] = w_off * ln_damage(f["mtot"], f["crit"], f["crit_mastery"], f["rear_mastery"],
                                            float(getattr(opts, "rear_share", 0)) if rear else 0.0, f["dmg_pct"])
     if w_off < 100:
-        out["defense"] = (100 - w_off) * ln_defense(f["hp"], f["hp_pct"], f["res"])
+        out["defense"] = (100 - w_off) * ln_defense(f["hp"], f["hp_pct"], f["res"], f.get("block", 0.0))
     for k, (v, cap) in utility_table(opts).items():
         out[k] = 100 * v * max(0.0, min(float(f.get(k, 0)), cap))
     out["res_short"] = -RES_SHORT_PENALTY * f.get("res_short", 0.0)

@@ -15,7 +15,7 @@ from .archetypes import (ARCHETYPES, PANELS, RES_FULL_LEVEL, Archetype, apt_forc
 from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions
 from .quality import check_build
-from .scoring import (DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
+from .scoring import (BLOCK_REDUCTION, DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
                       decayed, secondary_mastery, utility_table)
 from .stats import Totals, evaluate
 
@@ -50,6 +50,7 @@ def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
         ("Points de vie (fixes)", "+1 000", gain(hp=f["hp"] + 1000)),
         ("% Points de vie", "+10 %", gain(hp_pct=f["hp_pct"] + 10)),
         ("Résistance élémentaire", "+100 (4 él.)", gain(**res_plus(100))),
+        ("% Parade", "+1 %", gain(block=min(100.0, f["block"] + 1)) if opts.offense_weight < 100 else 0.0),
         ("PA", "+1", gain(ap=f["ap"] + 1)), ("PM", "+1", gain(mp=f["mp"] + 1)),
         ("Portée", "+1", gain(range=decayed(tot.stats.get("range", 0) + 1, utility_table(opts)["range"][1]),
                               range_neg=max(0.0, f["range_neg"] - 1))), ("PW", "+1", gain(wp=f["wp"] + 1)),
@@ -135,6 +136,9 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
                         "unit": "par % de dégâts subis en moins" + (" (même au-delà de la cible)" if opts.res_free else
                                                                     f" (jusqu'à {opts.res_target} %)"),
                         "boosted": "elem_res" in focus})
+        weights.append({"stat": "block", "label": "Parade", "pts": round(d * 100 * BLOCK_REDUCTION / 100, 2),
+                        "unit": f"par % de Parade (un coup paré : {round(100 * BLOCK_REDUCTION)} % de dégâts en moins ; "
+                                "un peu plus quand la Parade est déjà haute)", "boosted": "block" in focus})
     for k, lab in (("ap", "PA"), ("mp", "PM"), ("range", "Portée"), ("wp", "PW")):
         if util[k][0]:
             unit = (f"pour le 1er point de {lab}, puis de moins en moins (max {util[k][1]})" if k in DECAYING

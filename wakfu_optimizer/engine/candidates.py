@@ -75,7 +75,7 @@ def item_features(it: Item, opts: OptimizeOptions, L: int, no_sec: bool = False)
         f.append(g("crit_rate"))
     if opts.willpower_weight:
         f.append(g("willpower"))
-    if opts.min_block > 0:
+    if opts.min_block > 0 or opts.offense_weight < 100:   # Parade : compte dans la survie
         f.append(g("block"))
     return f
 

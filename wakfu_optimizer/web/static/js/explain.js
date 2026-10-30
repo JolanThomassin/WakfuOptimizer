@@ -99,7 +99,7 @@ function renderExplain() {
     ${renderTargets(x)}
     <section class="card"><h2>Poids de chaque stat dans le calcul</h2>
       <div class="xweights">${weights}</div>
-      <p class="hint">Points de score par unité (survol : unité) ; 1 point ≈ 1 % de valeur globale. En vert : poids propre à l'archétype.</p></section>
+      <p class="hint">Les stats dont le poids est nul pour ces réglages ne sont pas affichées. En vert : poids propre à l'archétype.</p></section>
     <div class="xgrid">
       <section class="card"><h2>Réglages utilisés par le calcul</h2>
         <table class="xtable">${settings}</table>

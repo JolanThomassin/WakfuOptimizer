@@ -33,7 +33,7 @@ def initial_point(opts: OptimizeOptions) -> dict[str, float]:
     L = opts.level
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
-            "res": 3.0 * L, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "res_short": 0.0, "will": 0.0,
+            "res": 3.0 * L, "block": 10.0, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "res_short": 0.0, "will": 0.0,
             "crit_short": 0.0, "range_neg": 0.0}
 
 
@@ -48,7 +48,7 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
         "mtot": float(mtot), "crit": float(crit), "crit_mastery": float(s["crit_mastery"] if opts.crit else 0),
         "rear_mastery": float(s["rear_mastery"] if rear else 0), "dmg_pct": float(s["dmg_pct"]),
         "hp": float(s["hp"]), "hp_pct": float(s["hp_pct"]),
-        "res": float(sum(capped) / 4),
+        "res": float(sum(capped) / 4), "block": float(max(0, min(100, s["block"]))),
         "ap": float(s["ap"]), "mp": float(s["mp"]), "range": float(s["range"]), "wp": float(s["wp"]),
         "lock": float(s["lock"]), "dodge": float(s["dodge"]),
         "will": float(max(WILL_FLOOR, min(WILL_CAP, s["willpower"]))),
@@ -81,6 +81,11 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
     f["dmg_pct"] = bm.stat("dmg_pct")
     f["hp"] = bm.stat("hp")
     f["hp_pct"] = bm.stat("hp_pct")
+    if opts.offense_weight < 100:   # Parade : dégâts subis en moins, plafonnée à 100 %
+        blk = m.NewIntVar(-BIG, 100, "block_cap")
+        m.AddMinEquality(blk, [bm.stat("block"), 100])
+        f["block"] = m.NewIntVar(0, 100, "block")
+        m.AddMaxEquality(f["block"], [blk, 0])
     capped = []
     cap = res_cap(opts)   # au-delà du maximum voulu, la résistance ne rapporte plus rien
     for e in ELEMENTS:
