@@ -29,7 +29,7 @@ from .features import BIG, initial_point
 from .model import BuildModel
 from .options import Build, OptimizeOptions
 from .scoring import gradient, res_need, res_pct
-from .shards import CRIT_TO_ELEM
+from .shards import CRIT_TO_ELEM, condition_label, needs_stats
 from .stats import Totals, evaluate
 from .sublimations import fill_empty_subs
 
@@ -169,6 +169,13 @@ class Optimizer:
         """Options corrigées (changements signalés dans `res.warnings`) et items candidats."""
         opts = self.opts
         res.warnings.extend(opts.normalize())   # min > max, % hors bornes : corrigés et signalés
+        if opts.offense_weight <= 0:   # tank : imposer une sublimation de dégâts à conditions déforme tout le build
+            for sid in opts.forced_subs:
+                st = self.data.states.get(sid)
+                if st and any(e.stat in (CRIT_TO_ELEM, "crit_rate", "dmg_pct") and needs_stats(e.condition) for e in st.effects):
+                    res.warnings.append(f"Sublimation imposée « {st.name} » : sans intérêt pour cet archétype (dégâts "
+                                        f"ignorés), mais ses conditions ({condition_label(st.effects[0].condition)}) "
+                                        "s'imposent au build. Retirez-la dans l'onglet Sublimations.")
         self.progress("Sélection des items candidats…", 0.01)
         cand, warnings = select_candidates(self.data, opts)
         res.warnings.extend(warnings)

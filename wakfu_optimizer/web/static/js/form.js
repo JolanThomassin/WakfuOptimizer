@@ -203,6 +203,7 @@ function refreshVis() {
   const arch = ARCHETYPES[$("#archetype").value];
   const best = classRange() === "best";
   $("#range-box").classList.toggle("hidden", !!(arch && arch.hide_range) || best);
+  $("#elements-box").classList.toggle("hidden", !!(arch && arch.hide_elements));   // tank : dégâts ignorés
   $("#range-note").classList.toggle("hidden", !best);
   $("#rear-box").classList.toggle("hidden", !isOn("rear"));
   updateItemsBadge();
@@ -242,7 +243,8 @@ function applyOptions(o) {
 
 function options() {
   const n = (id) => +$("#" + id).value || 0;
-  const els = [...S.elOrder];
+  const arch = ARCHETYPES[$("#archetype").value];
+  const els = arch && arch.hide_elements ? [] : [...S.elOrder];   // aucun : tous les éléments (sans effet pour un tank)
   return {
     class_key: $("#cls").value, level: n("level"), elements: els, lang: $("#lang").value,
     range: classRange() === "best" ? "best" : segVal("range"), crit: isOn("crit"), rear: isOn("rear"), rear_share: +segVal("rear_share") || 50,

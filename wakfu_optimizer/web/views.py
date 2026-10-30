@@ -34,7 +34,7 @@ from ..engine.explain import explain
 from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min_mp
 from ..engine.report import SLOT_ORDER, build_json, build_text
 from ..engine.scoring import damage_multiplier, removal_factor
-from ..engine.stats import Totals, evaluate
+from ..engine.stats import Totals, evaluate, rescore
 from ..engine.sublimations import SubFamily, build_levels, catalog, condition_failed, sub_alternatives
 
 
@@ -179,20 +179,26 @@ def compare(a: Totals, b: Totals, opts: OptimizeOptions) -> list[dict[str, Any]]
     rows = []
     played = opts.played_elements()
 
-    def add(label: str, stat: str, x: float, y: float, nd: int = 0) -> None:
+    def add(label: str, stat: str, x: float, y: float, nd: int = 0, **change: dict[str, int]) -> None:
+        """`change` : ce qui change dans les stats de `a` pour cette ligne seule (voir stats.rescore) ; sans : pas
+        d'écart de score par ligne (Score, Dégâts)."""
         x, y = (round(x, nd), round(y, nd)) if nd else (int(x), int(y))
         if x != y:
-            rows.append({"label": label, "stat": stat, "old": x, "new": y, "diff": round(y - x, nd) if nd else y - x})
+            pts = round(rescore(a, opts, **change) - a.score, 1) if change else None
+            rows.append({"label": label, "stat": stat, "old": x, "new": y, "diff": round(y - x, nd) if nd else y - x,
+                         "score": pts})
 
     add("Score", "score", a.score, b.score, 1)
     add("Dégâts (×)", "dmg_pct", damage_multiplier(a.d2), damage_multiplier(b.d2), 2)
-    add("PV effectifs", "hp", a.defense / 1e4, b.defense / 1e4)
     for e in played:
-        add(f"Maîtrise {ELEMENT_FR[e]}", e, a.mastery[e], b.mastery[e])
+        add(f"Maîtrise {ELEMENT_FR[e]}", e, a.mastery[e], b.mastery[e], mastery={e: b.mastery[e]})
     for e in ELEMENTS:
-        add(f"Résistance {ELEMENT_FR[e]}", e, a.res_flat[e], b.res_flat[e])
+        add(f"Résistance {ELEMENT_FR[e]}", e, a.res_flat[e], b.res_flat[e], res_flat={e: b.res_flat[e]})
     for k in COMPARE:
-        add(STAT_LABEL.get(k, k), k, a.stats.get(k, 0), b.stats.get(k, 0))
+        # PV : PV de base et % PV ensemble (la ligne montre les PV finaux)
+        keys = ("hp", "hp_pct") if k == "hp" else (k,)
+        add(STAT_LABEL.get(k, k), k, a.stats.get(k, 0), b.stats.get(k, 0),
+            stats={x: b.raw.get(x, 0) for x in keys})
     return rows
 
 

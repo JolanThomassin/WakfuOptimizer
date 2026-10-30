@@ -4,7 +4,8 @@
 // ===================================================================== optimisation
 async function start() {
   const o = options();
-  if (!o.elements.length) { toast("Choisissez au moins un élément."); return; }
+  const arch = ARCHETYPES[o.archetype];
+  if (!o.elements.length && !(arch && arch.hide_elements)) { toast("Choisissez au moins un élément."); return; }   // tank : aucun
   if (!o.allowed_rarities.length) { toast("Choisissez au moins une rareté."); return; }
   S.opts = o;
   $("#go").disabled = true; $("#stop").disabled = false;

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..data.models import ELEMENTS, PROP_EPIC_GEM, PROP_RELIC_GEM, SHARD_SLOTS, Color, GameData, Item, Slot, Sublimation
-from .archetypes import apt_forced, profile_keys
+from .archetypes import apt_forced, apt_profile, profile_keys
 from .backend import cp_model
 from .characteristics import branch_points, char_lines
 from .features import BIG, linear_objective, model_features
@@ -211,6 +211,16 @@ class BuildModel:
         manual = self.opts.char_mode == "manual"
         allowed = profile_keys(self.opts)   # lignes qui ont un sens pour l'archétype (voir archetypes.apt_profile)
         forced = apt_forced(self.opts)      # lignes au maximum d'office (PA en Majeur, % Critique d'un DPS…)
+        # points des lignes imposées : au maximum, dans l'ordre du profil, tant que la branche en a (bas niveau)
+        maxes = {cl.key: cl.max_points for cl in char_lines(game)}
+        forced_pts: dict[str, int] = {}
+        for branch, lines in apt_profile(self.opts).items():
+            left = branch_points(branch, self.L, game)
+            for key in (f"{branch}.{line}" for line in lines):
+                if key in forced and key in maxes:
+                    mx = maxes[key]
+                    forced_pts[key] = n = left if mx is None else min(left, mx)
+                    left -= n
         per_branch: dict[str, list[Any]] = defaultdict(list)
         for cl in char_lines(game):
             pts = branch_points(cl.branch, self.L, game)
@@ -220,8 +230,8 @@ class BuildModel:
             var = self.m.NewIntVar(0, hi, f"c_{cl.key}")
             if manual:
                 self.m.Add(var == max(0, min(hi, int(self.opts.manual_chars.get(cl.key, 0)))))
-            elif cl.key in forced:
-                self.m.Add(var == hi)
+            elif cl.key in forced_pts:
+                self.m.Add(var == min(hi, forced_pts[cl.key]))
             self.v.chars[cl.key] = var
             per_branch[cl.branch].append(var)
             for stat, val in cl.per_point.items():

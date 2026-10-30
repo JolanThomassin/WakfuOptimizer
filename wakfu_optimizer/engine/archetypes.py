@@ -40,6 +40,7 @@ class Archetype:
     crit_bonus: int = 0               # % de critique visé en plus du palier du niveau
     count_conditional: bool = True
     hide_range: bool = False          # la portée n'a pas de sens pour ce rôle (interface)
+    hide_elements: bool = False       # les éléments joués n'ont pas de sens (dégâts ignorés) : pas de choix (interface)
     mins: dict[str, int] = field(default_factory=dict)   # minimums en plus de ceux du niveau (ap, mp, wp)
     utility: dict[str, tuple[float, int]] = field(default_factory=dict)   # PA/PM/PO/PW : (valeur, plafond), voir scoring.UTILITY
     # Tacle / Esquive : (valeur de « niveau » points, plafond en multiples du niveau) ; ces stats montent avec le
@@ -73,7 +74,7 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
                                               ("crit_rate", "Critique"), ("hp", "PV"))),
     Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade et Tacle (compté jusqu'à 4 × le niveau) ; "
               "dégâts ignorés. Aptitudes : Force en PV, Chance en parade et résistances.",
-              "tank", range="melee", hide_range=True, crit=False, res_target=70, res_tol=4, res_free=True,
+              "tank", range="melee", hide_range=True, hide_elements=True, crit=False, res_target=70, res_tol=4, res_free=True,
               offense=0, utility={"mp": (0.05, 6)},   # un tank ne compte ni ses dégâts ni sa Volonté
               per_level={"lock": (0.1, 4)},           # Tacle : retenir les ennemis au contact
               focus=(("hp", "PV"), ("lock", "Tacle"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
@@ -246,8 +247,9 @@ def apt_profile(opts: OptimizeOptions) -> dict[str, list[str]]:
 
 def apt_forced(opts: OptimizeOptions) -> set[str]:
     """Lignes mises au maximum d'office (mode auto), comme le font les joueurs quel que soit le calcul : Résistance
-    élémentaire (si cochée), PA en Majeur, % Critique pour un archétype à palier de critique, Parade pour un tank,
-    Volonté pour un débuff."""
+    élémentaire (si cochée), PA en Majeur, % Critique pour un archétype à palier de critique, Parade et résistances
+    critique / dos pour un tank (sinon, sans effet sur le score, ses points de Chance peuvent finir en Maîtrise
+    critique), Volonté pour un débuff."""
     arch = ARCHETYPES.get(opts.archetype)
     out = {"major.ap"}
     if opts.apt_elem_res:
@@ -255,7 +257,7 @@ def apt_forced(opts: OptimizeOptions) -> set[str]:
     if opts.crit and opts.crit_target:
         out.add("fortune.crit_rate")
     if arch is not None and arch.role == "tank":
-        out.add("fortune.block")
+        out |= {"fortune.block", "fortune.crit_res", "fortune.rear_res"}
     if opts.willpower_weight >= 20:
         out.add("agility.willpower")
     return out & profile_keys(opts)
@@ -300,5 +302,6 @@ def meta_archetypes(levels: list[int]) -> list[dict[str, Any]]:
     return [{"key": a.key, "name": a.name, "desc": a.desc, "role": a.role, "range": a.range, "crit": a.crit,
              "rear": a.rear, "rear_share": a.rear_share, "berserk": a.berserk, "heal": a.heal,
              "res": [a.res_target, a.res_tol], "res_by_level": {lv: res_target(a, lv) for lv in levels}, "offense": a.offense, "will": a.will, "res_free": a.res_free,
-             "crit_floor": a.crit_floor, "hide_range": a.hide_range, "mins": dict(a.mins),
+             "crit_floor": a.crit_floor, "hide_range": a.hide_range,
+             "hide_elements": a.hide_elements, "mins": dict(a.mins),
              "count_conditional": a.count_conditional} for a in ARCHETYPES.values()]

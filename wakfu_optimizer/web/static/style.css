@@ -226,6 +226,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .cmp-table td { padding: 5px 6px; border-bottom: 1px solid #2c2940; }
 .cmp-table td.num { text-align: right; white-space: nowrap; }
 .cmp-table td.d { font-weight: 700; }
+.cmp-table tr.cmp-total td { font-weight: 700; }
 .cmp-head { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
 .note { font-size: 12px; color: #ffcf6e; margin: 4px 0; }
 .loading { padding: 30px; text-align: center; color: var(--muted); }

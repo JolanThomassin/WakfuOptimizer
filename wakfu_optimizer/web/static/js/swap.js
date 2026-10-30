@@ -39,12 +39,22 @@ async function openSwap(slot) {
   }
 }
 
-function showCompare(slot, cur, a) {
-  const rows = a.compare.map((r) => {
-    const better = r.diff > 0;
-    return `<tr><td>${esc(r.label)}</td><td class="num muted">${fmt(r.old)}</td><td class="num">${fmt(r.new)}</td>
-      <td class="num d ${better ? "pos" : "neg"}">${r.diff > 0 ? "+" : ""}${fmt(r.diff)}</td></tr>`;
+// Lignes de comparaison : valeurs, écart, et ce que l'écart de cette stat seule change au score
+// (0 = la stat ne compte pas pour ces réglages, ex. Maîtrise critique sur un tank).
+const CMP_HEAD = `<tr><td></td><td class="num muted">Actuel</td><td class="num muted">Nouveau</td><td class="num muted">Écart</td>
+  <td class="num muted" title="Écart de score dû à cette ligne seule (les autres stats inchangées)">Score</td></tr>`;
+function cmpRows(list) {
+  return list.map((r) => {
+    const sc = r.stat === "score" ? r.diff : r.score;
+    const scTxt = sc == null ? "" : `${sc > 0 ? "+" : ""}${sc.toFixed(1).replace(".", ",")}`;
+    return `<tr class="${r.stat === "score" ? "cmp-total" : ""}"><td>${esc(r.label)}</td><td class="num muted">${fmt(r.old)}</td><td class="num">${fmt(r.new)}</td>
+      <td class="num d ${r.diff > 0 ? "pos" : "neg"}">${r.diff > 0 ? "+" : ""}${fmt(r.diff)}</td>
+      <td class="num d ${sc == null ? "" : pn(sc) || "muted"}">${scTxt}</td></tr>`;
   }).join("");
+}
+
+function showCompare(slot, cur, a) {
+  const rows = cmpRows(a.compare);
   const gains = a.compare.filter((r) => r.diff > 0 && r.stat !== "score").length;
   const losses = a.compare.filter((r) => r.diff < 0 && r.stat !== "score").length;
   $("#dr-compare").innerHTML = `
@@ -52,7 +62,7 @@ function showCompare(slot, cur, a) {
       <div><div class="it-name" style="color:${a.color}">${esc(a.name)}</div><div class="it-sub">à la place de ${esc(cur.name)}</div>${obtain(a)}</div></div>
     <div class="muted" style="font-size:12px">${gains} stat(s) en hausse, ${losses} en baisse. Les châsses et la sublimation de l'emplacement sont conservées.</div>
     ${a.dropped.length ? `<div class="note">⚠ Retire aussi : ${esc(a.dropped.join(", "))} (une seule relique / épique, ou arme à deux mains).</div>` : ""}
-    <table class="cmp-table"><tr><td></td><td class="num muted">Actuel</td><td class="num muted">Nouveau</td><td class="num muted">Écart</td></tr>${rows || `<tr><td colspan="4" class="muted">Aucune différence</td></tr>`}</table>
+    <table class="cmp-table">${CMP_HEAD}${rows || `<tr><td colspan="5" class="muted">Aucune différence</td></tr>`}</table>
     <button class="btn good" id="apply" style="width:100%">Valider le changement</button>`;
   $("#apply").addEventListener("click", async () => {
     try {
@@ -108,14 +118,13 @@ async function openSubSwap(slot, special) {
 }
 
 function showSubCompare(slot, cur, a) {
-  const rows = a.compare.map((r) => `<tr><td>${esc(r.label)}</td><td class="num muted">${fmt(r.old)}</td><td class="num">${fmt(r.new)}</td>
-      <td class="num d ${r.diff > 0 ? "pos" : "neg"}">${r.diff > 0 ? "+" : ""}${fmt(r.diff)}</td></tr>`).join("");
+  const rows = cmpRows(a.compare);
   $("#dr-compare").innerHTML = `
     <div class="cmp-head"><div class="pat-box">${a.id ? patternHtml(a.pattern) : "∅"}</div>
       <div><div class="it-name">${esc(a.name)}</div><div class="it-sub">à la place de ${cur ? esc(cur.name) : "aucune"}</div></div></div>
     ${a.desc ? `<div class="sub-desc">${esc(a.desc)}</div>` : ""}
     ${a.id && !a.modeled ? `<div class="note">Effet non chiffré par l'optimiseur : le score ne reflète pas son intérêt réel.</div>` : ""}
-    <table class="cmp-table"><tr><td></td><td class="num muted">Actuel</td><td class="num muted">Nouveau</td><td class="num muted">Écart</td></tr>${rows || `<tr><td colspan="4" class="muted">Aucune différence chiffrée</td></tr>`}</table>
+    <table class="cmp-table">${CMP_HEAD}${rows || `<tr><td colspan="5" class="muted">Aucune différence chiffrée</td></tr>`}</table>
     <button class="btn good" id="apply" style="width:100%">Valider le changement</button>`;
   $("#apply").addEventListener("click", async () => {
     try {

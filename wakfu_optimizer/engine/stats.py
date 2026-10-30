@@ -53,6 +53,7 @@ class Totals:
     # référence (pour l'icône) : gfx de l'item, couleur de la rune, ligne d'aptitude
     sources: dict[str, list[tuple[str, str, int, str]]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    raw: dict[str, int] = field(default_factory=dict)   # stats avant plafonds (PV de base, % critique brut) : rescore
 
 
 def item_rune_level(item: Item, cap_level: int, rune_reqs: tuple[int, ...]) -> int:
@@ -177,11 +178,8 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     t.stats["crit_rate"] = max(-10, min(100, s["crit_rate"]))
     t.stats["block"] = min(100, s["block"])
 
-    m = elem_mastery_used([(t.mastery[e], w) for e, w in opts.element_weights()])
-    sec = secondary_mastery(s["melee_mastery"], s["distance_mastery"], opts.range)
-    mtot = m + sec + (s["berserk_mastery"] if opts.berserk else 0) + (s["heal_mastery"] if opts.heal else 0)
+    mtot, crit = _mastery_crit(s, t.mastery, opts)
     t.mastery_used = mtot
-    crit = max(0, min(100, s["crit_rate"])) if opts.crit else 0
     t.crit_used = crit
     t.d2 = damage_d2(mtot, crit, s["crit_mastery"] if opts.crit else 0,
                      s["rear_mastery"] if opts.rear and not opts.heal else 0,
@@ -193,4 +191,25 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     t.features = evaluator_features(s, t.res_flat, mtot, crit, opts)
     t.score = log_score(t.features, opts)
     t.sources = dict(src)
+    t.raw = dict(s)
     return t
+
+
+def _mastery_crit(s: dict[str, int], mastery: dict[str, int], opts: OptimizeOptions) -> tuple[int, int]:
+    """Maîtrise utile (élémentaire + portée + berserk / soin) et % critique compté."""
+    m = elem_mastery_used([(mastery[e], w) for e, w in opts.element_weights()])
+    sec = secondary_mastery(s["melee_mastery"], s["distance_mastery"], opts.range)
+    mtot = m + sec + (s["berserk_mastery"] if opts.berserk else 0) + (s["heal_mastery"] if opts.heal else 0)
+    return mtot, max(0, min(100, s["crit_rate"])) if opts.crit else 0
+
+
+def rescore(t: Totals, opts: OptimizeOptions, stats: dict[str, int] | None = None,
+            mastery: dict[str, int] | None = None, res_flat: dict[str, int] | None = None) -> float:
+    """Score de `t` si seules quelques stats (brutes), maîtrises ou résistances par élément changeaient :
+    ce que rapporte une ligne de la comparaison d'items, toutes choses égales par ailleurs."""
+    s = defaultdict(int, t.raw)
+    s.update(stats or {})
+    m = {**t.mastery, **(mastery or {})}
+    r = {**t.res_flat, **(res_flat or {})}
+    mtot, crit = _mastery_crit(s, m, opts)
+    return log_score(evaluator_features(s, r, mtot, crit, opts), opts)

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from ..data.models import PROP_EPIC_GEM, PROP_RELIC_GEM, GameData, Item, Slot, Sublimation
 from .options import Build, OptimizeOptions
-from .shards import pattern_offsets, static_condition
+from .shards import needs_stats, pattern_offsets, static_condition
 from .stats import Totals, evaluate
 
 
@@ -172,9 +172,11 @@ def fill_empty_subs(data: GameData, opts: OptimizeOptions, build: Build) -> tupl
             if not special and not ch.shards:
                 continue
             options, _ = sub_alternatives(data, opts, build, slot, special)
+            # sans gain, pas de sublimation qui impose une condition au build (Dénouement, Ambition, Pilier…)
             usable = [o for o in options if o.sub is not None and o.delta >= -1e-6
                       and (st := data.states.get(o.sub.state_id)) is not None and st.modeled
                       and (st.confirmed or not opts.confirmed_subs_only)
+                      and (o.delta > 0.01 or not any(needs_stats(e.condition) for e in st.effects))
                       and not condition_failed(o.totals, st.name)]
             if usable:
                 best = usable[0]   # triées par gain décroissant
