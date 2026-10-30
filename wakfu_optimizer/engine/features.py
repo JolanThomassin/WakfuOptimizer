@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..data.models import ELEMENTS
 from .options import OptimizeOptions
-from .scoring import WILL_CAP, WILL_FLOOR, crit_short, res_cap, res_need, utility_table
+from .scoring import DECAYING, WILL_CAP, WILL_FLOOR, crit_short, decayed, res_cap, res_need, utility_table
 
 if TYPE_CHECKING:
     from .model import BuildModel
@@ -43,7 +43,8 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
     """Variables du score d'un build, à partir de ses stats totales `s` (voir stats.evaluate)."""
     capped = [min(res_flat[e], res_cap(opts)) for e in ELEMENTS]
     rear = opts.rear and not opts.heal
-    return {
+    util = utility_table(opts)
+    out = {
         "mtot": float(mtot), "crit": float(crit), "crit_mastery": float(s["crit_mastery"] if opts.crit else 0),
         "rear_mastery": float(s["rear_mastery"] if rear else 0), "dmg_pct": float(s["dmg_pct"]),
         "hp": float(s["hp"]), "hp_pct": float(s["hp_pct"]),
@@ -55,6 +56,9 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
         "crit_short": crit_short(s["crit_rate"], opts),
         "range_neg": float(max(0, -s["range"])),
     }
+    for k in DECAYING:   # rendement décroissant : chaque point vaut moins que le précédent
+        out[k] = decayed(s[k], util[k][1])
+    return out
 
 
 # =====================================================================  solveur (variables linéaires)
@@ -111,6 +115,13 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
         pos = m.NewIntVar(0, max(0, cap), f"pos_{stat}")
         m.AddMaxEquality(pos, [capped_u, 0])
         f[stat] = pos
+        if stat in DECAYING and cap > 0:
+            # cap × decayed(pos), concave : sous chaque segment (exact en entiers, l'objectif le pousse vers le haut)
+            top = round(cap * decayed(cap, cap))
+            eff = m.NewIntVar(0, top, f"dec_{stat}")
+            for j in range(cap):
+                m.Add(eff <= round(cap * decayed(j, cap)) + (cap - j) * (pos - j))
+            f[stat] = (eff, cap)   # variable et diviseur (voir linear_objective)
     return f
 
 
@@ -119,6 +130,9 @@ def linear_objective(feat: dict[str, Any], grad: dict[str, float]) -> Any:
     terms = []
     for k, var in feat.items():
         g = grad.get("res", 0.0) / 4 if k == "res4" else grad.get(k, 0.0)
+        if isinstance(var, tuple):   # (variable entière, diviseur) : variable du score = var / diviseur
+            var, div = var
+            g /= div
         c = int(round(g * LIN_SCALE))
         if c:
             terms.append(c * var)
