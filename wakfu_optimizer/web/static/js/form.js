@@ -27,10 +27,10 @@ function buildForm() {
     // min ≤ max : la valeur qu'on vient de changer fait bouger l'autre (max 0 = pas de limite)
     const mn = $(`#min_${k}`), mx = $(`#max_${k}`);
     mn.addEventListener("change", () => {
-      if (+mx.value && +mn.value > +mx.value) { mx.value = mn.value; toast(`${label} max relevé à ${mn.value} (il était sous le min).`); }
+      if (+mx.value && +mn.value > +mx.value) { mx.value = mn.value; toast(`${label} : max relevé à ${mn.value} (il était sous le min).`); }
     });
     mx.addEventListener("change", () => {
-      if (+mx.value && +mx.value < +mn.value) { mn.value = mx.value; toast(`${label} min baissé à ${mx.value} (il dépassait le max).`); }
+      if (+mx.value && +mx.value < +mn.value) { mn.value = mx.value; toast(`${label} : min baissé à ${mx.value} (il dépassait le max).`); }
     });
   }
   const ss = $("#shard-steps");
@@ -84,7 +84,7 @@ function buildForm() {
     if (Object.keys(S.weights).length) { S.weights = {}; updateWeightsBadge(); toast("Poids modifiés remis à ceux du nouvel archétype."); }
     applyArchetype($("#archetype").value, curClass());
     renderPresets();
-    toast(`Archétype « ${ARCHETYPES[$("#archetype").value].name} » appliqué.`);
+    toast(`Archétype appliqué : ${ARCHETYPES[$("#archetype").value].name}.`);
   });
   $$("[data-panel]").forEach((cb) => cb.addEventListener("change", () => {
     setPanel(cb.dataset.panel, cb.checked);
@@ -114,7 +114,7 @@ function renderArchetypes(c, value) {
   const recs = classArchs(c);
   const opt = (k, rec) => `<option value="${k}" class="${rec ? "rec" : "other"}">${rec ? "★ " : ""}${esc(ARCHETYPES[k].name)}</option>`;
   const others = Object.keys(ARCHETYPES).filter((k) => !recs.includes(k));
-  $("#archetype").innerHTML = `<optgroup label="Habituels pour ${esc(c ? c.name : "la classe")}">${recs.map((k) => opt(k, true)).join("")}</optgroup>`
+  $("#archetype").innerHTML = `<optgroup label="${c ? `Habituels (${esc(c.name)})` : "Habituels pour la classe"}">${recs.map((k) => opt(k, true)).join("")}</optgroup>`
     + `<optgroup label="Autres archétypes">${others.map((k) => opt(k, false)).join("")}</optgroup>`;
   $("#archetype").value = ARCHETYPES[value] ? value : recs[0];
   $("#archetype").classList.toggle("rec", recs.includes($("#archetype").value));
@@ -218,8 +218,7 @@ function applyOptions(o) {
   set("cls", o.class_key);
   const lv = S.meta.levels.map((l) => l.level).filter((l) => l >= o.level).pop() ?? S.meta.levels[0].level;
   set("level", lv);
-  set("lang", savedLang() || o.lang || "fr");
-  renderLang();
+  useLang(savedLang() || o.lang || "fr");
   setElements(o.elements || []);
   setSeg("range", o.range || "melee");
   toggleBtn($("#crit"), o.crit); toggleBtn($("#rear"), o.rear); toggleBtn($("#berserk"), o.berserk); toggleBtn($("#heal"), o.heal);

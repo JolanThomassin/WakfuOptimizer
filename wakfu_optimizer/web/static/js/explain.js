@@ -11,17 +11,17 @@ function renderTargets(x) {
   let resWhy;
   if (r.mine) resWhy = "Votre réglage (panneau Priorités activé).";
   else if (r.lowered) resWhy = `L'archétype vise ${r.wanted} % à ce niveau, impossible ici : visée abaissée au maximum atteignable.`;
-  else if (r.free) resWhy = `Un ${arch} vise ${r.full} % à tout niveau, et la résistance compte encore au-delà.`;
-  else if (r.scaled && x.level < r.full_level) resWhy = `Les dégâts reçus montent avec le niveau : un ${arch} vise ${r.target} % au niveau ${x.level}, `
+  else if (r.free) resWhy = `<b>${arch}</b> : vise ${r.full} % à tout niveau, et la résistance compte encore au-delà.`;
+  else if (r.scaled && x.level < r.full_level) resWhy = `Les dégâts reçus montent avec le niveau : <b>${arch}</b> vise ${r.target} % au niveau ${x.level}, `
     + `${r.full} % à partir du niveau ${r.full_level}.`;
-  else resWhy = `Un ${arch} vise ${r.target} % à partir du niveau ${r.full_level}.`;
+  else resWhy = `<b>${arch}</b> : vise ${r.target} % à partir du niveau ${r.full_level}.`;
   const resTiles = r.elements.map((e) => `<div class="xtile ${e.ok ? "ok" : "bad"}" style="--ec:var(--${e.key})" title="${fmt(e.flat)} de résistance fixe">
       ${icon(`${e.key}_res`, `Résistance ${e.name}`)}<span class="xtn">${esc(e.name)}</span><b>${pctFr(e.pct)}</b>
       <span class="xtbar"><span style="width:${Math.min(100, (100 * e.pct) / Math.max(1, r.target)).toFixed(0)}%"></span></span>
       <small class="muted">${e.ok ? "✓" : `✗ ${r.floor - e.pct} % manquant${r.floor - e.pct > 1 ? "s" : ""}`}</small></div>`).join("");
   const res = r.target ? `<div class="xtarget">
       <h3>${icon("elem_res", "Résistances")} Résistances : au moins ${pctFr(r.floor)} sur chaque élément <span class="muted">(${pctFr(r.target)} visé, ± ${r.tol})</span></h3>
-      <p class="hint">${resWhy} Sous ${pctFr(r.floor)}, chaque point de résistance manquant coûte au score ; entre ${pctFr(r.floor)} et ${pctFr(r.target)}, aucun malus${r.free ? "."
+      <p class="hint"><span>${resWhy}</span> Sous ${pctFr(r.floor)}, chaque point de résistance manquant coûte au score ; entre ${pctFr(r.floor)} et ${pctFr(r.target)}, aucun malus${r.free ? "."
         : ` ; au-delà de ${pctFr(r.floor)}, la résistance ne rapporte plus rien : le reste part dans les autres stats${x.weights.some((w) => w.stat === "dmg_pct" && w.pts >= 0.95) ? " (ici, les maîtrises)" : ""}.`}</p>
       <div class="xtiles">${resTiles}</div></div>`
     : `<div class="xtarget"><h3>${icon("elem_res", "Résistances")} Résistances : aucune visée</h3></div>`;
@@ -82,7 +82,7 @@ function renderExplain() {
   <div class="explain">
     <section class="card xhead">
       <div><h2>${esc(x.archetype.name)} ${x.archetype.recommended ? '<span class="src-tag rec">★ habituel pour la classe</span>' : '<span class="src-tag warnt">peu joué avec cette classe</span>'}</h2>
-        <p class="muted els">${esc(x.class)} niveau ${x.level} · ${x.element_keys.map((e) => icon(e, EL_FR[e])).join("")}</p>
+        <p class="muted els">${esc(x.class)} · Niveau ${x.level} · ${x.element_keys.map((e) => icon(e, EL_FR[e])).join("")}</p>
         <div class="xfocus"><span class="muted">Priorité :</span>${(x.archetype.focus || []).map((f, i) =>
           `${i ? `<span class="muted">›</span>` : ""}<span class="xw boost">${icon(f.stat, f.label)}<span>${esc(f.label)}</span></span>`).join("")}</div></div>
       <div class="xpanels">${panels}</div>

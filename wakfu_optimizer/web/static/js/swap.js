@@ -59,9 +59,9 @@ function showCompare(slot, cur, a) {
   const losses = a.compare.filter((r) => r.diff < 0 && r.stat !== "score").length;
   $("#dr-compare").innerHTML = `
     <div class="cmp-head"><img class="it-icon" src="${iconUrl(a.gfx)}" alt="">
-      <div><div class="it-name" style="color:${a.color}">${esc(a.name)}</div><div class="it-sub">à la place de ${esc(cur.name)}</div>${obtain(a)}</div></div>
+      <div><div class="it-name" style="color:${a.color}">${esc(a.name)}</div><div class="it-sub">à la place de <span>${esc(cur.name)}</span></div>${obtain(a)}</div></div>
     <div class="muted" style="font-size:12px">${gains} stat(s) en hausse, ${losses} en baisse. Les châsses et la sublimation de l'emplacement sont conservées.</div>
-    ${a.dropped.length ? `<div class="note">⚠ Retire aussi : ${esc(a.dropped.join(", "))} (une seule relique / épique, ou arme à deux mains).</div>` : ""}
+    ${a.dropped.length ? `<div class="note">⚠ Retire aussi : <b>${esc(a.dropped.join(", "))}</b> (une seule relique / épique, ou arme à deux mains).</div>` : ""}
     <table class="cmp-table">${CMP_HEAD}${rows || `<tr><td colspan="5" class="muted">Aucune différence</td></tr>`}</table>
     <button class="btn good" id="apply" style="width:100%">Valider le changement</button>`;
   $("#apply").addEventListener("click", async () => {

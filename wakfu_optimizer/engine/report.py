@@ -117,7 +117,7 @@ def build_text(data: GameData, opts: OptimizeOptions, build: Build, totals: Tota
                 by_branch.setdefault(branch, []).append(f"{LINE_FR.get(line, line)} {n}")
         for branch in ("intelligence", "strength", "agility", "fortune", "major"):
             if branch in by_branch:
-                L.append(f"  {BRANCH_FR.get(branch, branch) + ' :':<14}" + " · ".join(by_branch[branch]))
+                L.append(f"  {BRANCH_FR.get(branch, branch) + ' :':<15} " + " · ".join(by_branch[branch]))
 
     L += ["", "─" * WIDTH, f"  Généré avec Wakfu Optimizer · {SITE_URL}", f"  Données du jeu {data.version}"]
     return "\n".join(L)

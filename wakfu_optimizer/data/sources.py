@@ -18,48 +18,63 @@ log = logging.getLogger(__name__)
 SOURCES_FILE = "sources"   # version précalculée livrée avec le site (tools/build_site.py)
 WIKI_SEARCH = "https://wakfu.wiki.gg/index.php?search="
 
-Crafts = dict[int, dict[str, Any]]
+# {"recipes": {id d'item: {"job": id du métier, "level": niveau, "ingredients": [[id d'ingrédient, quantité], ...]}},
+#  "names": {id d'ingrédient: {langue: nom}}, "jobs": {id du métier: {langue: nom}}} (clés en texte, comme en JSON)
+Crafts = dict[str, dict[str, Any]]
 
 
-def _title(entry: dict[str, Any], lang: str = "fr") -> str:
-    t = entry.get("title") or {}
-    return str(t.get(lang) or t.get("fr") or "")
+def _titles(entry: dict[str, Any]) -> dict[str, str]:
+    return {k: str(v) for k, v in (entry.get("title") or {}).items() if v}
 
 
 def compute_crafts(bundle: DataBundle) -> Crafts:
-    """item_id -> {"job": nom du métier, "level": niveau, "ingredients": [[nom, quantité], ...]}."""
     recipes = {int(r["id"]): r for r in bundle.load("recipes")}  # type: ignore[union-attr]
-    jobs = {int(c["definition"]["id"]): _title(c) for c in bundle.load("recipeCategories")}  # type: ignore[union-attr]
-    names: dict[int, str] = {}
+    jobs = {str(c["definition"]["id"]): _titles(c) for c in bundle.load("recipeCategories")}  # type: ignore[union-attr]
+    names: dict[str, dict[str, str]] = {}
     for t in ("items", "jobsItems"):
         for e in bundle.load(t):  # type: ignore[union-attr]
             d = e["definition"]
-            names[int((d.get("item") or d)["id"])] = _title(e)
-    ingredients: dict[int, list[tuple[int, str, int]]] = {}
+            names[str((d.get("item") or d)["id"])] = _titles(e)
+    ingredients: dict[int, list[tuple[int, int, int]]] = {}
     for g in bundle.load("recipeIngredients"):  # type: ignore[union-attr]
-        ingredients.setdefault(int(g["recipeId"]), []).append(
-            (int(g.get("ingredientOrder", 0)), names.get(int(g["itemId"]), f"#{g['itemId']}"), int(g["quantity"])))
-    out: Crafts = {}
+        ingredients.setdefault(int(g["recipeId"]), []).append((int(g.get("ingredientOrder", 0)), int(g["itemId"]), int(g["quantity"])))
+    out: dict[str, Any] = {}
     for res in bundle.load("recipeResults"):  # type: ignore[union-attr]
-        iid, rid = int(res["productedItemId"]), int(res["recipeId"])
+        iid, rid = str(res["productedItemId"]), int(res["recipeId"])
         r = recipes.get(rid)
         if r is None or iid in out:
             continue
-        out[iid] = {"job": jobs.get(int(r["categoryId"]), "Artisanat"), "level": int(r.get("level", 0)),
-                    "ingredients": [[n, q] for _, n, q in sorted(ingredients.get(rid, []))]}
-    return out
+        out[iid] = {"job": str(r["categoryId"]), "level": int(r.get("level", 0)),
+                    "ingredients": [[i, q] for _, i, q in sorted(ingredients.get(rid, []))]}
+    return {"recipes": out, "names": names, "jobs": jobs}
 
 
 def load_crafts(bundle: DataBundle, keep: set[int] | None = None) -> Crafts:
     """Recettes : fichier précalculé s'il existe (site), sinon calculées depuis le cache."""
     try:
         if bundle.path(SOURCES_FILE).is_file():
-            return {int(k): v for k, v in bundle.load(SOURCES_FILE).items()}  # type: ignore[union-attr]
+            crafts: Any = bundle.load(SOURCES_FILE)
+            if "recipes" in crafts:   # ancien format (noms en français seulement) : on recalcule
+                return crafts  # type: ignore[no-any-return]
         crafts = compute_crafts(bundle)
     except (OSError, ValueError, KeyError) as exc:
         log.warning("Recettes indisponibles : %s", exc)
         return {}
-    return {k: v for k, v in crafts.items() if keep is None or k in keep}
+    recipes = {k: v for k, v in crafts["recipes"].items() if keep is None or int(k) in keep}
+    used = {str(i) for r in recipes.values() for i, _ in r["ingredients"]}
+    return {"recipes": recipes, "names": {k: v for k, v in crafts["names"].items() if k in used},
+            "jobs": {k: v for k, v in crafts["jobs"].items() if any(r["job"] == k for r in recipes.values())}}
+
+
+def craft_of(crafts: Crafts, item_id: int, lang: str) -> dict[str, Any] | None:
+    """Recette d'un item dans la langue voulue : {"job", "level", "ingredients": [[nom, quantité], ...]}."""
+    r = (crafts.get("recipes") or {}).get(str(item_id))
+    if r is None:
+        return None
+    pick = lambda t, fb: t.get(lang) or t.get("fr") or fb  # noqa: E731
+    names = crafts.get("names") or {}
+    return {"job": pick((crafts.get("jobs") or {}).get(r["job"], {}), "Artisanat"), "level": r["level"],
+            "ingredients": [[pick(names.get(str(i), {}), f"#{i}"), q] for i, q in r["ingredients"]]}
 
 
 def wiki_url(names: dict[str, str]) -> str:
@@ -68,4 +83,4 @@ def wiki_url(names: dict[str, str]) -> str:
 
 
 def dump_crafts(crafts: Crafts) -> str:
-    return json.dumps({str(k): v for k, v in crafts.items()}, ensure_ascii=False, separators=(",", ":"))
+    return json.dumps(crafts, ensure_ascii=False, separators=(",", ":"))

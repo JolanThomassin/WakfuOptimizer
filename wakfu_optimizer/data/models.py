@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -289,3 +290,15 @@ class GameData:
         if "subs" not in self._cache:
             self._cache["subs"] = {s.id: s for s in self.sublimations}
         return self._cache["subs"]  # type: ignore[return-value]
+
+    def state_name(self, state_id: int, lang: str = "fr") -> str:
+        """Nom d'un état de sublimation : en français celui de sublimations.yaml, sinon celui de la sublimation (sans « II »)."""
+        st = self.states.get(state_id)
+        fr = st.name if st else f"#{state_id}"
+        if lang == "fr":
+            return fr
+        if "state_subs" not in self._cache:
+            self._cache["state_subs"] = {s.state_id: s for s in self.sublimations}
+        subs: dict[int, Sublimation] = self._cache["state_subs"]  # type: ignore[assignment]
+        sub = subs.get(state_id)
+        return re.sub(r"\s+[IVX]+$", "", sub.name(lang)) if sub else fr

@@ -623,6 +623,12 @@ body.side-collapsed .sidebar { opacity: 0; padding: 0; border: none; overflow: h
 .switch input:focus-visible + .sl { outline: 2px solid var(--accent); outline-offset: 2px; }
 .switch .sw-txt::after { content: "Archétype"; }
 .switch input:checked ~ .sw-txt::after { content: "Activé"; color: var(--accent); }
+body[data-lang="en"] .switch .sw-txt::after { content: "Archetype"; }
+body[data-lang="en"] .switch input:checked ~ .sw-txt::after { content: "On"; }
+body[data-lang="es"] .switch .sw-txt::after { content: "Arquetipo"; }
+body[data-lang="es"] .switch input:checked ~ .sw-txt::after { content: "Activado"; }
+body[data-lang="pt"] .switch .sw-txt::after { content: "Arquétipo"; }
+body[data-lang="pt"] .switch input:checked ~ .sw-txt::after { content: "Ativado"; }
 
 /* ----- onglet Explication */
 .tab:disabled { opacity: .45; cursor: not-allowed; }

@@ -20,6 +20,7 @@ interface et messages de commit en français.
 | L'onglet Explication | `engine/explain.py` (Python) + `web/static/js/explain.js` |
 | Une réponse JSON de l'interface | `web/views.py` ; nouvelle requête : une ligne dans `ROUTES` (marche en local et en ligne) |
 | L'interface | `web/static/js/<onglet>.js`, `index.html`, `style.css` |
+| Une traduction (EN / ES / PT) d'un texte affiché | `web/static/js/i18n_dict.js` ; effets de sublimations et passifs : `i18n_subs.js` |
 | Les données maintenues à la main | `data/static/game.yaml` (classes, aptitudes, base), `sublimations.yaml`, `actions_map.yaml` |
 
 ## Moteur (`wakfu_optimizer/engine/`)
@@ -47,6 +48,9 @@ finitions (`sublimations.fill_empty_subs`, `characteristics.fill_unspent`) → `
 - `static/js/` : scripts classiques qui partagent la portée globale, chargés dans l'ordre de `index.html`
   (`core.js` d'abord : `$`, `api`, état `S` ; `main.js` en dernier : démarrage). Un nouveau fichier = une balise
   `<script>` dans `index.html` (`tools/build_site.py` versionne toutes les balises `static/...`).
+- `static/js/i18n.js` : langue du site (drapeaux). Le code et le serveur écrivent en français ; chaque texte affiché
+  est traduit à la volée par sa clé française (nombres → `{0}`). Nouveau texte : ajouter sa clé dans `i18n_dict.js`
+  (mode debug, en anglais : `[...UI.miss]` dans la console liste les textes sans traduction).
 - `gui/` : ancienne interface Qt (PySide6), plus utilisée par le lanceur ; seuls `gui/assets/` (icônes) servent au site.
 
 ## Vérifier un changement

@@ -97,57 +97,6 @@ $("#sfx-btn").addEventListener("click", () => {
 });
 renderSfxBtn();
 
-// ===================================================================== langue des items (drapeaux de l'en-tête)
-// Les noms d'items, de runes et de sublimations viennent des données Ankama dans ces quatre langues ; l'interface reste
-// en français. Le choix est gardé dans le navigateur et envoyé au calcul (option `lang`).
-const LANGS = {
-  fr: { name: "Français", flag: `<rect width="1" height="2" fill="#0055a4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ef4135"/>` },
-  en: { name: "English", flag: `<rect width="3" height="2" fill="#012169"/><path d="M0,0L3,2M3,0L0,2" stroke="#fff" stroke-width=".4"/>
-    <path d="M0,0L3,2M3,0L0,2" stroke="#c8102e" stroke-width=".14"/><path d="M1.5,0V2M0,1H3" stroke="#fff" stroke-width=".6"/>
-    <path d="M1.5,0V2M0,1H3" stroke="#c8102e" stroke-width=".34"/>` },
-  es: { name: "Español", flag: `<rect width="3" height="2" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/>` },
-  pt: { name: "Português", flag: `<rect width="3" height="2" fill="#da291c"/><rect width="1.2" height="2" fill="#046a38"/>
-    <circle cx="1.2" cy="1" r=".42" fill="#ffe900"/><circle cx="1.2" cy="1" r=".24" fill="#da291c"/>` },
-};
-const flagSvg = (l) => `<svg class="flag" viewBox="0 0 3 2" aria-hidden="true">${LANGS[l].flag}</svg>`;
-function savedLang() {
-  try { const l = localStorage.getItem("wakfu-optimizer:lang"); return LANGS[l] ? l : null; } catch (e) { return null; }
-}
-function renderLang() {
-  const l = LANGS[$("#lang").value] ? $("#lang").value : "fr";
-  $("#lang-btn").innerHTML = flagSvg(l);
-  $("#lang-btn").title = `Langue des items : ${LANGS[l].name} (clic pour changer)`;
-  $("#lang-menu").innerHTML = Object.keys(LANGS).map((k) =>
-    `<button type="button" data-lang="${k}" class="${k === l ? "on" : ""}">${flagSvg(k)}<span>${LANGS[k].name}</span></button>`).join("");
-  document.documentElement.lang = l;
-}
-async function setLang(l) {
-  $("#lang-menu").classList.add("hidden");
-  if (l === $("#lang").value) return;
-  $("#lang").value = l;
-  try { localStorage.setItem("wakfu-optimizer:lang", l); } catch (e) { /* sans effet */ }
-  renderLang();
-  sfx("click");
-  // noms déjà affichés : on les redemande dans la nouvelle langue
-  IT.cache = {}; subsCache = null;
-  if (S.opts) S.opts.lang = l;
-  if (S.view && S.opts) {
-    try {
-      const same = S.original === S.view;
-      S.view = await api("/api/view", { opts: S.opts, build: S.view.build });
-      if (same) S.original = S.view;
-      else if (S.original) S.original = await api("/api/view", { opts: S.opts, build: S.original.build });
-      renderResult();
-    } catch (e) { /* sans effet */ }
-  }
-  if (!$("#tab-items").classList.contains("hidden")) { loadItemsTab(); renderPicked(); }
-  if (!$("#tab-subs").classList.contains("hidden")) loadSubs();
-}
-$("#lang-btn").addEventListener("click", (e) => { e.stopPropagation(); $("#lang-menu").classList.toggle("hidden"); });
-$("#lang-menu").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
-document.addEventListener("click", (e) => { if (!e.target.closest(".lang-pick")) $("#lang-menu").classList.add("hidden"); });
-renderLang();
-
 // ===================================================================== mode debug
 // Désactivé par défaut : les onglets Poids et Explication (outils de réglage du calcul) n'apparaissent qu'en mode debug.
 let DEBUG = false;

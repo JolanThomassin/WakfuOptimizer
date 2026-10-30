@@ -14,8 +14,8 @@
   <div class="top-right">
     <span id="version" class="muted"></span>
     <div class="lang-pick">
-      <button id="lang-btn" class="btn ghost small flag-btn" type="button" title="Langue des items"></button>
-      <div id="lang-menu" class="lang-menu hidden"></div>
+      <button id="lang-btn" class="btn ghost small flag-btn" type="button" title="Langue"></button>
+      <div id="lang-menu" class="lang-menu hidden notranslate"></div>
     </div>
     <button id="sfx-btn" class="btn ghost small" title="Sons activés (clic pour couper)">🔊</button>
     <button id="reload" class="btn ghost small" title="Retélécharger les données Ankama">Mettre à jour les données</button>
@@ -255,6 +255,9 @@
 <div id="toast" class="toast hidden"></div>
 <!-- Interface : scripts classiques qui partagent la portée globale, dans cet ordre (main.js en dernier) -->
 <script src="static/js/core.js"></script>
+<script src="static/js/i18n_dict.js"></script>
+<script src="static/js/i18n_subs.js"></script>
+<script src="static/js/i18n.js"></script>
 <script src="static/js/form.js"></script>
 <script src="static/js/run.js"></script>
 <script src="static/js/result.js"></script>

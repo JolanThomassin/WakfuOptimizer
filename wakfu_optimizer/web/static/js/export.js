@@ -52,6 +52,7 @@ async function exportPng(v) {
     c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
   const box = (x, y, w, h, fill = "#232130", stroke = "#3a3650", r = 12) => { rr(x, y, w, h, r); c.fillStyle = fill; c.fill(); c.strokeStyle = stroke; c.lineWidth = 1; c.stroke(); };
   const text = (t, x, y, size, color = "#ece9f4", weight = 400, align = "left", maxW = 0) => {
+    t = tr(String(t));
     c.font = font(size, weight); c.fillStyle = color; c.textAlign = align; c.textBaseline = "middle";
     let str = String(t);
     if (maxW) while (str.length > 1 && c.measureText(str).width > maxW) str = str.slice(0, -2) + "…";

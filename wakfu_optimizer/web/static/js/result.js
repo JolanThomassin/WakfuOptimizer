@@ -80,9 +80,9 @@ function renderResult() {
     e.stopPropagation();
     openSubSwap(el.dataset.subslot, el.dataset.special === "1");
   }));
-  $("#copy").addEventListener("click", () => navigator.clipboard.writeText(v.text).then(() => toast("Build copié.")));
+  $("#copy").addEventListener("click", () => navigator.clipboard.writeText(trColumns(v.text)).then(() => toast("Build copié.")));
   $("#export-txt").addEventListener("click", () => {
-    download(new Blob([v.text], { type: "text/plain;charset=utf-8" }), `build_${v.class.key}_${v.level}.txt`);
+    download(new Blob([trColumns(v.text)], { type: "text/plain;charset=utf-8" }), `build_${v.class.key}_${v.level}.txt`);
     toast("Build téléchargé en texte.");
   });
   $("#export-png").addEventListener("click", () => exportPng(v));
@@ -172,7 +172,7 @@ function statChips(it, withEls = true) {
     for (const [v, els] of groups[kind]) {
       const order = ELEMENTS.filter((e) => els.includes(e));
       const what = kind === "res" ? "Résistance" : "Maîtrise";
-      const tip = `${what} ${order.map((e) => EL_FR[e]).join(", ")} : ${signed(v)}`;
+      const tip = `${what} (${order.map((e) => EL_FR[e]).join(", ")}) : ${signed(v)}`;
       const icons = order.map((e) => `<img src="assets/stats/${e}_${kind === "res" ? "res" : "mastery"}.png" alt="">`).join("");
       out.push(`<span class="chip els ${v < 0 ? "neg" : ""}" title="${esc(tip)}"><span class="el-icons">${icons}</span><b>${signed(v)}</b>`
         + ` <span class="lb">${kind === "res" ? "Rés." : "Maîtrise"}</span></span>`);

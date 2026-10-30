@@ -142,7 +142,7 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
             convert.append(st.name)
             return
         for target in effect_targets(e):
-            add(target, e.value(eff_lvl, L), f"Sublimation {st.name} niv. {eff_lvl}", "sub")
+            add(target, e.value(eff_lvl, L), f"Sublimation {data.state_name(st.id, opts.lang)} niv. {eff_lvl}", "sub")
 
     for sid, lvl in state_levels.items():
         st = data.states.get(sid)

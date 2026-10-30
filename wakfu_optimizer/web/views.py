@@ -25,7 +25,7 @@ from ..data.models import (
     Rarity,
     Slot,
 )
-from ..data.sources import Crafts, wiki_url
+from ..data.sources import Crafts, craft_of, wiki_url
 from ..engine.alternatives import alternatives
 from ..engine.archetypes import (ARCHETYPES, PANELS, apply_archetype, archetype_options, class_archetypes, meta_archetypes, preset,
                                  profile_desc)
@@ -90,7 +90,7 @@ def item_brief(data: GameData, it: Item, lang: str, level: int) -> dict[str, Any
         "stats": [{"stat": k, "label": STAT_LABEL.get(k, k), "value": int(st[k])} for k in ITEM_STATS if int(st.get(k, 0))],
         "rand_mastery": [{"value": v, "n": n} for v, n in it.random_mastery],
         "rand_res": [{"value": v, "n": n} for v, n in it.random_resistance],
-        "craft": CRAFTS.get(it.id), "shop": it.is_shop, "wiki": wiki_url(it.names),
+        "craft": craft_of(CRAFTS, it.id, lang), "shop": it.is_shop, "wiki": wiki_url(it.names),
     }
 
 
@@ -156,7 +156,7 @@ def build_view(data: GameData, opts: OptimizeOptions, build: Build, t: Totals | 
     for sid, lvl in t.active_states.items():
         st = data.states.get(sid)
         if st:
-            active.append({"name": st.name, "level": lvl, "desc": st.description, "limit": st.limit,
+            active.append({"name": data.state_name(sid, lang), "level": lvl, "desc": st.description, "limit": st.limit,
                            "raw": raw.get(sid, lvl), "modeled": st.modeled})
     cp = data.classes.get(opts.class_key)
     passive = None
@@ -284,7 +284,7 @@ def search(d: GameData, q: dict[str, list[str]]) -> list[dict[str, Any]]:
 
 
 def family_json(d: GameData, f: SubFamily, lang: str) -> dict[str, Any]:
-    return {"state": f.state_id, "name": f.name, "desc": f.desc, "limit": f.limit, "kind": f.kind,
+    return {"state": f.state_id, "name": d.state_name(f.state_id, lang), "desc": f.desc, "limit": f.limit, "kind": f.kind,
             "modeled": f.modeled, "applicable": f.applicable, "in_build": f.in_build, "gain": f.gain,
             "same_levels": f.same_levels, "confirmed": f.confirmed,
             "levels": [{"id": s.id, "name": s.name(lang), "level": s.state_level, "gfx": s.gfx_id,
