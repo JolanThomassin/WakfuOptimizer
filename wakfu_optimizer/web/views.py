@@ -27,7 +27,7 @@ from ..data.models import (
 )
 from ..data.sources import Crafts, wiki_url
 from ..engine.alternatives import alternatives
-from ..engine.archetypes import (PANELS, apply_archetype, archetype_options, class_archetypes, meta_archetypes, preset,
+from ..engine.archetypes import (ARCHETYPES, PANELS, apply_archetype, archetype_options, class_archetypes, meta_archetypes, preset,
                                  profile_desc)
 from ..engine.characteristics import BRANCH_FR, LINE_FR, char_lines
 from ..engine.explain import explain
@@ -35,6 +35,7 @@ from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min
 from ..engine.report import SLOT_ORDER, build_json, build_text
 from ..engine.scoring import damage_multiplier, removal_factor
 from ..engine.stats import Totals, evaluate, rescore
+from ..engine.weights import weights_view
 from ..engine.sublimations import SubFamily, build_levels, catalog, condition_failed, sub_alternatives
 
 
@@ -330,6 +331,16 @@ def alternatives_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
     return {"slot": slot.value, "slot_name": SLOT_FR[slot], "items": out}
 
 
+def weights_route(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
+    """Onglet Poids : poids de l'archétype et poids utilisés (avec ceux modifiés par l'utilisateur)."""
+    o = dict(body.get("opts", {}))
+    opts = opts_from(o, d)
+    default = opts_from({**o, "custom_weights": {}}, d)
+    out = weights_view(default, opts)
+    out["archetype"] = ARCHETYPES[opts.archetype].name
+    return out
+
+
 def view_route(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
     return build_view(d, opts_from(body.get("opts", {}), d), Build.from_dict(body["build"]))
 
@@ -340,6 +351,7 @@ ROUTES: dict[tuple[str, str], Route] = {
     ("GET", "/api/preset"): lambda d, q, body: preset_view(d, q),
     ("GET", "/api/items"): lambda d, q, body: search(d, q),
     ("POST", "/api/view"): lambda d, q, body: view_route(d, body),
+    ("POST", "/api/weights"): lambda d, q, body: weights_route(d, body),
     ("POST", "/api/alternatives"): lambda d, q, body: alternatives_view(d, body),
     ("POST", "/api/subs"): lambda d, q, body: subs_view(d, body),
     ("POST", "/api/sub_alternatives"): lambda d, q, body: sub_alternatives_view(d, body),

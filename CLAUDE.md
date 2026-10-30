@@ -11,6 +11,7 @@ interface et messages de commit en français.
 | Une formule de jeu, la valeur d'une stat, une pénalité | `engine/scoring.py` (`score_parts`, constantes `*_PENALTY`, `UTILITY`) |
 | Une variable du score (nouvelle stat qui compte) | `engine/features.py` (évaluateur + modèle côte à côte, la checklist est en tête) |
 | Un archétype, ses poids, son profil d'aptitudes | `engine/archetypes.py` (`ARCHETYPES`, `archetype_values`, `apt_profile`, `apt_forced`) |
+| Les poids modifiables (onglet Poids) | `engine/weights.py` (`UTILITY_ROWS`, `apply_custom_weights`) + `web/static/js/weights.js` |
 | Une contrainte du modèle (min / max, règle d'équipement) | `engine/model.py` (`_build` pour les items, `_derived` pour les stats) |
 | Les passes, le temps, le rattrapage de résistance, le diagnostic | `engine/solver.py` |
 | L'élagage des items candidats | `engine/candidates.py` (`item_features` : à tenir à jour avec le score) |

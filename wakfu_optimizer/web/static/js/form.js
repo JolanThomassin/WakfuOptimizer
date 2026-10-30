@@ -81,6 +81,7 @@ function buildForm() {
   buildItemsTab();
   ARCHETYPES = Object.fromEntries(m.archetypes.map((a) => [a.key, a]));
   $("#archetype").addEventListener("change", () => {
+    if (Object.keys(S.weights).length) { S.weights = {}; updateWeightsBadge(); toast("Poids modifiés remis à ceux du nouvel archétype."); }
     applyArchetype($("#archetype").value, curClass());
     renderPresets();
     toast(`Archétype « ${ARCHETYPES[$("#archetype").value].name} » appliqué.`);
@@ -239,7 +240,9 @@ function applyOptions(o) {
   S.apt = Object.assign({}, o.manual_chars || {});
   $("#apt_elem_res").checked = o.apt_elem_res ?? true;
   setSeg("char_mode", o.char_mode || "auto");
+  S.weights = { ...(o.custom_weights || {}) };
   updateSubsBadge();
+  updateWeightsBadge();
   refreshVis();
 }
 
@@ -266,6 +269,6 @@ function options() {
     char_mode: segVal("char_mode"), manual_chars: { ...S.apt },
     excluded_ids: [...S.excluded], forced_ids: [...S.forced],
     shard_count: n("shard_count"), max_jokers: n("max_jokers"),
-    time_limit: n("time_limit") || 180, alternatives: 0,
+    time_limit: n("time_limit") || 180, alternatives: 0, custom_weights: { ...S.weights },
   };
 }

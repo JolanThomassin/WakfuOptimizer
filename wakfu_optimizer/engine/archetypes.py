@@ -17,6 +17,7 @@ from typing import Any
 from ..data.models import GameData, Rarity
 from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import OptimizeOptions, default_min_ap, default_min_mp
+from .weights import apply_custom_weights
 
 
 @dataclass(frozen=True)
@@ -191,6 +192,7 @@ def apply_archetype(opts: OptimizeOptions, data: GameData, panels_off: tuple[str
         setattr(opts, f, vals[f])
     if not opts.crit:
         opts.crit_target = 0
+    apply_custom_weights(opts)   # poids modifiés dans l'onglet Poids
     if cls and cls.range == "best":   # Roublard : la meilleure maîtrise compte, quelle que soit la portée choisie
         opts.range = "best"
     return opts

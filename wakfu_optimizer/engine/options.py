@@ -46,6 +46,7 @@ class OptimizeOptions:
     crit_target: int = 0                 # % critique visé (archétypes DPS) : chaque % manquant coûte au score
     will_min: int = 0                    # Volonté minimum (tank) : chaque point manquant coûte au score
     utility: dict[str, list[float]] = field(default_factory=dict)   # PA/PM/PO/PW : [valeur, plafond] propres à l'archétype
+    custom_weights: dict[str, Any] = field(default_factory=dict)   # poids saisis dans l'onglet Poids (engine/weights.py)
     custom_panels: tuple[str, ...] = ()  # panneaux activés dans l'interface (priorities, constraints, subs), pour mémoire
     res_max: int = 90                    # obsolète (remplacé par res_target / res_tol)
     balance_res: bool = True             # obsolète : les résistances sont toujours équilibrées (gardé pour les anciens réglages)
