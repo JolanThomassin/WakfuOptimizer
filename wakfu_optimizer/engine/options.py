@@ -37,6 +37,7 @@ class OptimizeOptions:
     rear_share: int = 50                 # % des frappes de dos si « rear »
     berserk: bool = False
     heal: bool = False
+    heal_share: int = 100                # % de l'attaque comptée en soins si « heal » (le reste : dégâts) ; 50 = hybride
     offense_weight: int = 85             # 0..100 ; défense = 100 - offense (fixe : la défense passe par res_target)
     res_target: int = 50                 # % de résistance visé sur chaque élément ; au-delà, elle ne rapporte plus rien
     res_tol: int = 5                     # écart max sous la cible (%) : dans l'écart, aucun malus de score

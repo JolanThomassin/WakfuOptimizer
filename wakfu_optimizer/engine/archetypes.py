@@ -32,7 +32,8 @@ class Archetype:
     rear_share: int = 50
     berserk: bool = False
     heal: bool = False
-    res_target: int = 65              # % de résistance visé à haut niveau (plus bas avant : voir res_target)
+    heal_share: int = 50              # % de l'attaque comptée en soins si « soin » (aussi coché à la main sur un DPS)
+    res_target: int = 65             # % de résistance visé à haut niveau (plus bas avant : voir res_target)
     res_tol: int = 5
     res_free: bool = False            # la résistance compte encore au-delà de la cible (tank)
     offense: int = 85                 # poids de l'attaque (la défense prend le reste)
@@ -90,8 +91,16 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
                          "dodge": (0.04, 9)},          # Esquive : se dégager, un peu moins que le Tacle
               focus=(("hp", "PV"), ("lock", "Tacle"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
-              "heal", heal=True, offense=80, crit_floor=True,
+              "heal", heal=True, heal_share=100, offense=80, crit_floor=True,
               focus=(("heal_mastery", "Maîtrise soin"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
+    # Moitié dégâts, moitié soins (scoring.ln_offense) : maîtrises élémentaire, de portée et critique servent aux deux,
+    # Maîtrise soin et % Soins réalisés aux soins, % Dommages infligés aux dégâts.
+    Archetype("dps_heal", "DPS soigneur", "Dégâts et soins à parts égales (Ecaflip, Eniripsa…) : les maîtrises "
+              "élémentaire, de portée et critique servent aux deux ; la Maîtrise soin et le % Soins réalisés aux soins "
+              "seulement, le % Dommages infligés aux dégâts seulement.", "heal", heal=True, heal_share=50,
+              crit_floor=True,
+              focus=(("heal_mastery", "Maîtrise soin"), ("crit_mastery", "Maîtrise critique"), ("crit_rate", "Critique"),
+                     ("ap", "PA"))),
     Archetype("support_buff", "Support buff", "Boosts / placement : PA, PM, PW et survie avant les dégâts. "
               "(Armure donnée non chiffrée.)", "support", crit=False, res_target=67, offense=60,
               mins={"ap": 11, "mp": 5, "wp": 8}, utility={"mp": (0.04, 6), "wp": (0.015, 14)},
@@ -101,7 +110,7 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     # PA d'abord (plus de sorts de soin et de boost par tour), puis la puissance des soins (poids 45 seulement).
     Archetype("support_heal", "Support soin", "Soigneur et booster (Zobal…) : PA avant tout (plus de soins et de "
               "boosts par tour), PM, PW et survie, puis Maîtrise soin et élémentaire ; les maîtrises mêlée et "
-              "distance ne comptent qu'à moitié (on soigne à toutes les distances).", "support", heal=True,
+              "distance ne comptent qu'à moitié (on soigne à toutes les distances).", "support", heal=True, heal_share=100,
               range="mixed", hide_range=True, res_target=67, offense=45, mins={"ap": 11, "mp": 5},
               utility={"ap": (0.1, 14), "mp": (0.04, 6), "wp": (0.015, 14)},
               focus=(("ap", "PA"), ("heal_mastery", "Maîtrise soin"), ("mp", "PM"), ("wp", "PW"), ("elem_res", "Résistances"))),
@@ -118,7 +127,7 @@ CONSTRAINT_FIELDS = ("min_ap", "min_mp", "min_range", "min_wp", "min_crit", "min
                      "exclude_relic", "exclude_epic", "exclude_shop", "include_pet_mount")
 SUB_FIELDS = ("shard_mode", "shard_count", "max_jokers", "no_subs", "confirmed_subs_only", "count_conditional")
 # Toujours ceux de l'archétype (pas réglables dans l'interface)
-WEIGHT_FIELDS = ("offense_weight", "res_free", "willpower_weight", "will_min", "crit_target", "utility")
+WEIGHT_FIELDS = ("offense_weight", "heal_share", "res_free", "willpower_weight", "will_min", "crit_target", "utility")
 PANELS = {"priorities": PRIORITY_FIELDS, "constraints": CONSTRAINT_FIELDS, "subs": SUB_FIELDS}
 
 
@@ -167,7 +176,7 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
         "heal": arch.heal, "res_target": res_target(arch, level), "res_tol": arch.res_tol,
         "count_conditional": arch.count_conditional,
         # poids
-        "offense_weight": arch.offense, "res_free": arch.res_free, "willpower_weight": arch.will,
+        "offense_weight": arch.offense, "heal_share": arch.heal_share, "res_free": arch.res_free, "willpower_weight": arch.will,
         "will_min": arch.will_min,
         "crit_target": crit_target(level, arch.crit_bonus) if arch.crit_floor and arch.crit else 0,
         "utility": {**{k: [v, cap] for k, (v, cap) in arch.utility.items()},
@@ -319,7 +328,7 @@ def preset(data: GameData, archetype: str, class_key: str, level: int) -> dict[s
 def meta_archetypes(levels: list[int]) -> list[dict[str, Any]]:
     """Archétypes pour l'interface (ordre d'affichage). `res_by_level` : résistance visée à chaque niveau proposé."""
     return [{"key": a.key, "name": a.name, "desc": a.desc, "role": a.role, "range": a.range, "crit": a.crit,
-             "rear": a.rear, "rear_share": a.rear_share, "berserk": a.berserk, "heal": a.heal,
+             "rear": a.rear, "rear_share": a.rear_share, "berserk": a.berserk, "heal": a.heal, "heal_share": a.heal_share,
              "res": [a.res_target, a.res_tol], "res_by_level": {lv: res_target(a, lv) for lv in levels}, "offense": a.offense, "will": a.will, "res_free": a.res_free,
              "crit_floor": a.crit_floor, "hide_range": a.hide_range,
              "hide_elements": a.hide_elements, "mins": dict(a.mins),

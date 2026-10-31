@@ -4,7 +4,7 @@ Les poids sont affichés et saisis en points de score (1 point ≈ 1 % de valeur
 étant 1 point (PA, PM…) ou 100 points (Tacle, Esquive). En interne, l'utilité est une fraction de la valeur globale
 par point de stat (scoring.utility_table) : conversion ici, dans les deux sens.
 
-custom_weights : {"offense_weight": 30, "willpower_weight": 0, "will_min": 10, "crit_target": 40,
+custom_weights : {"offense_weight": 30, "heal_share": 50, "willpower_weight": 0, "will_min": 10, "crit_target": 40,
                   "utility.<stat>": [points par unité, maximum]}
 """
 
@@ -27,7 +27,7 @@ UTILITY_ROWS: tuple[tuple[str, str, int, str], ...] = (
     ("crit_res", "Résistance critique", 1, "Moins de dégâts subis sur les coups critiques."),
     ("rear_res", "Résistance dos", 1, "Moins de dégâts subis de dos."),
 )
-SCALARS = ("offense_weight", "willpower_weight", "will_min", "crit_target")   # entiers de 0 à 100
+SCALARS = ("offense_weight", "heal_share", "willpower_weight", "will_min", "crit_target")   # entiers de 0 à 100
 
 
 def apply_custom_weights(opts: OptimizeOptions) -> None:
@@ -59,6 +59,7 @@ def weights_view(default: OptimizeOptions, opts: OptimizeOptions) -> dict[str, A
                      "def_pts": round(100 * unit * du[stat][0], 2), "def_cap": int(du[stat][1])})
     return {
         "offense": {"value": opts.offense_weight, "default": default.offense_weight},
+        "heal": {"enabled": opts.heal, "share": opts.heal_share, "def_share": default.heal_share},
         "block_reduction": BLOCK_REDUCTION,
         "utility": rows,
         "will": {"weight": opts.willpower_weight, "def_weight": default.willpower_weight,

@@ -3,7 +3,7 @@
 
 // ===================================================================== aptitudes
 const PRESET_ICON = { dps_distance: "distance_mastery", dps_melee: "melee_mastery", dps_mixed: "elemental_damage", dps_rear: "rear_mastery",
-  berserk: "berserk_mastery", tank: "elemental_resistance", heal: "healing_mastery", support_buff: "action_points", support_debuff: "force_of_will" };
+  berserk: "berserk_mastery", tank: "elemental_resistance", heal: "healing_mastery", dps_heal: "healing_mastery", support_buff: "action_points", support_debuff: "force_of_will" };
 // Aptitudes rapides : la répartition type de chaque archétype ; ceux de la classe en tête, l'archétype choisi mis en avant.
 function renderPresets() {
   if (!$("#apt-presets") || !S.meta || !Object.keys(ARCHETYPES).length) return;

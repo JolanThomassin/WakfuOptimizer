@@ -134,7 +134,8 @@ def check_build(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals
             f"{LINE_FR[mine]} {s.get(mine, 0)} contre {LINE_FR[other]} {s.get(other, 0)}")
     for flag, stat, lab in (("rear", "rear_mastery", "Maîtrise Dos"), ("berserk", "berserk_mastery", "Maîtrise Berserk"),
                             ("heal", "heal_mastery", "Maîtrise Soin")):
-        if getattr(opts, flag) and not no_sec:
+        # hybride dégâts / soins : la Maîtrise Soin ne compte que pour les soins, s'en passer peut être le bon choix
+        if getattr(opts, flag) and not no_sec and not (flag == "heal" and opts.heal_share < 100):
             add(f"{flag}_mastery", f"{lab} présente", s.get(stat, 0) > 0, f"{s.get(stat, 0)}")
     return out
 

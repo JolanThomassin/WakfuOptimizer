@@ -72,8 +72,10 @@ function renderWeights() {
   if (!w) return;
   const off = wVal("offense_weight", w.offense.default), def = 100 - off;
   const offMod = "offense_weight" in S.weights;
+  const healT = wVal("heal_share", w.heal.def_share), h = w.heal.enabled ? healT / 100 : 0;
   const derived = [
-    ["dmg_pct", "Dégâts", off / 100, "par % de dégâts en plus"],
+    ["dmg_pct", "Dégâts", (off / 100) * (1 - h), "par % de dégâts en plus"],
+    ...(w.heal.enabled ? [["heal_mastery", "Soins", (off / 100) * h, "par % de soins en plus"]] : []),
     ["hp", "PV", def / 100, "par % de PV en plus"],
     ["elem_res", "Résistances", def / 100, "par % de dégâts subis en moins"],
     ["block", "Parade", (def / 100) * w.block_reduction, `par % de Parade (coup paré : −${Math.round(100 * w.block_reduction)} % de dégâts)`],
@@ -111,8 +113,12 @@ function renderWeights() {
     </section>
 
     <section class="card">
-      <h2>Volonté et critique</h2>
+      <h2>Volonté, critique et soins</h2>
       <div class="w-grid">
+        ${scalarCard("heal_share", "heal_mastery", "Part des soins",
+          w.heal.enabled ? "Part de l'attaque comptée en soins (Maîtrise soin, % Soins réalisés), le reste en dégâts. 100 : soigneur, 50 : hybride."
+            : "Les soins ne comptent pas pour ces réglages (priorités).",
+          healT, w.heal.def_share, "Soins (%)", `${w.heal.def_share} %`, !w.heal.enabled)}
         ${scalarCard("willpower_weight", "willpower", "Volonté (retraits infligés)",
           "Retraits de PA / PM sur les ennemis : environ poids / 100 point de score par point de Volonté.",
           willW, will.def_weight, "Poids", will.def_weight ? `${will.def_weight}` : "ne compte pas")}
@@ -155,7 +161,7 @@ function bindWeights() {
     cur[+inp.dataset.part] = Math.max(0, +inp.value || 0);
     setWeight(r.key, cur, [r.def_pts, r.def_cap]);
   }));
-  const defs = { willpower_weight: w.will.def_weight, will_min: w.will.def_min, crit_target: w.crit.def_target };
+  const defs = { heal_share: w.heal.def_share, willpower_weight: w.will.def_weight, will_min: w.will.def_min, crit_target: w.crit.def_target };
   $$("#tab-weights [data-ws]").forEach((inp) => inp.addEventListener("change", () =>
     setWeight(inp.dataset.ws, Math.max(0, Math.min(100, Math.round(+inp.value || 0))), defs[inp.dataset.ws])));
   $$("#tab-weights [data-wreset]").forEach((b) => b.addEventListener("click", () => {

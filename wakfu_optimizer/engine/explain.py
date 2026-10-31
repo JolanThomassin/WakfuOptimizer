@@ -16,7 +16,7 @@ from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions
 from .quality import check_build
 from .scoring import (WILL_SHORT_PENALTY, BLOCK_REDUCTION, DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, SEC_RES_NEG_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
-                      decayed, secondary_mastery, utility_table)
+                      decayed, heal_share, secondary_mastery, utility_table)
 from .stats import Totals, evaluate
 
 FEATURE_FR = {"offense": "Dégâts", "defense": "Survie (PV effectifs)", "ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW", "lock": "Tacle", "dodge": "Esquive",
@@ -49,6 +49,8 @@ def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
         ("Maîtrise critique", "+100", gain(crit_mastery=f["crit_mastery"] + 100) if opts.crit else 0.0),
         ("Maîtrise dos", "+100", gain(rear_mastery=f["rear_mastery"] + 100) if opts.rear and not opts.heal else 0.0),
         ("% Dommages infligés", "+10 %", gain(dmg_pct=f["dmg_pct"] + 10)),
+        ("Maîtrise soin", "+100", gain(heal_mastery=f["heal_mastery"] + 100) if opts.heal else 0.0),
+        ("% Soins réalisés", "+10 %", gain(heal_pct=f["heal_pct"] + 10) if opts.heal else 0.0),
         ("Points de vie (fixes)", "+1 000", gain(hp=f["hp"] + 1000)),
         ("% Points de vie", "+10 %", gain(hp_pct=f["hp_pct"] + 10)),
         ("Résistance élémentaire", "+100 (4 él.)", gain(**res_plus(100))),
@@ -128,9 +130,13 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
     arch_util = set(arch.utility) if arch else set()
     focus = {k for k, _ in arch.focus} if arch else set()
     weights = []   # points de score par unité (1 point ≈ 1 % de valeur globale) ; en vert : stat privilégiée par l'archétype
-    if opts.offense_weight:
-        weights.append({"stat": "dmg_pct", "label": "Dégâts", "pts": opts.offense_weight / 100, "unit": "par % de dégâts en plus",
-                        "boosted": arch is not None and arch.role in ("dps", "heal")})
+    h = heal_share(opts)
+    if opts.offense_weight and h < 1:
+        weights.append({"stat": "dmg_pct", "label": "Dégâts", "pts": round(opts.offense_weight * (1 - h) / 100, 2),
+                        "unit": "par % de dégâts en plus", "boosted": arch is not None and arch.role == "dps"})
+    if opts.offense_weight and h > 0:
+        weights.append({"stat": "heal_mastery", "label": "Soins", "pts": round(opts.offense_weight * h / 100, 2),
+                        "unit": "par % de soins en plus", "boosted": arch is not None and arch.role == "heal"})
     if opts.offense_weight < 100:
         d = round((100 - opts.offense_weight) / 100, 2)
         weights.append({"stat": "hp", "label": "PV", "pts": d, "unit": "par % de PV en plus", "boosted": "hp" in focus})

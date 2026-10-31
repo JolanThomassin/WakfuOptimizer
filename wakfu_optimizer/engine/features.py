@@ -33,7 +33,7 @@ def initial_point(opts: OptimizeOptions) -> dict[str, float]:
     """Point de départ réaliste pour la première linéarisation."""
     L = opts.level
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
-            "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
+            "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "heal_mastery": 0.0, "heal_pct": 0.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
             "res": 3.0 * L, "block": 10.0, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "crit_res": 0.0, "rear_res": 0.0, "res_short": 0.0, "will": 0.0, "will_short": 0.0,
             "crit_short": 0.0, "range_neg": 0.0, "sec_res_neg": 0.0}
 
@@ -48,6 +48,7 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
     out = {
         "mtot": float(mtot), "crit": float(crit), "crit_mastery": float(s["crit_mastery"] if opts.crit else 0),
         "rear_mastery": float(s["rear_mastery"] if rear else 0), "dmg_pct": float(s["dmg_pct"]),
+        "heal_mastery": float(s["heal_mastery"] if opts.heal else 0), "heal_pct": float(s["heal_pct"] if opts.heal else 0),
         "hp": float(s["hp"]), "hp_pct": float(s["hp_pct"]),
         "res": float(sum(capped) / 4), "block": float(max(0, min(100, s["block"]))),
         "ap": float(s["ap"]), "mp": float(s["mp"]), "range": float(s["range"]), "wp": float(s["wp"]),
@@ -82,6 +83,9 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
     if opts.rear and not opts.heal:
         f["rear_mastery"] = bm.stat("rear_mastery")
     f["dmg_pct"] = bm.stat("dmg_pct")
+    if opts.heal:   # soins : mtot + Maîtrise Soin, % Soins réalisés (scoring.ln_offense)
+        f["heal_mastery"] = bm.stat("heal_mastery")
+        f["heal_pct"] = bm.stat("heal_pct")
     f["hp"] = bm.stat("hp")
     f["hp_pct"] = bm.stat("hp_pct")
     if opts.offense_weight < 100:   # Parade : dégâts subis en moins, plafonnée à 100 %

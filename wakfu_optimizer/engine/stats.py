@@ -216,9 +216,9 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     t.stats["block"] = min(100, s["block"])
 
     mtot, crit = _mastery_crit(s, t.mastery, opts)
-    t.mastery_used = mtot
+    t.mastery_used = mtot + (s["heal_mastery"] if opts.heal else 0)
     t.crit_used = crit
-    t.d2 = damage_d2(mtot, crit, s["crit_mastery"] if opts.crit else 0,
+    t.d2 = damage_d2(t.mastery_used, crit, s["crit_mastery"] if opts.crit else 0,
                      s["rear_mastery"] if opts.rear and not opts.heal else 0,
                      opts.rear_share if opts.rear and not opts.heal else 0, s["dmg_pct"])
     gs = [ehp_factor(t.res_flat[e]) for e in ELEMENTS]
@@ -233,10 +233,10 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
 
 
 def _mastery_crit(s: dict[str, int], mastery: dict[str, int], opts: OptimizeOptions) -> tuple[int, int]:
-    """Maîtrise utile (élémentaire + portée + berserk / soin) et % critique compté."""
+    """Maîtrise des dégâts (élémentaire + portée + berserk ; les soins y ajoutent la Maîtrise Soin) et % critique compté."""
     m = elem_mastery_used([(mastery[e], w) for e, w in opts.element_weights()])
     sec = secondary_mastery(s["melee_mastery"], s["distance_mastery"], opts.range)
-    mtot = m + sec + (s["berserk_mastery"] if opts.berserk else 0) + (s["heal_mastery"] if opts.heal else 0)
+    mtot = m + sec + (s["berserk_mastery"] if opts.berserk else 0)
     return mtot, max(0, min(100, s["crit_rate"])) if opts.crit else 0
 
 

@@ -42,7 +42,7 @@ from typing import Any
 
 from ..data.models import ELEMENTS, PROP_EPIC_GEM, PROP_RELIC_GEM, SHARD_SLOTS, Color, GameData, Slot, Sublimation
 from .options import SECONDARY_MASTERIES, Build, OptimizeOptions, ShardChoice
-from .scoring import ln_damage, ln_defense
+from .scoring import ln_defense, ln_offense
 from .shards import COND_FR, STAT_COND_FR, color_matches, needs_stats, parse_stat_condition, pattern_offsets, rune_fits, static_condition
 from .stats import Prepared, Totals, evaluate, item_rune_level, prepare
 
@@ -328,9 +328,7 @@ class Forge:
         """Objectif seul (score, dégâts ou survie), sans garde-fous : pour les gains, solos et synergies affichés."""
         f, o = t.features, self.opts
         if self.p.objective == "damage":
-            rear = o.rear and not o.heal
-            v = 100 * ln_damage(f["mtot"], f["crit"], f["crit_mastery"], f["rear_mastery"],
-                                float(o.rear_share) if rear else 0.0, f["dmg_pct"])
+            v = 100 * ln_offense(f, o)   # dégâts, ou soins (soigneur), ou les deux (hybride)
         elif self.p.objective == "survival":
             v = 100 * ln_defense(f["hp"], f["hp_pct"], f["res"], f.get("block", 0.0))
         else:

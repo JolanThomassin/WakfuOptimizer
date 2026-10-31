@@ -81,8 +81,9 @@ def defense_value(hp_base: int, hp_pct: int, ehp_g: int) -> int:
 
 
 # =====================================================================  score logarithmique
-# Le solveur maximise   w_off × ln(dégâts) + w_def × ln(PV effectifs) + 100 × utilité
+# Le solveur maximise   w_off × ln(attaque) + w_def × ln(PV effectifs) + 100 × utilité
 # (w_off + w_def = 100). 1 point de score ≈ 1 % de valeur globale : +1 % de dégâts vaut w_off / 100.
+# ln(attaque) = (1 − h) × ln(dégâts) + h × ln(soins), h = part des soins (heal_share : 0, 1 soigneur, 0,5 hybride).
 LN_RES = -math.log(0.8) / 100         # ln(PV effectifs) gagné par point de résistance fixe
 RES_CAP_FLAT = 1032                   # résistance fixe donnant 90 % (au-delà : inutile)
 BLOCK_REDUCTION = 0.2                 # un coup paré fait 20 % de dégâts en moins : dégâts subis × (1 − 0,2 × % Parade)
@@ -141,6 +142,28 @@ def ln_damage(mtot: float, crit: float, crit_mastery: float, rear_mastery: float
     return math.log(max(1e-3, b)) + math.log(max(1.0, 100 + dmg_pct))
 
 
+def heal_share(opts: object) -> float:
+    """Part de l'attaque comptée en soins, de 0 à 1 : 1 pour un soigneur, 0,5 pour un hybride dégâts / soins."""
+    if not getattr(opts, "heal", False):
+        return 0.0
+    return max(0, min(100, int(getattr(opts, "heal_share", 100)))) / 100
+
+
+def ln_offense(f: dict[str, float], opts: object) -> float:
+    """ln de la puissance d'attaque : dégâts et soins, pondérés par heal_share. Un soin suit la formule d'un coup :
+    mêmes maîtrises plus la Maîtrise Soin, même critique, % Soins réalisés au lieu de % Dommages infligés, pas de dos."""
+    h = heal_share(opts)
+    out = 0.0
+    if h < 1:
+        rear = bool(getattr(opts, "rear", False)) and not getattr(opts, "heal", False)
+        out += (1 - h) * ln_damage(f["mtot"], f["crit"], f["crit_mastery"], f["rear_mastery"],
+                                   float(getattr(opts, "rear_share", 0)) if rear else 0.0, f["dmg_pct"])
+    if h > 0:
+        out += h * ln_damage(f["mtot"] + f.get("heal_mastery", 0.0), f["crit"], f["crit_mastery"], 0.0, 0.0,
+                             f.get("heal_pct", 0.0))
+    return out
+
+
 def ln_defense(hp: float, hp_pct: float, res: float, block: float = 0.0) -> float:
     """ln(PV effectifs) : PV, % PV, résistance, et Parade (moins de dégâts subis en moyenne)."""
     b = max(0.0, min(100.0, block)) / 100
@@ -151,11 +174,13 @@ def ln_defense(hp: float, hp_pct: float, res: float, block: float = 0.0) -> floa
 # Variables du score : nom -> pas des différences centrées (gradient). Chacune est calculée exactement par
 # l'évaluateur et modélisée linéairement par le solveur : voir features.py (les deux côtés sont dans ce fichier).
 FEATURES: dict[str, float] = {
-    "mtot": 5.0,          # maîtrise utilisée (élémentaire la plus faible + portée + berserk / soin)
+    "mtot": 5.0,          # maîtrise des dégâts (élémentaire la plus faible + portée + berserk)
     "crit": 0.5,          # % critique, plafonné à 100 (0 si le critique ne compte pas)
     "crit_mastery": 5.0,
     "rear_mastery": 5.0,  # seulement si « dos » (et pas soigneur)
     "dmg_pct": 0.5,
+    "heal_mastery": 5.0,  # seulement si « soin » : s'ajoute à mtot pour les soins (ln_offense)
+    "heal_pct": 0.5,      # % Soins réalisés, seulement si « soin »
     "hp": 5.0,            # PV fixes (avant % PV)
     "hp_pct": 0.5,
     "res": 5.0,           # résistance fixe moyenne des quatre éléments, plafonnée (scoring.res_cap)
@@ -186,9 +211,7 @@ def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
     w_off = max(0, min(100, int(getattr(opts, "offense_weight", 70))))
     out: dict[str, float] = {}
     if w_off:
-        rear = bool(getattr(opts, "rear", False)) and not getattr(opts, "heal", False)
-        out["offense"] = w_off * ln_damage(f["mtot"], f["crit"], f["crit_mastery"], f["rear_mastery"],
-                                           float(getattr(opts, "rear_share", 0)) if rear else 0.0, f["dmg_pct"])
+        out["offense"] = w_off * ln_offense(f, opts)
     if w_off < 100:
         out["defense"] = (100 - w_off) * ln_defense(f["hp"], f["hp_pct"], f["res"], f.get("block", 0.0))
     for k, (v, cap) in utility_table(opts).items():

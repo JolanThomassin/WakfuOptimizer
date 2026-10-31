@@ -508,8 +508,6 @@ class BuildModel:
             mtot_expr = mmin
         if opts.berserk:
             mtot_expr += self.stat("berserk_mastery")
-        if opts.heal:
-            mtot_expr += self.stat("heal_mastery")
         self.mtot = m.NewIntVar(-BIG, BIG, "M_tot")
         if opts.range == "mixed":
             # moyenne mêlée / distance, arrondie à l'inférieur comme dans stats.secondary_mastery
