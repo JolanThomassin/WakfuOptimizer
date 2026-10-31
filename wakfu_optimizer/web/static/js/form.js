@@ -140,10 +140,13 @@ const archRes = (a) => (a.res_by_level && a.res_by_level[+$("#level").value]) ??
 function resetConstraints(a) {
   const lv = S.meta.levels.find((x) => x.level === +$("#level").value);
   $("#min_ap").value = Math.max(lv ? lv.min_ap : 0, (a.mins && a.mins.ap) || 0);
-  $("#min_mp").value = Math.max(lv ? lv.min_mp : 0, (a.mins && a.mins.mp) || 0);
+  $("#min_mp").value = Math.max((lv ? lv.min_mp : 0) + (a.mp_extra || 0), (a.mins && a.mins.mp) || 0);
   $("#min_wp").value = (a.mins && a.mins.wp) || 0;
+  // PO minimum à distance (archetypes.min_range) : au plus 1 sous min_range_level
+  const po = a.min_range || 0;
+  $("#min_range").value = segVal("range") === "melee" ? 0 : +$("#level").value >= S.meta.min_range_level ? po : Math.min(1, po);
   if (isPanelOn("constraints")) return;   // le reste est à vous quand le panneau est activé
-  ["min_range", "min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block"].forEach((k) => { $("#" + k).value = 0; });
+  ["min_crit", "min_block", "max_ap", "max_mp", "max_range", "max_wp", "max_crit", "max_block"].forEach((k) => { $("#" + k).value = 0; });
   $$("#rarities .toggle").forEach((b) => toggleBtn(b, true));
   $("#lower").checked = false; $("#no_relic").checked = false; $("#no_epic").checked = false;
   $("#no_shop").checked = true; $("#pets").checked = true;

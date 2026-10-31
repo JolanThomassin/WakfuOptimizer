@@ -15,7 +15,7 @@ SECONDARY_MASTERIES = ("melee_mastery", "distance_mastery", "rear_mastery", "ber
 
 
 def default_min_ap(level: int) -> int:
-    return 11 if level >= 171 else 10 if level >= 96 else 8 if level >= 36 else 6
+    return 12 if level >= 200 else 11 if level >= 171 else 10 if level >= 96 else 8 if level >= 36 else 6
 
 
 def default_min_mp(level: int) -> int:

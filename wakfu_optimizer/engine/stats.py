@@ -79,8 +79,8 @@ class Prepared:
 
 
 def prepare(data: GameData, opts: OptimizeOptions, build: Build) -> Prepared:
-    """Première moitié d'evaluate : à calculer une fois pour évaluer beaucoup de jeux de sublimations sur les mêmes items
-    (onglet Build sombre, engine/combos.py)."""
+    """Première moitié d'evaluate (items, runes, aptitudes) : à calculer une fois pour évaluer beaucoup de jeux de
+    sublimations sur les mêmes items (evaluate(prepared=…))."""
     items = data.item_by_id()
     runes = data.rune_by_id()
     subs = data.sub_by_id()

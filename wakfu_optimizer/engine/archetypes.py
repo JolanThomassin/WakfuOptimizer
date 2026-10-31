@@ -45,6 +45,8 @@ class Archetype:
     hide_range: bool = False          # la portée n'a pas de sens pour ce rôle (interface)
     hide_elements: bool = False       # les éléments joués n'ont pas de sens (dégâts ignorés) : pas de choix (interface)
     mins: dict[str, int] = field(default_factory=dict)   # minimums en plus de ceux du niveau (ap, mp, wp)
+    mp_extra: int = 0                 # PM en plus du minimum du niveau (mêlée : on va au contact, 6 PM au niveau 200)
+    min_range: int = 0                # PO minimum à distance (au plus 1 sous le niveau MIN_RANGE_LEVEL)
     utility: dict[str, tuple[float, int]] = field(default_factory=dict)   # PA/PM/PO/PW : (valeur, plafond), voir scoring.UTILITY
     # Tacle / Esquive : (valeur de « niveau » points, plafond en multiples du niveau) ; ces stats montent avec le
     # niveau, la valeur d'un point aussi (ex. (0.1, 4) au niveau 65 : jusqu'à 260 de Tacle, 0,1 % par 65 points)
@@ -55,7 +57,7 @@ class Archetype:
 
 ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     Archetype("dps_melee", "DPS mêlée", "Dégâts au corps-à-corps : Maîtrise mêlée et critique, et de bonnes résistances "
-              "(au contact, on encaisse).", "dps", range="melee", res_target=70, crit_floor=True,
+              "(au contact, on encaisse).", "dps", range="melee", res_target=70, crit_floor=True, mp_extra=1,
               per_level={"lock": (0.02, 6), "dodge": (0.015, 6)},
               focus=(("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
     # attaque à 97 : une fois le plancher de résistance atteint (pénalité res_short), tout part dans les maîtrises.
@@ -63,18 +65,18 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     Archetype("dps_distance", "DPS distance", "Dégâts à distance : assez de résistances pour le niveau, puis tout "
               "dans les maîtrises (distance, élémentaire), beaucoup de critique et un peu de portée ; les PM "
               "comptent moins (on joue de loin).", "dps", range="distance",
-              offense=97, crit_floor=True, crit_bonus=10, utility={"mp": (0.012, 5)},
+              offense=97, crit_floor=True, crit_bonus=10, min_range=2, utility={"mp": (0.012, 5)},
               focus=(("distance_mastery", "Maîtrise distance"), ("crit_rate", "Critique"), ("ap", "PA"), ("range", "Portée"))),
     Archetype("dps_mixed", "DPS mixte", "Frappe au contact comme à distance (Huppermage, Eliotrope…).",
               "dps", range="mixed", crit_floor=True,
               focus=(("elem_mastery", "Maîtrise élémentaire"), ("crit_rate", "Critique"), ("ap", "PA"))),
     Archetype("dps_rear", "DPS dos", "Coups dans le dos (Sram) : Maîtrise dos prioritaire, avec de bonnes résistances "
               "(au contact, on encaisse).", "dps", range="melee", rear=True, rear_share=80, res_target=70,
-              offense=88, crit_floor=True, per_level={"lock": (0.02, 6), "dodge": (0.015, 6)},
+              offense=88, crit_floor=True, mp_extra=1, per_level={"lock": (0.02, 6), "dodge": (0.015, 6)},
               focus=(("rear_mastery", "Maîtrise dos"), ("melee_mastery", "Maîtrise mêlée"), ("crit_rate", "Critique"),
                      ("elem_res", "Résistances"))),
     Archetype("berserk", "Berserk", "Joue à bas PV (Sacrieur) : Maîtrise berserk, résistances un peu plus basses.",
-              "dps", range="melee", berserk=True, res_target=60, offense=88, crit_floor=True,
+              "dps", range="melee", berserk=True, res_target=60, offense=88, crit_floor=True, mp_extra=1,
               count_conditional=False, per_level={"lock": (0.02, 6), "dodge": (0.015, 6)}, focus=(("berserk_mastery", "Maîtrise berserk"), ("melee_mastery", "Maîtrise mêlée"),
                                               ("crit_rate", "Critique"), ("hp", "PV"))),
     Archetype("tank", "Tank", "Survie d'abord : résistances (même au-delà de la cible), PV, parade, Tacle et "
@@ -91,14 +93,14 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
                          "dodge": (0.04, 9)},          # Esquive : se dégager, un peu moins que le Tacle
               focus=(("hp", "PV"), ("lock", "Tacle"), ("mp", "PM"), ("elem_res", "Résistances"), ("block", "Parade"))),
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
-              "heal", heal=True, heal_share=100, offense=80, crit_floor=True,
+              "heal", heal=True, heal_share=100, offense=80, crit_floor=True, min_range=1,
               focus=(("heal_mastery", "Maîtrise soin"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
     # Moitié dégâts, moitié soins (scoring.ln_offense) : maîtrises élémentaire, de portée et critique servent aux deux,
     # Maîtrise soin et % Soins réalisés aux soins, % Dommages infligés aux dégâts.
     Archetype("dps_heal", "DPS soigneur", "Dégâts et soins à parts égales (Ecaflip, Eniripsa…) : les maîtrises "
               "élémentaire, de portée et critique servent aux deux ; la Maîtrise soin et le % Soins réalisés aux soins "
               "seulement, le % Dommages infligés aux dégâts seulement.", "heal", heal=True, heal_share=50,
-              crit_floor=True,
+              crit_floor=True, min_range=1,
               focus=(("heal_mastery", "Maîtrise soin"), ("crit_mastery", "Maîtrise critique"), ("crit_rate", "Critique"),
                      ("ap", "PA"))),
     Archetype("support_buff", "Support buff", "Boosts / placement : PA, PM, PW et survie avant les dégâts. "
@@ -142,7 +144,7 @@ def crit_target(level: int, bonus: int = 0) -> int:
 # Cible de l'archétype atteinte au niveau RES_FULL_LEVEL, RES_PER_LEVEL % de moins par niveau en dessous
 # (DPS distance : 60 % ± 5 au niveau 140, soit au moins 55 % partout ; 65 % ± 5 à partir du 160).
 RES_FULL_LEVEL = 160
-RES_PER_LEVEL = 0.25
+RES_PER_LEVEL = 0.2
 RES_MIN_TARGET = 25
 
 
@@ -153,6 +155,17 @@ def res_target(arch: Archetype, level: int) -> int:
         return arch.res_target
     lower = round(arch.res_target - (RES_FULL_LEVEL - level) * RES_PER_LEVEL)
     return min(arch.res_target, max(RES_MIN_TARGET, lower))
+
+
+# PO minimum des archétypes à distance (min_range) : complète à partir de ce niveau, 1 PO au plus en dessous
+MIN_RANGE_LEVEL = 100
+
+
+def min_range(arch: Archetype, rng: str, level: int) -> int:
+    """PO minimum : rien au contact ; à distance, celle de l'archétype (1 au plus sous MIN_RANGE_LEVEL)."""
+    if rng == "melee" or not arch.min_range:
+        return 0
+    return arch.min_range if level >= MIN_RANGE_LEVEL else min(1, arch.min_range)
 
 
 def class_archetypes(data: GameData, class_key: str) -> list[str]:
@@ -183,8 +196,8 @@ def archetype_values(arch: Archetype, class_range: str, level: int) -> dict[str,
                     **{k: [v / max(1, level), round(cap * level)] for k, (v, cap) in arch.per_level.items()}},
         # contraintes
         "min_ap": max(default_min_ap(level), arch.mins.get("ap", 0)),
-        "min_mp": max(default_min_mp(level), arch.mins.get("mp", 0)),
-        "min_wp": arch.mins.get("wp", 0), "min_range": 0, "min_crit": 0, "min_block": 0,
+        "min_mp": max(default_min_mp(level) + arch.mp_extra, arch.mins.get("mp", 0)),
+        "min_wp": arch.mins.get("wp", 0), "min_range": min_range(arch, rng, level), "min_crit": 0, "min_block": 0,
         "max_ap": 0, "max_mp": 0, "max_range": 0, "max_wp": 0, "max_crit": 0, "max_block": 0,
         "allowed_rarities": tuple(int(r) for r in Rarity), "lower_brackets": False, "exclude_relic": False,
         "exclude_epic": False, "exclude_shop": True, "include_pet_mount": True,
@@ -331,5 +344,5 @@ def meta_archetypes(levels: list[int]) -> list[dict[str, Any]]:
              "rear": a.rear, "rear_share": a.rear_share, "berserk": a.berserk, "heal": a.heal, "heal_share": a.heal_share,
              "res": [a.res_target, a.res_tol], "res_by_level": {lv: res_target(a, lv) for lv in levels}, "offense": a.offense, "will": a.will, "res_free": a.res_free,
              "crit_floor": a.crit_floor, "hide_range": a.hide_range,
-             "hide_elements": a.hide_elements, "mins": dict(a.mins),
+             "hide_elements": a.hide_elements, "mins": dict(a.mins), "mp_extra": a.mp_extra, "min_range": a.min_range,
              "count_conditional": a.count_conditional} for a in ARCHETYPES.values()]

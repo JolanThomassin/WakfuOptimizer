@@ -21,8 +21,8 @@ function renderTargets(x) {
       <small class="muted">${e.ok ? "✓" : `✗ ${r.floor - e.pct} % manquant${r.floor - e.pct > 1 ? "s" : ""}`}</small></div>`).join("");
   const res = r.target ? `<div class="xtarget">
       <h3>${icon("elem_res", "Résistances")} Résistances : au moins ${pctFr(r.floor)} sur chaque élément <span class="muted">(${pctFr(r.target)} visé, ± ${r.tol})</span></h3>
-      <p class="hint"><span>${resWhy}</span> Sous ${pctFr(r.floor)}, chaque point de résistance manquant coûte au score ; entre ${pctFr(r.floor)} et ${pctFr(r.target)}, aucun malus${r.free ? "."
-        : ` ; au-delà de ${pctFr(r.floor)}, la résistance ne rapporte plus rien : le reste part dans les autres stats${x.weights.some((w) => w.stat === "dmg_pct" && w.pts >= 0.95) ? " (ici, les maîtrises)" : ""}.`}</p>
+      <p class="hint"><span>${resWhy}</span> Sous ${pctFr(r.floor)}, chaque point de résistance manquant coûte au score ; entre ${pctFr(r.floor)} et ${pctFr(r.target)}, aucun malus mais chaque point compte encore pour la survie${r.free ? "."
+        : ` ; au-delà de ${pctFr(r.target)}, la résistance ne rapporte plus rien : le reste part dans les autres stats${x.weights.some((w) => w.stat === "dmg_pct" && w.pts >= 0.95) ? " (ici, les maîtrises)" : ""}.`}</p>
       <div class="xtiles">${resTiles}</div></div>`
     : `<div class="xtarget"><h3>${icon("elem_res", "Résistances")} Résistances : aucune visée</h3></div>`;
 

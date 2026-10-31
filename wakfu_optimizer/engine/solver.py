@@ -27,7 +27,7 @@ from .candidates import select_candidates
 from .characteristics import fill_unspent
 from .features import BIG, initial_point
 from .model import BuildModel
-from .options import Build, OptimizeOptions
+from .options import Build, OptimizeOptions, default_min_mp
 from .scoring import gradient, res_need, res_pct
 from .shards import CRIT_TO_ELEM, condition_label, needs_stats
 from .stats import Totals, evaluate
@@ -83,6 +83,7 @@ class Optimizer:
         self.cancel = cancel or threading.Event()
         self._solver: cp_model.CpSolver | None = None
         self._relaxed = False   # résistance visée de l'archétype déjà abaissée au maximum atteignable
+        self._mins_relaxed = False   # PM / PO minimums de l'archétype déjà ramenés à ceux du niveau (_relax_mins)
         self._lock = threading.Lock()
 
     def stop(self) -> None:
@@ -110,6 +111,21 @@ class Optimizer:
         if self.cancel.is_set():
             raise Cancelled()
         return status, solver
+
+    def _relax_mins(self) -> str:
+        """Aucun build : si les PM / PO minimums viennent de l'archétype (panneau Contraintes désactivé) et dépassent
+        ceux du niveau, on les ramène à ceux du niveau (un Eliotrope soigneur 65 ne trouve pas 1 PO). Renvoie l'avertissement (vide : rien changé)."""
+        opts = self.opts
+        if "constraints" in opts.custom_panels or self._mins_relaxed:
+            return ""
+        self._mins_relaxed = True
+        level_mp = default_min_mp(opts.level)
+        dropped = [f"{v} {lab}" for v, lab, base in ((opts.min_mp, "PM", level_mp), (opts.min_range, "PO", 0)) if v > base]
+        if not dropped:
+            return ""
+        opts.min_mp, opts.min_range = min(opts.min_mp, level_mp), 0
+        return (f"Minimums de l'archétype ({', '.join(dropped)}) impossibles au niveau {opts.level} : "
+                "ramenés à ceux du niveau.")
 
     def _res_ok(self, t: Totals) -> bool:
         """Résistance visée respectée : élément le plus faible au-dessus du plancher (cible − écart)."""
@@ -140,6 +156,11 @@ class Optimizer:
                 self._warm_start(bm, cand, opts, budget)
             s = self._passes(bm, t0, budget * (1 - COMBO_SHARE), (0.05, 0.55)) if combo else self._passes(bm, t0, budget)
             if s.best is None:
+                note = self._relax_mins() if s.status == cp_model.INFEASIBLE else ""
+                if note:
+                    again = self.run()
+                    again.warnings.insert(0, note)
+                    return again
                 return self._infeasible(res, cand, s.status, t0)
             if combo:
                 bm, s = self._combo_pass(bm, s, cand, combo, t0, budget)

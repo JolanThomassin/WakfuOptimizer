@@ -19,7 +19,7 @@
     </div>
     <button id="sfx-btn" class="btn ghost small" title="Sons activés (clic pour couper)">🔊</button>
     <button id="reload" class="btn ghost small" title="Retélécharger les données Ankama">Mettre à jour les données</button>
-    <button id="debug-btn" class="btn ghost small debug-btn" type="button" title="Mode debug : onglets Poids, Explication et Build sombre">🐞</button>
+    <button id="debug-btn" class="btn ghost small debug-btn" type="button" title="Mode debug : onglets Poids et Explication">🐞</button>
   </div>
 </header>
 
@@ -142,7 +142,6 @@
       <button class="tab" data-tab="items">Items <span id="items-badge" class="badge hidden"></span></button>
       <button class="tab debug-only" data-tab="weights">Poids <span id="weights-badge" class="badge">archétype</span></button>
       <button class="tab debug-only" data-tab="explain" disabled title="Disponible après une optimisation : ce que le calcul a privilégié">Explication <span id="explain-badge" class="badge hidden"></span></button>
-      <button class="tab debug-only tab-dark" data-tab="forge" title="Des sublimations qui vont bien ensemble">Build sombre</button>
     </nav>
     <div id="tab-apt" class="tab-page hidden">
       <div class="apt-layout">
@@ -191,7 +190,6 @@
     </div>
     <div id="tab-explain" class="tab-page hidden"></div>
     <div id="tab-weights" class="tab-page hidden"></div>
-    <div id="tab-forge" class="tab-page hidden"></div>
     <div id="tab-subs" class="tab-page hidden">
       <div class="subs-top card">
         <div>
@@ -270,7 +268,6 @@
 <script src="static/js/explain.js"></script>
 <script src="static/js/weights.js"></script>
 <script src="static/js/items.js"></script>
-<script src="static/js/forge.js"></script>
 <script src="static/js/main.js"></script>
 </body>
 </html>

@@ -100,14 +100,14 @@ $("#sfx-btn").addEventListener("click", () => {
 renderSfxBtn();
 
 // ===================================================================== mode debug
-// Désactivé par défaut : les onglets Poids, Explication et Build sombre (outils de réglage du calcul) n'apparaissent qu'en mode debug.
+// Désactivé par défaut : les onglets Poids et Explication (outils de réglage du calcul) n'apparaissent qu'en mode debug.
 let DEBUG = false;
 try { DEBUG = localStorage.getItem("wakfu-optimizer:debug") === "on"; } catch (e) { /* stockage indisponible */ }
 function renderDebug() {
   const b = $("#debug-btn");
   b.classList.toggle("on", DEBUG);
-  b.title = DEBUG ? "Mode debug activé : onglets Poids, Explication et Build sombre (clic pour désactiver)"
-    : "Mode debug désactivé (clic pour afficher les onglets Poids, Explication et Build sombre)";
+  b.title = DEBUG ? "Mode debug activé : onglets Poids et Explication (clic pour désactiver)"
+    : "Mode debug désactivé (clic pour afficher les onglets Poids et Explication)";
   $$(".tab.debug-only").forEach((t) => t.classList.toggle("hidden", !DEBUG));
   if (!DEBUG && $(".tab.debug-only.on")) showTab("build");
 }

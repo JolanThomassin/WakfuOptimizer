@@ -18,7 +18,6 @@ interface et messages de commit en français.
 | Le calcul exact des stats d'un build | `engine/stats.py` (`evaluate`) |
 | Les contrôles « ce build a du sens » | `engine/quality.py` (tests + onglet Explication) |
 | L'onglet Explication | `engine/explain.py` (Python) + `web/static/js/explain.js` |
-| L'onglet Build sombre (combos de sublimations, debug) | `engine/combos.py` + `web/static/js/forge.js` |
 | Une réponse JSON de l'interface | `web/views.py` ; nouvelle requête : une ligne dans `ROUTES` (marche en local et en ligne) |
 | L'interface | `web/static/js/<onglet>.js`, `index.html`, `style.css` |
 | Une traduction (EN / ES / PT) d'un texte affiché | `web/static/js/i18n_dict.js` ; effets de sublimations et passifs : `i18n_subs.js` |
@@ -39,9 +38,6 @@ finitions (`sublimations.fill_empty_subs`, `characteristics.fill_unspent`) → `
 - Le score est en points (≈ % de valeur globale) : `w_off × ln(dégâts) + w_def × ln(PV effectifs) + utilité − pénalités`.
 - `archetypes.py` est la seule définition des archétypes (l'interface les reçoit par `/api/meta`).
 - `alternatives.py`, `sublimations.py` : remplacement d'un item / d'une sublimation sur un build (onglets du site).
-- `combos.py` : Build sombre, recherche de combos de sublimations sur un corps de référence sans items (`neutral_body`)
-  ou sur un build fixe (évaluations exactes : `stats.prepare` une fois + `stats.evaluate(prepared=…)` par combo) ;
-  `ideas` = le générateur de l'onglet (corps types `IDEA_PROFILES`).
 - `report.py` : export texte / JSON. `shards.py` : règles châsses / runes / conditions de sublimations.
 
 ## Web (`wakfu_optimizer/web/`)

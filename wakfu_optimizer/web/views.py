@@ -27,10 +27,9 @@ from ..data.models import (
 )
 from ..data.sources import Crafts, craft_of, wiki_url
 from ..engine.alternatives import alternatives
-from ..engine.archetypes import (ARCHETYPES, PANELS, apply_archetype, archetype_options, class_archetypes, meta_archetypes, preset,
+from ..engine.archetypes import (ARCHETYPES, MIN_RANGE_LEVEL, PANELS, apply_archetype, archetype_options, class_archetypes, meta_archetypes, preset,
                                  profile_desc)
 from ..engine.characteristics import BRANCH_FR, LINE_FR, char_lines
-from ..engine.combos import ideas
 from ..engine.explain import explain
 from ..engine.options import Build, OptimizeOptions, default_min_ap, default_min_mp
 from ..engine.report import SLOT_ORDER, build_json, build_text
@@ -223,6 +222,7 @@ def meta(d: GameData, settings: dict[str, Any]) -> dict[str, Any]:
                      "rear": c.rear, "berserk": c.berserk, "archetypes": class_archetypes(d, k)}
                     for k, c in sorted(d.classes.items(), key=lambda kv: kv[1].name)],
         "archetypes": meta_archetypes(levels),
+        "min_range_level": MIN_RANGE_LEVEL,
         "levels": [{"level": lv, "min_ap": default_min_ap(lv), "min_mp": default_min_mp(lv)} for lv in levels],
         "elements": [{"key": e, "name": ELEMENT_FR[e]} for e in ELEMENTS],
         "rarities": [{"id": int(r), "name": RARITY_FR[r], "color": RARITY_COLOR[r]} for r in Rarity],
@@ -343,53 +343,6 @@ def weights_route(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-OBJ_FR = {"damage": "dégâts", "survival": "survie", "score": "équilibré (dégâts et survie)"}
-DECK_FR = {"damage": "Deck dégâts", "survival": "Deck survie", "score": "Deck équilibré"}   # decks les plus forts
-
-
-def ideas_view(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
-    """Onglet Build sombre : des combos de sublimations qui se renforcent, sans classe ni items (engine/combos.ideas)."""
-    opts = opts_from(body.get("opts", {}), d)
-    lang = opts.lang
-    out = []
-    for label, p, cb in ideas(d, opts, float(body.get("time_per", 2.0))):
-        def name(sid: int) -> str:
-            return d.state_name(sid, lang)
-
-        parts = []
-        for pt in cb.parts:
-            st = d.states.get(pt.state_id)
-            sub = pt.placed[0][0]
-            parts.append({"state": pt.state_id, "name": name(pt.state_id), "sub": sub.name(lang), "desc": st.description if st else "",
-                          "gfx": sub.gfx_id, "level": pt.level, "kind": pt.kind, "role": pt.role,
-                          "pattern": [int(x) for x in sub.pattern]})
-        # pourquoi ensemble : quelle sublimation fait monter quelle stat, et ce qui s'en déclenche
-        why = []
-        if p.rank == "gain":
-            why.append(f"Le deck qui rapporte le plus en {OBJ_FR[p.objective]} : {len(cb.parts)} sublimations, une par famille.")
-        for pt in cb.parts:
-            rest = [o for o in cb.parts if o is not pt]
-            movers = [o for o in rest if o.role == "Catalyseur"] or [o for o in rest if o.role != "Déclenchée"] or rest
-            others = " et ".join(name(o.state_id) for o in movers)
-            conds = ", ".join(f"{c.label} ({c.value})" for c in pt.conditions if c.ok and "secondaires" not in c.label)
-            if pt.role == "Déclenchée" and conds:
-                why.append(f"{others} → {conds} : {name(pt.state_id)} s'active.")
-            elif pt.role == "Déclenchée" and p.rank != "gain":
-                why.append(f"Sans maîtrises secondaires, {name(pt.state_id)} s'active.")
-            elif pt.role == "Sacrifice":
-                why.append(f"{name(pt.state_id)} coûte seule, mais paie dans le combo.")
-            elif pt.role == "Garde-fou":
-                why.append(f"{name(pt.state_id)} rend les PA / PM perdus.")
-        if not why:
-            why.append("Elles se renforcent : chacune rend l'autre plus forte.")
-        body_txt = [label, f"{p.ap} PA", f"{p.crit} % critique", f"{p.block} % parade"] + ([f"{p.wp} PW"] if p.wp != 6 else [])
-        out.append({"name": DECK_FR[p.objective] if p.rank == "gain" else cb.name, "objective": p.objective, "power": p.rank == "gain", "gain": round(cb.gain, 2),
-                    "synergy": round(cb.synergy, 2),
-                    "parts": parts, "why": why, "body": " · ".join(body_txt),
-                    "forced": {str(pt.state_id): pt.level for pt in cb.parts}})
-    return {"ideas": out}
-
-
 def view_route(d: GameData, body: dict[str, Any]) -> dict[str, Any]:
     return build_view(d, opts_from(body.get("opts", {}), d), Build.from_dict(body["build"]))
 
@@ -404,5 +357,4 @@ ROUTES: dict[tuple[str, str], Route] = {
     ("POST", "/api/alternatives"): lambda d, q, body: alternatives_view(d, body),
     ("POST", "/api/subs"): lambda d, q, body: subs_view(d, body),
     ("POST", "/api/sub_alternatives"): lambda d, q, body: sub_alternatives_view(d, body),
-    ("POST", "/api/ideas"): lambda d, q, body: ideas_view(d, body),
 }

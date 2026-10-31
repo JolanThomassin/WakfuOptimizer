@@ -31,7 +31,7 @@ D2_SCALE = 1.6e9           # D2 / D2_SCALE = multiplicateur de dégâts moyen
 DEF_SCALE = 1e4            # Def / DEF_SCALE = PV effectifs (moyens ou minimum)
 
 
-@lru_cache(maxsize=None)   # fonctions pures très appelées (évaluateur, Build sombre)
+@lru_cache(maxsize=None)   # fonctions pures très appelées (évaluateur)
 def res_pct(flat: int) -> int:
     """% de réduction pour une résistance fixe : floor(100 × (1 − 0,8^(rés/100))), plafonné à 90."""
     flat = max(RES_TABLE_MIN, min(RES_TABLE_MAX, int(flat)))
@@ -103,7 +103,8 @@ RES_SHORT_PENALTY = 1.0   # par point de résistance fixe sous le plancher (cibl
 CRIT_SHORT_PENALTY = 1.0
 # Pénalité par point de Portée sous 0, pour tous les archétypes (même au contact : sorts à distance, boosts,
 # soins à porter sur un allié). Sinon un item à −1 PO ne coûte rien à un mêlée, qui ne compte pas la portée.
-RANGE_NEG_PENALTY = 3.0
+# À 3, la plupart des mêlées finissaient à −1 PO au niveau 245 : un malus de PO doit vraiment payer.
+RANGE_NEG_PENALTY = 6.0
 # Pénalité par point de Volonté sous le minimum de l'archétype (tank : 10) : sous ce seuil, les retraits PA / PM subis
 # font mal ; au-dessus, la Volonté ne rapporte rien de plus.
 WILL_SHORT_PENALTY = 0.5
@@ -267,13 +268,13 @@ def secondary_mastery(melee: int, distance: int, rng: str) -> int:
 
 
 def res_cap(opts: object) -> int:
-    """Résistance fixe au-delà de laquelle la résistance ne rapporte plus rien : le plancher (cible − écart).
-    Partout dans l'écart, le score est donc le même : aucune stat sacrifiée pour se rapprocher de la cible."""
+    """Résistance fixe au-delà de laquelle la résistance ne rapporte plus rien : la cible. Dans l'écart (entre le
+    plancher et la cible), pas de pénalité, mais chaque point compte encore pour la survie : sinon les builds restent
+    collés au plancher (60 % pour une cible de 65 ± 5)."""
     t = int(getattr(opts, "res_target", 0) or 0)
     if not 0 < t < 90 or getattr(opts, "res_free", False):
         return RES_CAP_FLAT
-    floor = t - int(getattr(opts, "res_tol", 5) or 0)
-    return min(RES_CAP_FLAT, flat_for_pct(floor)) if floor > 0 else 0
+    return min(RES_CAP_FLAT, flat_for_pct(t))
 
 
 def res_need(opts: object) -> int:

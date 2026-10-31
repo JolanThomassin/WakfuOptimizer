@@ -55,11 +55,6 @@ c'est possible, sans rendre le calcul impossible à bas niveau.
   règle) ; activés, vos réglages remplacent ceux de l'archétype.
 - **Onglet Explication** (après un calcul) : réglages utilisés et leur origine, valeur d'un gain sur chaque stat au
   build final, composition du score, profil d'aptitudes et contrôles de qualité.
-- **Onglet Build sombre** (mode debug 🐞) : un bouton, et des sublimations qui vont bien ensemble, sans classe, sans items
-  et sans optimisation préalable (Ambition qui déclenche Dénouement, la parade qui déclenche Mesure ou Pilier…). La
-  forge explore des corps types (sans maîtrises secondaires, parade, peu de PA, peu de critique…) et garde les combos qui
-  valent plus que la somme de leurs sublimations, plus le deck le plus fort de chaque objectif. Chaque carte dit pourquoi
-  elles vont ensemble et quelles couleurs de châsses il faut ; un combo peut s'imposer à la prochaine optimisation.
 - **Portée** : mêlée, distance ou **mixte** (les deux maîtrises comptent à moitié : Huppermage, Eliotrope).
 - **Coups de dos** : part des coups portés de dos (25 / 50 / 80 %) ; seule cette part profite de la Maîtrise Dos.
 - **Contraintes** : minimum et maximum de PA, PM, PO, PW, % critique et % parade.
