@@ -15,7 +15,7 @@ from .archetypes import (ARCHETYPES, PANELS, RES_FULL_LEVEL, Archetype, apt_forc
 from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions
 from .quality import check_build
-from .scoring import (WILL_SHORT_PENALTY, BLOCK_REDUCTION, DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, SEC_RES_NEG_PENALTY, crit_short, log_score, res_cap, res_need, score_parts,
+from .scoring import (WILL_SHORT_PENALTY, BLOCK_REDUCTION, DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, SEC_RES_NEG_PENALTY, crit_overflow, crit_short, log_score, res_cap, res_need, score_parts,
                       decayed, heal_share, secondary_mastery, utility_table)
 from .stats import Totals, evaluate
 
@@ -45,7 +45,9 @@ def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
 
     rows = [
         ("Maîtrise utilisée", "+100", gain(mtot=f["mtot"] + 100)),
-        ("% Coup critique", "+1 %", gain(crit=min(100.0, f["crit"] + 1), crit_short=crit_short(crit_raw + 1, opts)) if opts.crit else 0.0),
+        ("% Coup critique", "+1 %", gain(crit=min(100.0, f["crit"] + 1), crit_short=crit_short(crit_raw + 1, opts),
+                                         dmg_pct=f["dmg_pct"] + crit_overflow(crit_raw + 1, opts) - crit_overflow(crit_raw, opts))
+         if opts.crit else 0.0),
         ("Maîtrise critique", "+100", gain(crit_mastery=f["crit_mastery"] + 100) if opts.crit else 0.0),
         ("Maîtrise dos", "+100", gain(rear_mastery=f["rear_mastery"] + 100) if opts.rear and not opts.heal else 0.0),
         ("% Dommages infligés", "+10 %", gain(dmg_pct=f["dmg_pct"] + 10)),

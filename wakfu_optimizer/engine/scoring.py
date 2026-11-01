@@ -112,6 +112,10 @@ WILL_SHORT_PENALTY = 0.5
 # à −50 de résistance dos fait plus de mal que ne rapporte un item à +50 (on se fait frapper de dos par tous).
 SEC_RES_NEG_PENALTY = 0.3
 SEC_RES = ("crit_res", "rear_res")
+# Critique au-delà de 100 % converti en % Dommages infligés par un passif inné : classe -> (points de critique par
+# % de DI, points comptés au plus). Écaflip, Bonne étoile : 0,5 % DI par point au-delà de 100, jusqu'à 300 (150 %).
+# Pour les autres classes, le critique au-delà de 100 % ne sert à rien.
+CRIT_OVERFLOW = {"ecaflip": (2, 300)}
 
 
 def utility_table(opts: object) -> dict[str, tuple[float, int]]:
@@ -179,7 +183,7 @@ FEATURES: dict[str, float] = {
     "crit": 0.5,          # % critique, plafonné à 100 (0 si le critique ne compte pas)
     "crit_mastery": 5.0,
     "rear_mastery": 5.0,  # seulement si « dos » (et pas soigneur)
-    "dmg_pct": 0.5,
+    "dmg_pct": 0.5,       # avec le critique au-delà de 100 % converti (crit_overflow, Écaflip)
     "heal_mastery": 5.0,  # seulement si « soin » : s'ajoute à mtot pour les soins (ln_offense)
     "heal_pct": 0.5,      # % Soins réalisés, seulement si « soin »
     "hp": 5.0,            # PV fixes (avant % PV)
@@ -248,6 +252,15 @@ def crit_short(crit_rate: float, opts: object) -> float:
     """% de critique manquant sous le palier de l'archétype (0 sans palier ou sans critique)."""
     t = int(getattr(opts, "crit_target", 0) or 0)
     return float(max(0.0, t - crit_rate)) if t and getattr(opts, "crit", False) else 0.0
+
+
+def crit_overflow(crit_rate: float, opts: object) -> float:
+    """% Dommages infligés gagnés par le critique au-delà de 100 % (CRIT_OVERFLOW), 0 pour les autres classes."""
+    rule = CRIT_OVERFLOW.get(str(getattr(opts, "class_key", "")))
+    if not rule or not getattr(opts, "crit", False):
+        return 0.0
+    per, cap = rule
+    return max(0, min(cap, crit_rate - 100)) / per
 
 
 def elem_mastery_used(pairs: list[tuple[int, int]]) -> int:

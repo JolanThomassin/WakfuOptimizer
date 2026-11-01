@@ -12,7 +12,8 @@ from ..data.models import ELEMENTS, GameData, Item, Slot, SubEffect, SubState
 from .characteristics import BRANCH_FR, LINE_FR, char_lines
 from .features import evaluator_features
 from .options import Build, OptimizeOptions
-from .scoring import damage_d2, defense_value, ehp_factor, elem_mastery_used, log_score, res_pct, secondary_mastery
+from .scoring import (CRIT_OVERFLOW, crit_overflow, damage_d2, defense_value, ehp_factor, elem_mastery_used, log_score,
+                      res_pct, secondary_mastery)
 from .shards import CRIT_TO_ELEM, condition_holds, condition_label, effect_targets, needs_stats, parse_stat_condition
 
 DISPLAY_STATS = [
@@ -212,15 +213,21 @@ def evaluate(data: GameData, opts: OptimizeOptions, build: Build, extra_states: 
     t.hp = hp_base * (100 + s["hp_pct"]) // 100
     t.stats = dict(s)
     t.stats["hp"] = t.hp
-    t.stats["crit_rate"] = max(-10, min(100, s["crit_rate"]))
+    over = int(crit_overflow(s["crit_rate"], opts))   # Écaflip : le critique au-delà de 100 % devient du % DI
+    t.stats["crit_rate"] = max(-10, s["crit_rate"] if opts.class_key in CRIT_OVERFLOW else min(100, s["crit_rate"]))
     t.stats["block"] = min(100, s["block"])
+    if over:   # affichage seulement (arrondi) : le score compte la valeur exacte (features.evaluator_features)
+        t.stats["dmg_pct"] = s["dmg_pct"] + over
+        cls = data.classes.get(opts.class_key)
+        src["dmg_pct"].append((f"Passif de classe : {cls.passive_name if cls else ''} (critique au-delà de 100 %)",
+                               "passive", over, opts.class_key))
 
     mtot, crit = _mastery_crit(s, t.mastery, opts)
     t.mastery_used = mtot + (s["heal_mastery"] if opts.heal else 0)
     t.crit_used = crit
     t.d2 = damage_d2(t.mastery_used, crit, s["crit_mastery"] if opts.crit else 0,
                      s["rear_mastery"] if opts.rear and not opts.heal else 0,
-                     opts.rear_share if opts.rear and not opts.heal else 0, s["dmg_pct"])
+                     opts.rear_share if opts.rear and not opts.heal else 0, s["dmg_pct"] + over)
     gs = [ehp_factor(t.res_flat[e]) for e in ELEMENTS]
     g = sum(gs) // 4   # moyenne des quatre éléments
     t.defense = defense_value(hp_base, s["hp_pct"], g)

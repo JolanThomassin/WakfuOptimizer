@@ -11,7 +11,7 @@ pytest.importorskip("ortools")
 from wakfu_optimizer.data.fetch import DataBundle  # noqa: E402
 from wakfu_optimizer.data.models import PROP_EPIC, PROP_RELIC, Color, GameData, Item, Rarity, Slot  # noqa: E402
 from wakfu_optimizer.data.parse import load_game_data  # noqa: E402
-from wakfu_optimizer.engine.options import OptimizeOptions  # noqa: E402
+from wakfu_optimizer.engine.options import Build, OptimizeOptions, SlotChoice  # noqa: E402
 from wakfu_optimizer.engine.solver import optimize  # noqa: E402
 from wakfu_optimizer.engine.stats import evaluate  # noqa: E402
 
@@ -238,3 +238,19 @@ def test_tank_garde_son_tacle(real) -> None:  # type: ignore[no-untyped-def]
     assert d.item_by_id()[r.builds[0].slots[Slot.HEAD].item_id].name("fr") == "Casque"
     o.utility = {}
     assert d.item_by_id()[optimize(d, o).builds[0].slots[Slot.HEAD].item_id].name("fr") == "Casque -Tacle"
+
+
+def test_ecaflip_garde_son_critique_au_dela_de_100(real) -> None:  # type: ignore[no-untyped-def]
+    """Écaflip (Bonne étoile) : le critique au-delà de 100 % devient du % DI ; un casque qui fait retomber de 113 à
+    100 % pour un peu de maîtrise lui coûte. Pour un Sram (même +20 % au passif), ce critique en trop ne sert à rien : il prend le casque."""
+    items = [i for i in base_items() if i.slots != (Slot.HEAD,)] + [
+        mk(Slot.FIRST_WEAPON, "Arme crit", crit_rate=90),   # 3 de base + 20 du passif + 90 = 113 %
+        mk(Slot.HEAD, "Casque -crit", elem_mastery=115, crit_rate=-13), mk(Slot.HEAD, "Casque", elem_mastery=100)]
+    d = data_with(real, items)
+    head = lambda o: d.item_by_id()[optimize(d, o).builds[0].slots[Slot.HEAD].item_id].name("fr")  # noqa: E731
+    o = opts(class_key="ecaflip", offense_weight=100, shard_mode="none", optimize_characteristics=False)
+    assert head(o) == "Casque"
+    t = evaluate(d, o, Build(slots={Slot.FIRST_WEAPON: SlotChoice(Slot.FIRST_WEAPON, items[-3].id)}))
+    assert t.stats["crit_rate"] == 113 and t.features["dmg_pct"] == 6.5   # 13 points au-delà de 100 × 0,5
+    o.class_key = "sram"
+    assert head(o) == "Casque -crit"

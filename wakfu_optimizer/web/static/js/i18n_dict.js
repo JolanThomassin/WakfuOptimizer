@@ -437,6 +437,7 @@ const I18N = {
   "Items (au choix)": ["Items (of your choice)", "Objetos (a elegir)", "Itens (à escolha)"],
   "Base du personnage": ["Character base", "Base del personaje", "Base do personagem"],
   "Base du personnage (niveau {0})": ["Character base (level {0})", "Base del personaje (nivel {0})", "Base do personagem (nível {0})"],
+  "critique au-delà de {0} %": ["critical hit beyond {0}%", "crítico por encima del {0} %", "crítico além de {0}%"],
   "Bonus de {0} % PV (voir % PV)": ["{0}% HP bonus (see % HP)", "Bonificación de {0} % PdV (ver % PdV)", "Bônus de {0}% PV (ver % PV)"],
   "= {0} % de réduction": ["= {0}% reduction", "= {0} % de reducción", "= {0}% de redução"],
   "Maîtrise Critique convertie": ["Critical Mastery converted", "Dominio crítico convertido", "Domínio de crítico convertido"],

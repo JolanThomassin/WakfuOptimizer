@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING, Any
 
 from ..data.models import ELEMENTS
 from .options import OptimizeOptions
-from .scoring import (DECAYING, WILL_CAP, WILL_FLOOR, crit_short, decayed, res_cap, res_need, sec_res_counted,
-                      utility_table, will_short)
+from .scoring import (CRIT_OVERFLOW, DECAYING, WILL_CAP, WILL_FLOOR, crit_overflow, crit_short, decayed, res_cap,
+                      res_need, sec_res_counted, utility_table, will_short)
 
 if TYPE_CHECKING:
     from .model import BuildModel
@@ -47,7 +47,8 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
     util = utility_table(opts)
     out = {
         "mtot": float(mtot), "crit": float(crit), "crit_mastery": float(s["crit_mastery"] if opts.crit else 0),
-        "rear_mastery": float(s["rear_mastery"] if rear else 0), "dmg_pct": float(s["dmg_pct"]),
+        "rear_mastery": float(s["rear_mastery"] if rear else 0),
+        "dmg_pct": float(s["dmg_pct"]) + crit_overflow(s["crit_rate"], opts),   # Écaflip : critique au-delà de 100 %
         "heal_mastery": float(s["heal_mastery"] if opts.heal else 0), "heal_pct": float(s["heal_pct"] if opts.heal else 0),
         "hp": float(s["hp"]), "hp_pct": float(s["hp_pct"]),
         "res": float(sum(capped) / 4), "block": float(max(0, min(100, s["block"]))),
@@ -83,6 +84,14 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
     if opts.rear and not opts.heal:
         f["rear_mastery"] = bm.stat("rear_mastery")
     f["dmg_pct"] = bm.stat("dmg_pct")
+    rule = CRIT_OVERFLOW.get(opts.class_key) if opts.crit else None
+    if rule:   # Écaflip : critique au-delà de 100 % (plafonné) -> % DI, divisé par `per` (scoring.crit_overflow)
+        per, cap = rule
+        oc = m.NewIntVar(-BIG, cap, "crit_over_cap")
+        m.AddMinEquality(oc, [bm.stat("crit_rate") - 100, cap])
+        over = m.NewIntVar(0, cap, "crit_over")
+        m.AddMaxEquality(over, [oc, 0])
+        f["dmg_pct"] = (per * bm.stat("dmg_pct") + over, per)
     if opts.heal:   # soins : mtot + Maîtrise Soin, % Soins réalisés (scoring.ln_offense)
         f["heal_mastery"] = bm.stat("heal_mastery")
         f["heal_pct"] = bm.stat("heal_pct")
