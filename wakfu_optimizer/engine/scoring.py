@@ -91,7 +91,8 @@ BLOCK_REDUCTION = 0.2                 # un coup paré fait 20 % de dégâts en m
 # Valeur automatique (fraction de la valeur globale) de chaque PA/PM/PO/PW, jusqu'au plafond.
 UTILITY = {"ap": (0.06, 14), "mp": (0.025, 6), "wp": (0.005, 12), "lock": (0.0, 0), "dodge": (0.0, 0),
            "crit_res": (0.0, 0), "rear_res": (0.0, 0)}   # Tacle, Esquive, rés. critique / dos : selon l'archétype (tank)
-RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.0, 0), "mixed": (0.025, 5), "best": (0.025, 5)}   # mêlée : la portée ne vaut rien
+RANGE_UTILITY = {"distance": (0.03, 6), "melee": (0.0, 0), "mixed": (0.025, 5), "best": (0.025, 5),
+                 "none": (0.03, 6)}   # mêlée : la portée ne vaut rien ; « none » : aucune maîtrise de portée, la PO compte
 # Utilités à rendement décroissant : le k-ième point vaut (plafond − k + 1) / plafond du premier (Portée, plafond 6 :
 # 1, 5/6, 4/6… ; le 6e ne vaut que 1/6). La variable du score est alors le nombre de points « pleins » (decayed).
 DECAYING = ("range",)
@@ -272,7 +273,9 @@ def elem_mastery_used(pairs: list[tuple[int, int]]) -> int:
 
 
 def secondary_mastery(melee: int, distance: int, rng: str) -> int:
-    """Maîtrise de portée utile : mêlée, distance, ou moyenne des deux (classes « mixtes »)."""
+    """Maîtrise de portée utile : mêlée, distance, moyenne des deux (classes « mixtes »), ou rien (« none »)."""
+    if rng == "none":
+        return 0
     if rng == "mixed":
         return (melee + distance) // 2
     if rng == "best":

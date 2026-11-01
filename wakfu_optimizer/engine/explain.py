@@ -82,7 +82,7 @@ def _targets(opts: OptimizeOptions, arch: Archetype | None, tot: Totals) -> dict
     melee, dist = st.get("melee_mastery", 0), st.get("distance_mastery", 0)
     rng_val = secondary_mastery(melee, dist, opts.range)
     rng_parts = {"melee": [("melee_mastery", "Maîtrise Mêlée", melee)],
-                 "distance": [("distance_mastery", "Maîtrise Distance", dist)]}.get(
+                 "distance": [("distance_mastery", "Maîtrise Distance", dist)], "none": []}.get(
         opts.range, [("melee_mastery", "Maîtrise Mêlée", melee), ("distance_mastery", "Maîtrise Distance", dist)])
     extra = [(k, lab, st.get(k, 0)) for flag, k, lab in (("berserk", "berserk_mastery", "Maîtrise Berserk"),
                                                          ("heal", "heal_mastery", "Maîtrise Soin")) if getattr(opts, flag)]
@@ -109,7 +109,8 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
     panels = [{"key": k, "name": n, "on": k in on} for k, n in
               (("priorities", "Priorités"), ("constraints", "Contraintes"), ("subs", "Châsses et sublimations"))]
     src = lambda panel: "vos réglages" if panel in on else "archétype"  # noqa: E731
-    rng = {"melee": "Mêlée", "distance": "Distance", "mixed": "Mixte (moitié / moitié)", "best": "Meilleure des deux (passif)"}
+    rng = {"melee": "Mêlée", "distance": "Distance", "mixed": "Mixte (moitié / moitié)", "best": "Meilleure des deux (passif)",
+           "none": "Aucune (maîtrises mêlée et distance ignorées)"}
     secondary = [lab for flag, lab in (("crit", "Critique"), ("rear", f"Dos ({opts.rear_share} % des coups)"),
                                        ("berserk", "Berserk"), ("heal", "Soin")) if getattr(opts, flag)]
     util = utility_table(opts)

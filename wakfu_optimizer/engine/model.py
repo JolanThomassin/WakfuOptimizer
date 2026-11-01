@@ -520,6 +520,8 @@ class BuildModel:
             sec = m.NewIntVar(lo, hi, "M_best")
             m.AddMaxEquality(sec, [self.stat("melee_mastery"), self.stat("distance_mastery")])
             m.Add(self.mtot == mtot_expr + sec)
+        elif opts.range == "none":   # aucune maîtrise de portée (Soigneur tank)
+            m.Add(self.mtot == mtot_expr)
         else:
             m.Add(self.mtot == mtot_expr + self.stat("melee_mastery" if opts.range == "melee" else "distance_mastery"))
         # --- résistances

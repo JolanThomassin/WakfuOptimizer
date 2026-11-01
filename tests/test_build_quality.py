@@ -195,6 +195,7 @@ QUICK = [
     ("sram", 200, "dps_rear"),
     ("eniripsa", 170, "heal"),
     ("ecaflip", 245, "dps_heal"),
+    ("ecaflip", 245, "heal_tank"),     # sans maîtrise de portée
     ("xelor", 245, "support_debuff"),
     ("sacrier", 110, "berserk"),
     ("huppermage", 230, "dps_mixed"),

@@ -26,7 +26,7 @@ class Archetype:
     name: str
     desc: str
     role: str                         # dps | tank | heal | support
-    range: str | None = None          # None : portée de la classe
+    range: str | None = None          # None : portée de la classe ; "none" : aucune maîtrise de portée
     crit: bool = True
     rear: bool = False
     rear_share: int = 50
@@ -95,6 +95,16 @@ ARCHETYPES: dict[str, Archetype] = {a.key: a for a in (
     Archetype("heal", "Soigneur", "Soins : Maîtrise soin et critique, bonne survie.",
               "heal", heal=True, heal_share=100, offense=80, crit_floor=True, min_range=1,
               focus=(("heal_mastery", "Maîtrise soin"), ("crit_rate", "Critique"), ("ap", "PA"), ("elem_res", "Résistances"))),
+    # Soigneur qui encaisse (Ecaflip) : les soins seuls comptent (le % DI du critique au-delà de 100 % ne sert à rien,
+    # le critique est plafonné à 100 dans la formule), sans maîtrise mêlée ni distance ; défense à 40 %, résistances
+    # visées plus haut ; PA, PM, PO et PW valent plus que pour un soigneur ordinaire.
+    Archetype("heal_tank", "Soigneur tank", "Soins et survie (Ecaflip) : Maîtrise soin, élémentaire et critique "
+              "(le critique au-delà de 100 % ne compte pas), PV et résistances ; aucune maîtrise mêlée ni distance ; "
+              "PA, PM, PO et PW comptent.", "heal", range="none", hide_range=True, heal=True, heal_share=100,
+              offense=60, res_target=70, crit_floor=True, min_range=1,
+              utility={"ap": (0.08, 14), "mp": (0.04, 6), "range": (0.03, 6), "wp": (0.015, 14)},
+              focus=(("heal_mastery", "Maîtrise soin"), ("hp", "PV"), ("elem_res", "Résistances"), ("ap", "PA"),
+                     ("mp", "PM"), ("range", "Portée"), ("wp", "PW"))),
     # Moitié dégâts, moitié soins (scoring.ln_offense) : maîtrises élémentaire, de portée et critique servent aux deux,
     # Maîtrise soin et % Soins réalisés aux soins, % Dommages infligés aux dégâts.
     Archetype("dps_heal", "DPS soigneur", "Dégâts et soins à parts égales (Ecaflip, Eniripsa…) : les maîtrises "
@@ -247,7 +257,8 @@ def apt_profile(opts: OptimizeOptions) -> dict[str, list[str]]:
     tank = arch is not None and arch.role == "tank"
     support = arch is not None and arch.role == "support"
     rng = opts.range
-    range_lines = {"melee": ["melee_mastery"], "distance": ["distance_mastery"]}.get(rng, ["melee_mastery", "distance_mastery"])
+    range_lines = {"melee": ["melee_mastery"], "distance": ["distance_mastery"], "none": []}.get(
+        rng, ["melee_mastery", "distance_mastery"])
     dodge_line = {"melee": "lock", "distance": "dodge"}.get(rng, "lock_dodge")
 
     strength = ["hp"] if tank else range_lines + ["elem_mastery", "hp"]
