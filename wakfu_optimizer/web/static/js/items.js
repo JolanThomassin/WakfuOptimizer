@@ -25,7 +25,14 @@ function buildItemsTab() {
     loadItemsTab();
   });
   $("#it-bracket").addEventListener("change", loadItemsTab);
-  $("#it-q").addEventListener("input", () => { clearTimeout(IT.timer); IT.timer = setTimeout(loadItemsTab, 250); });
+  // une recherche démarre sur tous les emplacements ; cliquer un emplacement la restreint
+  $("#it-q").addEventListener("input", () => {
+    const searching = $("#it-q").value.trim().length >= 2;
+    if (searching && !IT.searching) IT.slot = "";
+    IT.searching = searching;
+    clearTimeout(IT.timer);
+    IT.timer = setTimeout(loadItemsTab, 250);
+  });
   // sublimations d'un item forcé : ajout (liste déroulante) et retrait
   $("#it-fo").addEventListener("change", (e) => {
     const sel = e.target.closest("[data-itsub]");
@@ -72,7 +79,7 @@ async function loadItemsTab() {
   $$("#it-slots [data-itslot]").forEach((b) => b.classList.toggle("on", b.dataset.itslot === IT.slot));
   $$("#it-rars [data-itrar]").forEach((b) => b.classList.toggle("on", IT.rars.has(+b.dataset.itrar)));
   if (q.length < 2 && !IT.slot) { IT.slot = "HEAD"; return loadItemsTab(); }
-  const params = new URLSearchParams({ q, slot: q.length >= 2 ? "" : IT.slot, level: $("#level").value, lang: $("#lang").value,
+  const params = new URLSearchParams({ q, slot: IT.slot, level: $("#level").value, lang: $("#lang").value,
     rarity: [...IT.rars].join(","), bracket: $("#it-bracket").checked ? "1" : "0", limit: "150" });
   $("#it-results").innerHTML = `<div class="loading"><div class="spinner"></div>Chargement des items…</div>`;
   try {
