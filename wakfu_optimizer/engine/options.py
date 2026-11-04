@@ -41,6 +41,7 @@ class OptimizeOptions:
     offense_weight: int = 85             # 0..100 ; défense = 100 - offense (fixe : la défense passe par res_target)
     res_target: int = 50                 # % de résistance visé sur chaque élément ; au-delà, elle ne rapporte plus rien
     res_tol: int = 5                     # écart max sous la cible (%) : dans l'écart, aucun malus de score
+    res_gap: int = 5                     # écart max (%) entre l'élément le plus faible et le plus fort ; 0 : libre
     res_free: bool = False               # tank : la résistance continue de compter au-delà du plancher
     archetype: str = ""                  # archétype choisi dans l'interface (tank, dps_melee…), pour mémoire
     willpower_weight: int = 0            # poids de la Volonté (retraits PA/PM) dans le score, comme offense_weight
@@ -135,6 +136,7 @@ class OptimizeOptions:
         self.res_target = max(0, min(90, int(self.res_target)))
         self.res_tol = max(0, min(self.res_target, int(self.res_tol)))
         self.min_res_pct = max(0, min(90, int(self.min_res_pct)))
+        self.res_gap = max(0, min(90, int(self.res_gap)))
         self.rear_share = max(0, min(100, int(self.rear_share)))
         self.crit_target = max(0, min(100, int(self.crit_target)))
         self.forced_item_subs = {str(k): [int(s) for s in v] for k, v in self.forced_item_subs.items()

@@ -19,8 +19,9 @@ from typing import TYPE_CHECKING, Any
 
 from ..data.models import ELEMENTS
 from .options import OptimizeOptions
-from .scoring import (CRIT_OVERFLOW, DECAYING, WILL_CAP, WILL_FLOOR, crit_overflow, crit_short, decayed, res_cap,
-                      res_need, sec_res_counted, utility_table, will_short)
+from .scoring import (CRIT_OVERFLOW, DECAYING, RES_CAP, WILL_CAP, WILL_FLOOR, crit_overflow, crit_short, decayed,
+                      gap_bounds, res_cap, res_gap, res_gap_excess, res_need, res_pct, sec_res_counted, utility_table,
+                      will_short)
 
 if TYPE_CHECKING:
     from .model import BuildModel
@@ -34,7 +35,7 @@ def initial_point(opts: OptimizeOptions) -> dict[str, float]:
     L = opts.level
     return {"mtot": 8.0 * L + 100, "crit": 30.0 if opts.crit else 0.0, "crit_mastery": L / 2 if opts.crit else 0.0,
             "rear_mastery": float(L) if opts.rear else 0.0, "dmg_pct": 10.0, "heal_mastery": 0.0, "heal_pct": 0.0, "hp": 25.0 * L + 50, "hp_pct": 30.0,
-            "res": 3.0 * L, "block": 10.0, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "crit_res": 0.0, "rear_res": 0.0, "res_short": 0.0, "will": 0.0, "will_short": 0.0,
+            "res": 3.0 * L, "block": 10.0, "ap": 0.0, "mp": 0.0, "range": 0.0, "wp": 0.0, "lock": 0.0, "dodge": 0.0, "crit_res": 0.0, "rear_res": 0.0, "res_short": 0.0, "res_gap": 0.0, "will": 0.0, "will_short": 0.0,
             "crit_short": 0.0, "range_neg": 0.0, "sec_res_neg": 0.0}
 
 
@@ -57,6 +58,7 @@ def evaluator_features(s: dict[str, int], res_flat: dict[str, int], mtot: int, c
         "will_short": will_short(s["willpower"], opts),
         "will": float(max(WILL_FLOOR, min(WILL_CAP, s["willpower"]))),
         "res_short": float(sum(max(0, res_need(opts) - res_flat[e]) for e in ELEMENTS)) if res_need(opts) else 0.0,
+        "res_gap": res_gap_excess([res_flat[e] for e in ELEMENTS], opts),
         "crit_short": crit_short(s["crit_rate"], opts),
         "range_neg": float(max(0, -s["range"])),
         "sec_res_neg": float(sum(max(0, -s[k]) for k in sec_res_counted(opts))),
@@ -116,6 +118,9 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
             m.AddMaxEquality(sh, [need - bm.res[e], 0])
             shorts.append(sh)
         f["res_short"] = sum(shorts)
+    gap = res_gap(opts)
+    if gap:
+        f["res_gap"] = _gap_excess(bm, gap)
     # moyenne des quatre résistances (plafonnées) : pas besoin d'un équilibre parfait,
     # chaque élément est tiré vers la résistance visée par la pénalité res_short
     f["res4"] = sum(capped)
@@ -155,6 +160,32 @@ def model_features(bm: BuildModel) -> dict[str, Any]:
                 m.Add(eff <= round(cap * decayed(j, cap)) + (cap - j) * (pos - j))
             f[stat] = (eff, cap)   # variable et diviseur (voir linear_objective)
     return f
+
+
+def _gap_excess(bm: BuildModel, gap: int) -> Any:
+    """Écart entre éléments (scoring.res_gap_excess), exact : un booléen par % possible k de l'élément le plus faible.
+    Chaque élément >= gap_bounds(k)[0] (donc k <= le plus faible) ; ce qui dépasse gap_bounds(k)[1] est l'excès. Le
+    modèle choisit k : le plus haut possible (excès minimum), c'est-à-dire le % de l'élément le plus faible."""
+    m = bm.m
+    bounds = bm.res_bounds
+    lo_all = int(min(b[0] for b in bounds.values()))
+    hi_all = int(max(b[1] for b in bounds.values()))
+    k_lo = max(0, res_pct(lo_all))
+    # au-delà de RES_CAP − gap : pas de maximum ; au-delà du plus faible des maximums : k impossible
+    k_hi = max(k_lo, min(RES_CAP - gap, res_pct(min(b[1] for b in bounds.values()))))
+    ks = list(range(k_lo, k_hi + 1))
+    z = {k: m.NewBoolVar(f"gap_k{k}") for k in ks}
+    m.AddExactlyOne(list(z.values()))
+    lims = {k: gap_bounds(k, gap) for k in ks}
+    lo_expr = sum(max(lo_all, lims[k][0]) * z[k] for k in ks)
+    hi_expr = sum(min(hi_all, hi if hi is not None else hi_all) * z[k] for k, (_, hi) in lims.items())
+    out = []
+    for e in ELEMENTS:
+        m.Add(bm.res[e] >= lo_expr)
+        ex = m.NewIntVar(0, max(0, hi_all - min(0, lo_all)), f"gap_{e}")
+        m.Add(ex >= bm.res[e] - hi_expr)
+        out.append(ex)
+    return sum(out)
 
 
 def linear_objective(feat: dict[str, Any], grad: dict[str, float]) -> Any:

@@ -115,6 +115,10 @@ def check_build(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals
     if opts.res_target:
         floor = opts.res_target - opts.res_tol
         add("res", "Résistance visée", worst >= floor, f"élément le plus faible {worst} % (plancher {floor} %)")
+    if opts.res_gap:
+        spread = max(tot.res_pct.values()) - worst
+        add("res_gap", "Résistances équilibrées", spread <= opts.res_gap,
+            f"{spread} % entre l'élément le plus faible et le plus fort (au plus {opts.res_gap} %)")
     if role == "tank":
         need = min(TANK_RES_PCT, opts.res_target - opts.res_tol)   # bas niveau : le maximum atteignable
         add("tank_res", "Résistances de tank", worst >= need, f"élément le plus faible {worst} % (≥ {need} % attendu)")

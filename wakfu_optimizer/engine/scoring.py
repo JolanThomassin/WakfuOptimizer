@@ -99,6 +99,10 @@ DECAYING = ("range",)
 # Pénalité (points de score) par point de résistance fixe manquant sous la résistance visée, par élément :
 # assez forte pour que la cible soit atteinte dès que possible, sans rendre le calcul infaisable sinon.
 RES_SHORT_PENALTY = 1.0   # par point de résistance fixe sous le plancher (cible − écart) : à éviter absolument
+# Écart entre éléments : au plus `res_gap` % entre le plus faible et le plus fort (options.res_gap). Chaque point de
+# résistance fixe au-delà coûte autant qu'un point sous le plancher : un tank à 72 % Eau et 84 % Air prend 1,75 fois
+# plus de dégâts Eau, et l'adversaire vise l'élément faible.
+RES_GAP_PENALTY = 1.0
 # Pénalité par % de critique sous le palier de l'archétype (crit_target) : la formule seule (×1,25 en critique)
 # sous-estime le critique (passifs et sorts qui en dépendent, bonus de critique des sorts) et donnerait des DPS à 10 %.
 CRIT_SHORT_PENALTY = 1.0
@@ -194,6 +198,7 @@ FEATURES: dict[str, float] = {
     "ap": 0.5, "mp": 0.5, "range": 0.5, "wp": 0.5,   # utilité, plafonnée (utility_table)
     "lock": 0.5, "dodge": 0.5, "crit_res": 0.5, "rear_res": 0.5,
     "res_short": 5.0,     # points de résistance manquants sous le plancher, sommés sur les éléments
+    "res_gap": 5.0,       # points de résistance au-delà de l'écart permis avec l'élément le plus faible (res_gap_excess)
     "will": 5.0,          # Volonté bornée [WILL_FLOOR, WILL_CAP]
     "crit_short": 5.0,    # % critique manquant sous le palier de l'archétype
     "range_neg": 0.5,     # Portée sous 0
@@ -223,6 +228,7 @@ def score_parts(f: dict[str, float], opts: object) -> dict[str, float]:
     for k, (v, cap) in utility_table(opts).items():
         out[k] = 100 * v * max(0.0, min(float(f.get(k, 0)), cap))
     out["res_short"] = -RES_SHORT_PENALTY * f.get("res_short", 0.0)
+    out["res_gap"] = -RES_GAP_PENALTY * f.get("res_gap", 0.0)
     out["crit_short"] = -CRIT_SHORT_PENALTY * f.get("crit_short", 0.0)
     out["range_neg"] = -RANGE_NEG_PENALTY * f.get("range_neg", 0.0)
     out["will_short"] = -WILL_SHORT_PENALTY * f.get("will_short", 0.0)
@@ -291,6 +297,27 @@ def res_cap(opts: object) -> int:
     if not 0 < t < 90 or getattr(opts, "res_free", False):
         return RES_CAP_FLAT
     return min(RES_CAP_FLAT, flat_for_pct(t))
+
+
+def res_gap(opts: object) -> int:
+    """Écart maximum (%) entre l'élément le plus faible et le plus fort ; 0 : pas de limite."""
+    return max(0, int(getattr(opts, "res_gap", 0) or 0))
+
+
+def gap_bounds(k: int, gap: int) -> tuple[int, int | None]:
+    """Élément le plus faible à k % (k = 0 : 0 % ou moins) : résistance fixe minimum de chaque élément, et maximum
+    pour rester à moins de `gap` % (None : pas de maximum, k + gap atteint le plafond de 90 %)."""
+    lo = flat_for_pct(k)
+    return lo, (flat_for_pct(k + gap + 1) - 1 if k + gap < RES_CAP else None)
+
+
+def res_gap_excess(flats: list[int], opts: object) -> float:
+    """Points de résistance fixe au-delà de l'écart permis avec l'élément le plus faible, sommés sur les éléments."""
+    gap = res_gap(opts)
+    if not gap:
+        return 0.0
+    _, hi = gap_bounds(max(0, min(res_pct(r) for r in flats)), gap)
+    return 0.0 if hi is None else float(sum(max(0, r - hi) for r in flats))
 
 
 def res_need(opts: object) -> int:

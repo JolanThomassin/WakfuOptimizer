@@ -526,12 +526,14 @@ class BuildModel:
             m.Add(self.mtot == mtot_expr + self.stat("melee_mastery" if opts.range == "melee" else "distance_mastery"))
         # --- résistances
         self.res = {}
+        self.res_bounds: dict[str, tuple[int, int]] = {}   # bornes de chaque résistance (features._gap_excess)
         for e in ELEMENTS:
             lo = acc.lb["elem_res"] + acc.lb[f"{e}_res"]
             hi = acc.ub["elem_res"] + acc.ub[f"{e}_res"] + acc.ub[f"rand_res_{e}"]
             var = m.NewIntVar(lo - 10, hi + 10, f"R_{e}")
             m.Add(var == acc.expr("elem_res") + acc.expr(f"{e}_res") + acc.expr(f"rand_res_{e}"))
             self.res[e] = var
+            self.res_bounds[e] = (lo - 10, hi + 10)
         # --- contraintes minimales
         mins = {"ap": opts.min_ap, "mp": opts.min_mp, "range": opts.min_range, "wp": opts.min_wp,
                 "crit_rate": opts.min_crit, "control": opts.min_control, "block": opts.min_block}

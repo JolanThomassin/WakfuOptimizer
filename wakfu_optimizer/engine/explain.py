@@ -15,13 +15,14 @@ from .archetypes import (ARCHETYPES, PANELS, RES_FULL_LEVEL, Archetype, apt_forc
 from .characteristics import BRANCH_FR, LINE_FR, branch_points, char_lines
 from .options import Build, OptimizeOptions
 from .quality import check_build
-from .scoring import (WILL_SHORT_PENALTY, BLOCK_REDUCTION, DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_SHORT_PENALTY, SEC_RES_NEG_PENALTY, crit_overflow, crit_short, log_score, res_cap, res_need, score_parts,
+from .scoring import (WILL_SHORT_PENALTY, BLOCK_REDUCTION, DECAYING, CRIT_SHORT_PENALTY, RANGE_NEG_PENALTY, RES_GAP_PENALTY, RES_SHORT_PENALTY, SEC_RES_NEG_PENALTY, crit_overflow, crit_short, log_score, res_cap, res_gap_excess, res_need, score_parts,
                       decayed, heal_share, secondary_mastery, utility_table)
 from .stats import Totals, evaluate
 
 FEATURE_FR = {"offense": "Dégâts", "defense": "Survie (PV effectifs)", "ap": "PA", "mp": "PM", "range": "Portée", "wp": "PW", "lock": "Tacle", "dodge": "Esquive",
               "crit_res": "Résistance critique", "rear_res": "Résistance dos", "will_short": "Pénalité : Volonté sous le minimum",
               "will": "Volonté (retraits)", "res_short": "Pénalité : résistance sous le plancher",
+              "res_gap": "Pénalité : écart entre éléments",
               "crit_short": "Pénalité : critique sous le palier", "range_neg": "Pénalité : Portée négative",
               "sec_res_neg": "Pénalité : résistance critique / dos négative"}
 
@@ -41,7 +42,8 @@ def _marginals(opts: OptimizeOptions, tot: Totals) -> list[dict[str, Any]]:
     def res_plus(d: int) -> dict[str, float]:
         flats = [tot.res_flat[e] + d for e in ELEMENTS]
         return {"res": sum(min(r, cap) for r in flats) / 4,
-                "res_short": float(sum(max(0, need - r) for r in flats)) if need else 0.0}
+                "res_short": float(sum(max(0, need - r) for r in flats)) if need else 0.0,
+                "res_gap": res_gap_excess(flats, opts)}
 
     rows = [
         ("Maîtrise utilisée", "+100", gain(mtot=f["mtot"] + 100)),
@@ -120,6 +122,8 @@ def explain(data: GameData, opts: OptimizeOptions, build: Build, tot: Totals) ->
         {"label": "Résistance visée", "value": (f"{opts.res_target} % ± {opts.res_tol} (−{RES_SHORT_PENALTY:g} point par point "
                                                  f"de résistance sous le plancher)" + (" ; compte encore au-delà" if opts.res_free else ""))
          if opts.res_target else "aucune", "src": src("priorities")},
+        {"label": "Écart entre éléments", "value": (f"{opts.res_gap} % au plus (−{RES_GAP_PENALTY:g} point par point "
+                                                     "de résistance au-delà)") if opts.res_gap else "libre", "src": "archétype"},
         {"label": "Minimums", "value": ", ".join(f"{v} {lab}" for v, lab in ((opts.min_ap, "PA"), (opts.min_mp, "PM"),
                                                                            (opts.min_range, "PO"), (opts.min_wp, "PW"),
                                                                            (opts.min_crit, "% crit"), (opts.min_block, "% parade")) if v)
