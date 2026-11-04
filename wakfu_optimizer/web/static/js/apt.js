@@ -85,6 +85,8 @@ function showTab(name) {
   $("#tab-items").classList.toggle("hidden", name !== "items");
   $("#tab-explain").classList.toggle("hidden", name !== "explain");
   $("#tab-weights").classList.toggle("hidden", name !== "weights");
+  $("#tab-team").classList.toggle("hidden", name !== "team");
+  if (name === "team") loadTeamTab();
   if (name === "weights") loadWeights();
   if (name === "items") { loadItemsTab(); renderPicked(); }
   $("#result").classList.toggle("hidden", name !== "build");

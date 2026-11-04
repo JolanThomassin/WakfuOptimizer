@@ -787,3 +787,44 @@ body[data-lang="pt"] .switch input:checked ~ .sw-txt::after { content: "Ativado"
 .debug-btn { opacity: .45; filter: grayscale(1); }
 .debug-btn.on { opacity: 1; filter: none; border-color: var(--accent); }
 
+
+/* ----- onglet Team Builder */
+.team-layout { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 14px; align-items: start; }
+.team-picks { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.team-pick { display: flex; align-items: center; gap: 8px; background: var(--card-hi); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.team-pick .class-icon { width: 34px; height: 34px; flex: none; }
+.team-pick-sel { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.team-pick-sel select { width: 100%; }
+.team-out { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.team-alts button { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.team-alts small { font-size: 11px; opacity: .8; }
+.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.team-member { display: flex; flex-direction: column; gap: 8px; }
+.team-member.picked { border-color: var(--accent); }
+.team-member > .btn { margin-top: auto; align-self: flex-start; }
+.tm-head { display: flex; align-items: center; gap: 10px; }
+.tm-icon { width: 44px; height: 44px; border-radius: 8px; background: var(--card-hi); flex: none; }
+.tm-name { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.tm-name b { font-size: 15px; }
+.tm-name span { color: var(--muted); font-size: 12.5px; }
+.tm-roles { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.tm-el { width: 18px; height: 18px; }
+.tm-el.off { opacity: .22; filter: grayscale(1); }
+.tm-traits { display: flex; flex-wrap: wrap; gap: 4px; }
+.tm-traits .chip { padding: 2px 7px; font-weight: 500; }
+.tm-why { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); }
+.role-badge { font-size: 11px; font-weight: 700; border-radius: 9px; padding: 1px 8px; color: #15131c; }
+.role-badge.r-tank { background: #7fb2ff; }
+.role-badge.r-heal { background: #7ddc7d; }
+.role-badge.r-support { background: #c9a2ff; }
+.role-badge.r-dps { background: #ff9a6a; }
+.team-sum { display: flex; flex-direction: column; gap: 8px; }
+.tm-sum-row { display: flex; align-items: center; gap: 10px; }
+.tm-sum-row.wrap { flex-wrap: wrap; gap: 6px 10px; }
+.tm-sum-row > .muted { width: 70px; flex: none; font-size: 12.5px; }
+.tm-sum-role { display: flex; align-items: center; gap: 5px; }
+.tm-trait { font-size: 12.5px; }
+.tm-trait.on { color: var(--good); }
+.tm-trait.off { color: var(--muted); opacity: .7; }
+.tm-warn { margin: 0; color: var(--accent-hi); font-size: 12.5px; }
+@media (max-width: 900px) { .team-layout { grid-template-columns: 1fr; } }

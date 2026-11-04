@@ -140,6 +140,7 @@
       <button class="tab" data-tab="apt">Aptitudes <span id="apt-badge" class="badge">auto</span></button>
       <button class="tab" data-tab="subs">Sublimations <span id="subs-badge" class="badge hidden"></span></button>
       <button class="tab" data-tab="items">Items <span id="items-badge" class="badge hidden"></span></button>
+      <button class="tab" data-tab="team">Team Builder</button>
       <button class="tab debug-only" data-tab="weights">Poids <span id="weights-badge" class="badge">archétype</span></button>
       <button class="tab debug-only" data-tab="explain" disabled title="Disponible après une optimisation : ce que le calcul a privilégié">Explication <span id="explain-badge" class="badge hidden"></span></button>
     </nav>
@@ -186,6 +187,32 @@
           <section class="card"><h2>Exclus <span class="muted" id="it-ex-n"></span></h2>
             <p class="hint">Jamais proposés (ceux que vous n'avez pas ou ne voulez pas).</p><div id="it-ex" class="it-picked"></div></section>
         </aside>
+      </div>
+    </div>
+    <div id="tab-team" class="tab-page hidden">
+      <div class="team-layout">
+        <section class="card team-side">
+          <h2>Team Builder</h2>
+          <p class="hint" style="margin:-6px 0 12px">Choisissez un ou plusieurs personnages : l'équipe est complétée avec les classes
+            et archétypes qui s'accordent le mieux avec eux (rôles, placement, retraits, boosts, éléments).</p>
+          <div class="field"><label>Taille de l'équipe</label>
+            <div class="seg" id="team-size"><button data-v="3">3 personnages</button><button data-v="6">6 personnages</button></div></div>
+          <div class="field"><label>Style d'équipe</label>
+            <div class="seg three" id="team-style"><button data-v="balanced" title="Un tank, un soigneur, des supports et des DPS">Équilibrée</button><button data-v="offense" title="Plus de DPS, moins de tanks">Offensive</button><button data-v="defense" title="Tanks et soigneurs en renfort">Défensive</button></div></div>
+          <div class="field"><label>Vos personnages <span class="muted" id="team-n"></span></label>
+            <div id="team-picks" class="team-picks"></div>
+            <button class="btn small" id="team-add" type="button">+ Ajouter un personnage</button>
+            <p class="hint">Archétype « Auto » : le plus utile à l'équipe parmi ceux que la classe joue d'habitude.</p></div>
+          <label class="check"><input type="checkbox" id="team-dup"><span>Autoriser plusieurs fois la même classe</span></label>
+          <button class="btn primary" id="team-go" type="button" style="width:100%;margin-top:6px">Composer l'équipe</button>
+        </section>
+        <div id="team-out" class="team-out">
+          <div class="empty">
+            <img src="assets/stats/quadrumental_breeze.png" alt="">
+            <p>Ajoutez vos personnages à gauche, puis cliquez sur <b>Composer l'équipe</b>.</p>
+            <p class="muted">Ensuite, « Optimiser » sur un membre de l'équipe calcule son build.</p>
+          </div>
+        </div>
       </div>
     </div>
     <div id="tab-explain" class="tab-page hidden"></div>
@@ -268,6 +295,7 @@
 <script src="static/js/explain.js"></script>
 <script src="static/js/weights.js"></script>
 <script src="static/js/items.js"></script>
+<script src="static/js/team.js"></script>
 <script src="static/js/main.js"></script>
 </body>
 </html>

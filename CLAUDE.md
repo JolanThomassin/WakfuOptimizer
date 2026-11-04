@@ -18,6 +18,7 @@ interface et messages de commit en français.
 | Le calcul exact des stats d'un build | `engine/stats.py` (`evaluate`) |
 | Les contrôles « ce build a du sens » | `engine/quality.py` (tests + onglet Explication) |
 | L'onglet Explication | `engine/explain.py` (Python) + `web/static/js/explain.js` |
+| L'onglet Team Builder (composition d'équipe) | `engine/team.py` (rôles, apports, recherche) + `web/static/js/team.js` ; apports de chaque classe : `team` dans `game.yaml` |
 | Une réponse JSON de l'interface | `web/views.py` ; nouvelle requête : une ligne dans `ROUTES` (marche en local et en ligne) |
 | L'interface | `web/static/js/<onglet>.js`, `index.html`, `style.css` |
 | Une traduction (EN / ES / PT) d'un texte affiché | `web/static/js/i18n_dict.js` ; effets de sublimations et passifs : `i18n_subs.js` |

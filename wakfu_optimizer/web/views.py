@@ -36,6 +36,7 @@ from ..engine.report import SLOT_ORDER, build_json, build_text
 from ..engine.scoring import damage_multiplier, removal_factor
 from ..engine.stats import Totals, evaluate, rescore
 from ..engine.weights import weights_view
+from ..engine.team import team_view
 from ..engine.sublimations import SubFamily, build_levels, catalog, condition_failed, sub_alternatives
 
 
@@ -357,4 +358,5 @@ ROUTES: dict[tuple[str, str], Route] = {
     ("POST", "/api/alternatives"): lambda d, q, body: alternatives_view(d, body),
     ("POST", "/api/subs"): lambda d, q, body: subs_view(d, body),
     ("POST", "/api/sub_alternatives"): lambda d, q, body: sub_alternatives_view(d, body),
+    ("POST", "/api/team"): lambda d, q, body: team_view(d, body),
 }
